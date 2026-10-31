@@ -39,4 +39,4 @@ Las instrucciones de los pasos 3 y 4 se confirman cuando se agregue cada proyect
 - Frontend: `npm test` dentro de `frontend/`.
 
 ## Integrantes
-Dayron Quiñonez, Jose Ponce, Luis Anchundia, Estalin Jaen, Oscar Gonzbay.
+Dayron Quiñonez, Jose Ponce, Luis Anchundia, Estalin Jaen, Oscar Gonzabay.
