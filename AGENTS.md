@@ -33,9 +33,10 @@ No leas ni resumas documentos largos del repositorio fuera de esa lista. Todo lo
 - Cada tarea trae sus pruebas (backend con `go test`, frontend con Vitest).
 
 ## Flujo de trabajo
-- Una rama por issue desde `main`: `feat/<tema>`, `fix/<tema>`, `docs/<tema>`, `test/<tema>`.
+- La rama de integración es `develop`. `main` queda solo para versiones estables y despliegue.
+- Una rama por issue desde `develop`: `feat/<tema>`, `fix/<tema>`, `docs/<tema>`, `test/<tema>`.
 - Commits pequeños con Conventional Commits en inglés (`feat: add login endpoint`).
-- No se hace push directo a `main`: todo entra por Pull Request con la plantilla del repo, enlazando la issue.
+- No se hace push directo a `develop` ni a `main`: todo entra por Pull Request hacia `develop`, con la plantilla del repo, enlazando la issue.
 - Un PR toca solo los archivos de su issue. Si hay conflicto, se resuelve en la rama del PR.
 
 ## Registro de uso de IA (obligatorio)
