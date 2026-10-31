@@ -1,0 +1,4 @@
+-- Datos semilla de la división política (países, provincias y cantones).
+-- Pendiente: se completa en su issue con los datos del requerimiento
+-- (lista de países, 24 provincias de Ecuador y sus cantones).
+-- Se carga después de db/schema.sql al levantar PostgreSQL con docker-compose.
