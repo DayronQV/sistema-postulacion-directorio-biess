@@ -38,6 +38,11 @@ docker-compose.yml
 ## Capas del backend
 `handler → service → repository`. Cada capa depende de **interfaces** definidas en `domain/`. `main.go` es el único lugar que conoce las implementaciones concretas. Los servicios se prueban con repositorios falsos, sin base de datos.
 
+## Contexto, timeout y errores de la petición
+- **Timeout:** el middleware pone un plazo en `c.Request.Context()` (`REQUEST_TIMEOUT_SECONDS`). Los handlers pasan siempre ese contexto al servicio, y el servicio a los repositorios (pgx y go-redis). Si se usa `context.Background()`, la consulta ignora el timeout. El middleware solo responde cuando el handler vuelve; no interrumpe código que no mira el contexto.
+- **Cuerpo JSON:** los handlers lo leen con `middleware.BindJSON(c, &req)`. Un JSON mal formado, un tipo incorrecto o un campo `binding` inválido responde 400 `VALIDATION_ERROR` con `fields`, nunca 500.
+- **Errores:** los servicios devuelven errores de `domain` (`domain.Validation`, `domain.NotFound`, ...) y el handler llama a `middleware.Fail(c, err)`. Una petición cancelada por el cliente (`context.Canceled`) no se registra como error interno.
+
 ## Transacciones
 `PostulacionService.Guardar` abre una transacción en el repositorio (`BEGIN`), escribe `postulaciones`, `postulacion_familiares` y lo que se agregue, y hace `COMMIT`; ante cualquier error hace `ROLLBACK`. Ninguna escritura parcial es válida.
 

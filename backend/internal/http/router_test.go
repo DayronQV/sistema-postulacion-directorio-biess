@@ -22,6 +22,13 @@ import (
 
 func init() { gin.SetMode(gin.TestMode) }
 
+// bindReq simula el cuerpo de un endpoint real, con validaciones `binding`.
+type bindReq struct {
+	Cedula string `json:"cedula" binding:"required"`
+	Email  string `json:"email" binding:"required,email"`
+	Edad   int    `json:"edad"`
+}
+
 // newTestRouter arma el router real con rutas de prueba que simulan lo que harán los
 // módulos: devolver errores de dominio, fallar o tardar.
 func newTestRouter(timeout time.Duration) *gin.Engine {
@@ -41,6 +48,23 @@ func newTestRouter(timeout time.Duration) *gin.Engine {
 			middleware.Fail(c, errors.New("password authentication failed for user biess"))
 		})
 		api.GET("/panic", func(c *gin.Context) { panic("boom") })
+		// Handler que usa el helper BindJSON.
+		api.POST("/bind", func(c *gin.Context) {
+			var req bindReq
+			if !middleware.BindJSON(c, &req) {
+				return
+			}
+			c.JSON(nethttp.StatusOK, gin.H{"cedula": req.Cedula})
+		})
+		// Handler que pasa el error de Gin tal cual, sin usar el helper.
+		api.POST("/rawbind", func(c *gin.Context) {
+			var req bindReq
+			if err := c.ShouldBindJSON(&req); err != nil {
+				middleware.Fail(c, err)
+				return
+			}
+			c.JSON(nethttp.StatusOK, gin.H{"ok": true})
+		})
 		api.GET("/slow", func(c *gin.Context) {
 			select {
 			case <-c.Request.Context().Done():
@@ -63,6 +87,14 @@ func do(r *gin.Engine, method, path string, headers map[string]string) *httptest
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
+}
+
+func doJSON(r *gin.Engine, path, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest("POST", path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	return w
@@ -139,6 +171,51 @@ func TestPanicIsRecoveredAsInternalError(t *testing.T) {
 	}
 	if strings.Contains(w.Body.String(), "boom") {
 		t.Fatal("el 500 expone el valor del pánico")
+	}
+}
+
+// Un cuerpo inválido es un error del cliente (400 con `fields`), nunca un 500.
+func TestInvalidBodyIsBadRequestNotInternalError(t *testing.T) {
+	r := newTestRouter(time.Second)
+	cases := []struct {
+		name    string
+		path    string
+		body    string
+		fields  []string
+		message string
+	}{
+		{"JSON truncado", "/api/v1/bind", `{"cedula": `, nil, "no es un JSON válido"},
+		{"JSON con sintaxis inválida", "/api/v1/bind", `{cedula: 1}`, nil, "no es un JSON válido"},
+		{"cuerpo vacío", "/api/v1/bind", ``, nil, "vacío"},
+		{"campos obligatorios ausentes", "/api/v1/bind", `{}`, []string{"cedula", "email"}, "Datos inválidos"},
+		{"correo con formato inválido", "/api/v1/bind", `{"cedula":"1","email":"x"}`, []string{"email"}, "Datos inválidos"},
+		{"tipo de dato incorrecto", "/api/v1/bind", `{"cedula":"1","email":"a@b.com","edad":"mucha"}`, []string{"edad"}, "Datos inválidos"},
+		{"sin el helper: JSON truncado", "/api/v1/rawbind", `{"cedula": `, nil, "no es un JSON válido"},
+		{"sin el helper: campos ausentes", "/api/v1/rawbind", `{}`, []string{"cedula", "email"}, "Datos inválidos"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			w := doJSON(r, c.path, c.body)
+			if w.Code != 400 {
+				t.Fatalf("status = %d, se esperaba 400: %s", w.Code, w.Body.String())
+			}
+			e := decodeError(t, w)
+			if e.Code != "VALIDATION_ERROR" || !strings.Contains(e.Message, c.message) {
+				t.Fatalf("cuerpo incorrecto: %+v", e)
+			}
+			for _, f := range c.fields {
+				if e.Fields[f] == "" {
+					t.Errorf("falta el campo %q en fields: %v", f, e.Fields)
+				}
+			}
+		})
+	}
+}
+
+func TestValidBodyPassesBinding(t *testing.T) {
+	w := doJSON(newTestRouter(time.Second), "/api/v1/bind", `{"cedula":"1712345675","email":"a@b.com"}`)
+	if w.Code != 200 {
+		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
 }
 

@@ -26,6 +26,17 @@ type container struct {
 // Para sumar un módulo: crear su función de cableado (por ejemplo authRoutes(c) en
 // wire_auth.go, que construye repositorios, servicio y handler) y agregar una línea
 // a la lista. Es el único lugar de composición, junto con main.go.
+//
+// Dónde va cada pieza de un módulo:
+//   - Interfaces de repositorio (los puertos) y entidades: internal/domain. El servicio
+//     depende solo de estas interfaces, nunca de pgx ni de go-redis.
+//   - Implementaciones de los repositorios: internal/repository/postgres y
+//     internal/repository/redis. El cableado les entrega c.db o c.redis.
+//   - Servicios (casos de uso): internal/service. Sin HTTP ni SQL.
+//   - Handlers y rutas: internal/http/handler y internal/http/routes_<modulo>.go.
+//
+// Los handlers pasan siempre c.Request.Context() al servicio, y este a los
+// repositorios: así el timeout por petición cancela las consultas.
 func modules(_ *container) []apihttp.RouteRegistrar {
 	return []apihttp.RouteRegistrar{
 		// authRoutes(c),

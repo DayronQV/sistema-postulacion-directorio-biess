@@ -31,6 +31,8 @@ type Deps struct {
 // para cubrir todo; la recuperación de pánicos y el traductor de errores envuelven a
 // los handlers; CORS responde las preflight antes de llegar a ellos.
 func NewRouter(d Deps) *gin.Engine {
+	middleware.RegisterJSONFieldNames()
+
 	r := gin.New()
 	// Sin proxies de confianza: la IP del cliente es la de la conexión directa.
 	_ = r.SetTrustedProxies(nil)

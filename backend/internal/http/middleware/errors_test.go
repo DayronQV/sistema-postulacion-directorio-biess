@@ -29,6 +29,7 @@ func TestTranslate(t *testing.T) {
 		{"locked", domain.Locked("bloqueado", time.Minute), 429, "LOCKED", "bloqueado", false},
 		{"wrapped with %w", fmt.Errorf("servicio: %w", domain.NotFound("no existe")), 404, "NOT_FOUND", "no existe", false},
 		{"bare sentinel uses default message", domain.ErrNotFound, 404, "NOT_FOUND", "Recurso no encontrado", false},
+		{"client canceled is not an internal error", fmt.Errorf("consulta: %w", context.Canceled), 499, "INTERNAL_ERROR", "La solicitud fue cancelada", false},
 		{"unknown error", errors.New("pq: connection refused"), 500, "INTERNAL_ERROR", "Error interno del servidor", true},
 		{"deadline exceeded", fmt.Errorf("consulta: %w", context.DeadlineExceeded), 500, "INTERNAL_ERROR", "La solicitud tardó demasiado. Inténtelo nuevamente", true},
 	}

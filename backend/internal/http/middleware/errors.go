@@ -40,6 +40,10 @@ type ErrorPayload struct {
 	RetryAfterSeconds int               `json:"retry_after_seconds,omitempty"`
 }
 
+// statusClientClosedRequest es el estado (no estándar, usado por nginx) para una
+// petición que el cliente canceló antes de recibir la respuesta.
+const statusClientClosedRequest = 499
+
 type kind struct {
 	base    error
 	status  int
@@ -77,6 +81,18 @@ func Translate(err error) (status int, body ErrorBody, internal bool) {
 			}
 		}
 		return k.status, ErrorBody{Error: payload}, false
+	}
+
+	// Un cuerpo JSON mal formado o inválido es un error del cliente (400), no del
+	// servidor, aunque el handler haya pasado el error de Gin sin convertirlo.
+	if verr := bindingError(err); verr != nil {
+		return Translate(verr)
+	}
+
+	// El cliente cerró la conexión antes de recibir la respuesta: nadie la leerá y no
+	// es un fallo del servidor, así que no se registra como error interno.
+	if errors.Is(err, context.Canceled) {
+		return statusClientClosedRequest, ErrorBody{Error: ErrorPayload{Code: CodeInternal, Message: "La solicitud fue cancelada"}}, false
 	}
 
 	message := "Error interno del servidor"
