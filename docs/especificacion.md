@@ -3,8 +3,8 @@
 Resumen fiel del requerimiento funcional del IESS v1.4. El enunciado del examen solo evalúa EF-11 y EF-12; el resto del documento está resumido aquí para poder abordarlo después.
 
 - **P1 (obligatorio, es lo que califica la rúbrica):** EF-11 y EF-12 completos.
-- **P2 (opcional, después de P1):** módulo de administración (EF-14).
-- **P3 (opcional, después de P2):** banco de preguntas y evaluación teórica.
+- **P2 (opcional, después de P1):** módulo de administración (EF-13).
+- **P3 (opcional, después de P2):** banco de preguntas y evaluación teórica (EF-14).
 
 ## Roles
 - **Postulante** (usuario externo).
@@ -107,7 +107,7 @@ Botón Agregar. Tipo de evento (Curso, Seminario, Taller), nombre, institución,
 
 ---
 
-## P2. EF-14: Módulo de administración
+## P2. EF-13: Módulo de administración
 Para Analista y Administrador.
 1. **Publicar cada fase** del concurso.
 2. **Habilitar** el apartado EF-12 "Formulario de Postulación".
@@ -115,7 +115,7 @@ Para Analista y Administrador.
 4. **Detalle de postulantes históricos:** al abrir una postulación cerrada, se muestra la nómina completa y el detalle íntegro del formulario de cada postulante, con **descarga de certificados** y **calculadora de experiencia**.
 5. **Generación de matriz:** exportar a **Excel (.xlsx)** y **PDF** el cuadro comparativo de postulantes.
 
-## P3. Banco de preguntas y evaluación teórica
+## P3. EF-14: Banco de preguntas y evaluación teórica
 - El campo está **bloqueado y oculto** al público; solo accede quien superó la **Fase de Méritos** (su estado pasa a "Evaluación Técnica"), en la fecha y hora que el administrador habilite.
 - El administrador **carga el banco de preguntas** de opción múltiple y la matriz de respuestas correctas.
 - Al iniciar sesión el postulante habilitado en el horario programado, el motor **sortea un número parametrizado** de preguntas del banco: examen único y en distinto orden por postulante.

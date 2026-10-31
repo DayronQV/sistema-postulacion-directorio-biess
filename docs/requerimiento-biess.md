@@ -79,7 +79,7 @@ La Disposición Transitoria Primera otorga un término de 30 días posteriores a
 
 ### ACCIÓN: Registrar postulantes y autenticar su acceso
 
-*Marcador al margen en el documento (página 3): "EF-12".*
+*Código "EF-12" en la columna izquierda, al inicio de la página 3. Su posición exacta frente a las acciones no está confirmada; el propio documento llama EF-12 al "Formulario de Postulación".*
 
 **DETALLE:**
 
@@ -229,8 +229,6 @@ El sistema en función de las fechas ingresadas calculará automáticamente la e
     - 1.7.1.7.1.3 "Fecha finalización:
     - 1.7.1.7.1.4 "Motivo finalización: *"
 
-*Marcador al margen en el documento (página 8): "EF-13".*
-
 - 1.9.8 ¿Mantiene obligaciones pendientes con el SRI? Opciones de selección "Si/No"
 - 1.9.9 ¿Ha incurrido en los últimos 5 años en castigo de sus obligaciones por parte de cualquier institución financiera? Opciones de selección "Si/No"
 - 1.9.10 ¿Actualmente se encuentra litigando en contra del IESS- BIESS? Opciones de selección "Si/No"
@@ -264,7 +262,7 @@ Reglas generales del formulario:
 
 ### ACCIÓN: Modulo administración
 
-*Marcador al margen en el documento (página 8): "EF-14".*
+*Código en la columna izquierda, a la altura de este encabezado (página 8): "EF-13".*
 
 **DETALLE:**
 
@@ -276,6 +274,8 @@ Reglas generales del formulario:
    - Generación de Matriz: este botón para exportar en excel (.xlsx) y PDF el cuadro comparativo de postulantes
 
 ### ACCIÓN: Modulo Gestión del Banco de Preguntas y Aplicación de la Evaluación Teórica
+
+*Código en la columna izquierda, a la altura de este encabezado (página 9): "EF-14".*
 
 1. El módulo administración contará con un campo de "Gestión del Banco de Preguntas y Aplicación de la Evaluación Teórica" este permanecerá bloqueado y oculto para el público general, el sistema habilitará el acceso única y exclusivamente a los postulantes que hayan superado la Fase de Méritos, cambiando su estado en el módulo del postulante a "Evaluación Técnica" siendo activada la fecha y hora que el administrador lo habilite.
    - 1.1 El administrador cargará el banco de preguntas de opción múltiple.
