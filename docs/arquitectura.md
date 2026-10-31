@@ -59,7 +59,17 @@ Un login correcto borra los contadores de fallo de esa cédula.
 - `paises`, `provincias`, `cantones`: catálogos con claves foráneas encadenadas.
 - `postulantes`: cédula única, correo único, hash de contraseña (bcrypt).
 - `postulaciones`: una por postulante, con código único, estado (`borrador`, `enviada`, `cerrada`), cargo, datos personales y domiciliarios.
-- `postulacion_familiares`: familiares en IESS/BIESS (0..n por postulación).
+- Tablas hijas de `postulaciones` (0..n): `postulacion_familiares`, `formacion_academica`, `experiencia_profesional`, `publicaciones`, `capacitaciones` y `postulacion_inhabilidades` (una fila por pregunta, con `detalle` JSON para la pregunta 7).
+- `documentos`: PDF guardados como `BYTEA` en la base (los hosts gratuitos no tienen disco persistente). El servidor valida tipo PDF, tamaño por documento y 50 MB por postulante.
+- `usuarios_admin`: analistas y administradores sembrados, con rol.
+- `fases`: fases del concurso y bandera de habilitación del formulario.
+- Evaluación: `eval_config`, `eval_preguntas` (con opciones y respuesta correcta), `eval_intentos` (preguntas sorteadas, hora de cierre, nota) y `eval_respuestas`.
+
+## Archivos, exportaciones y evaluación
+- Subida de PDF por `multipart/form-data`; el tamaño máximo se aplica con `http.MaxBytesReader` antes de leer el cuerpo.
+- Exportaciones: Excel con `excelize` y PDF con `maroto` o `gofpdf` (la librería se confirma en su issue).
+- Evaluación: el servidor guarda la hora de cierre y es la autoridad del tiempo; el reloj del navegador es solo informativo. El bloqueo de "Atrás" y de copiar/pegar es una ayuda del frontend, no una garantía de seguridad.
+- Roles: `postulante`, `analista`, `administrador`. El middleware de autorización valida el rol en cada ruta.
 
 ## Autenticación
 JWT firmado, expiración corta, enviado como `Authorization: Bearer`. Contraseñas con bcrypt.
