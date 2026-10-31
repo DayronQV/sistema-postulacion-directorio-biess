@@ -11,7 +11,8 @@ Proyecto: examen práctico de Frameworks de Programación Web. Módulo de regist
 No leas ni resumas documentos largos del repositorio fuera de esa lista. Todo lo necesario ya está condensado arriba; leer de más cuesta tokens y no mejora el resultado.
 
 ## Alcance
-- Se implementa **todo** el requerimiento de `docs/especificacion.md`, en este orden: P1 (EF-11 y EF-12, lo que califica la rúbrica), P2 (módulo de administración) y P3 (banco de preguntas y evaluación teórica).
+- **P1 es obligatorio:** EF-11 y EF-12 completos (`docs/especificacion.md`). Es lo único que califica la rúbrica del examen; se termina, se prueba y se pule antes de tocar otra cosa.
+- **P2 y P3 son opcionales y van después de P1, en ese orden:** módulo de administración y banco de preguntas con evaluación teórica. Se arrancan solo si P1 está terminado y el grupo lo decide.
 - Fuera de alcance: integraciones reales (Registro Civil, Historial Laboral, correo, firma electrónica); se simulan.
 - Trabajá solo en lo que dice tu issue. Si ves algo que arreglar fuera de ella, abrí otra issue; no lo cambies.
 - Sin dependencias nuevas, sin cambiar el stack y sin modificar los contratos (`docs/api.md`, `db/schema.sql`) sin una issue que lo apruebe.

@@ -1,10 +1,10 @@
 # Especificación condensada (requerimiento completo)
 
-Resumen fiel del requerimiento funcional del IESS v1.4. **Se implementa todo el documento.** Las prioridades indican el orden de trabajo, no qué se omite:
+Resumen fiel del requerimiento funcional del IESS v1.4. El enunciado del examen solo evalúa EF-11 y EF-12; el resto del documento está resumido aquí para poder abordarlo después.
 
-- **P1 (lo que califica la rúbrica del examen):** EF-11 y EF-12 completos.
-- **P2:** módulo de administración (EF-14).
-- **P3:** banco de preguntas y evaluación teórica.
+- **P1 (obligatorio, es lo que califica la rúbrica):** EF-11 y EF-12 completos.
+- **P2 (opcional, después de P1):** módulo de administración (EF-14).
+- **P3 (opcional, después de P2):** banco de preguntas y evaluación teórica.
 
 ## Roles
 - **Postulante** (usuario externo).
