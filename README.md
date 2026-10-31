@@ -10,7 +10,7 @@ Módulo de registro y postulación del Concurso Público de Méritos y Oposició
 - [Registro de uso de IA](docs/ia/README.md)
 
 ## Prerrequisitos
-- Go 1.22 o superior
+- Go 1.26 o superior
 - Node.js 20 o superior
 - Docker y Docker Compose (para PostgreSQL 16 y Redis 7)
 
@@ -23,16 +23,19 @@ Módulo de registro y postulación del Concurso Público de Méritos y Oposició
    ```bash
    docker compose up -d
    ```
-3. Backend (cuando exista `backend/`):
+3. Backend (lee el `.env` de la raíz; si ya definiste una variable en tu entorno, esa tiene prioridad):
    ```bash
    cd backend && go run ./cmd/api
    ```
+   Comprobar que responde: `curl http://localhost:8080/health` devuelve `{"status":"ok"}`.
 4. Frontend (cuando exista `frontend/`):
    ```bash
    cd frontend && npm install && npm run dev
    ```
 
-Las instrucciones de los pasos 3 y 4 se confirman cuando se agregue cada proyecto.
+Si el puerto 5432 de tu máquina ya está ocupado por otro PostgreSQL, cambia `POSTGRES_PORT` y el puerto de `DATABASE_URL` en tu `.env` (por ejemplo a 5433).
+
+La instrucción del paso 4 se confirma cuando se agregue el frontend.
 
 ## Pruebas
 - Backend: `go test ./...` dentro de `backend/`.
