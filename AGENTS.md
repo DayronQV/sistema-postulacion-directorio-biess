@@ -39,9 +39,6 @@ No leas ni resumas documentos largos del repositorio fuera de esa lista. Todo lo
 - No se hace push directo a `develop` ni a `main`: todo entra por Pull Request hacia `develop`, con la plantilla del repo, enlazando la issue.
 - Un PR toca solo los archivos de su issue. Si hay conflicto, se resuelve en la rama del PR.
 
-## Registro de uso de IA (obligatorio)
-Cada sesión con IA deja un archivo en `docs/ia/<usuario-github>/AAAA-MM-DD-tema.md`, con la plantilla de `docs/ia/plantilla.md`. Esa carpeta se versiona y nunca va en `.gitignore`.
-
 ## Barra de calidad (rúbrica del examen, 40 puntos)
 | Criterio | Pts | Qué se evidencia |
 | --- | --- | --- |

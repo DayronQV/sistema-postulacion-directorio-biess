@@ -20,4 +20,3 @@ Secciones de `docs/especificacion.md`, `docs/arquitectura.md` o `docs/api.md` qu
 - [ ] Comportamiento implementado según el contrato
 - [ ] Validación y errores en el formato de `docs/api.md`
 - [ ] Pruebas escritas y en verde
-- [ ] Registro de IA en `docs/ia/<usuario>/`
