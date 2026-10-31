@@ -38,6 +38,7 @@ No leas ni resumas documentos largos del repositorio fuera de esa lista. Todo lo
 - Commits pequeños con Conventional Commits en inglés (`feat: add login endpoint`).
 - No se hace push directo a `develop` ni a `main`: todo entra por Pull Request hacia `develop`, con la plantilla del repo, enlazando la issue.
 - Un PR toca solo los archivos de su issue. Si hay conflicto, se resuelve en la rama del PR.
+- Revisión en círculo: al abrir un PR, GitHub pide la revisión automáticamente a la persona que toca según el autor (Dayron → José → Luis → Estalin → Gualter → Dayron). Basta 1 aprobación, y cualquiera de los cinco puede aprobar y unir; nadie aprueba su propio PR.
 
 ## Registro de uso de IA (obligatorio)
 Cada sesión con IA deja un archivo en `docs/ia/<usuario-github>/AAAA-MM-DD-tema.md`, con la plantilla de `docs/ia/plantilla.md`. Esa carpeta se versiona y nunca va en `.gitignore`.
