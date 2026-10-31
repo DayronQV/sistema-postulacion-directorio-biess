@@ -7,6 +7,7 @@ Módulo de registro y postulación del Concurso Público de Méritos y Oposició
 - [Especificación condensada](docs/especificacion.md)
 - [Arquitectura](docs/arquitectura.md)
 - [Contrato de la API](docs/api.md)
+- [Registro de prompts](docs/ia/README.md)
 
 ## Prerrequisitos
 - Go 1.22 o superior
