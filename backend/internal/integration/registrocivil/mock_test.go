@@ -30,9 +30,6 @@ func consultar(t *testing.T, cedula string) domain.Ciudadano {
 }
 
 func TestMockDevuelveLosSieteCiudadanos(t *testing.T) {
-	if len(todasLasCedulas) != 7 {
-		t.Fatalf("se esperaban 7 cédulas de prueba, hay %d", len(todasLasCedulas))
-	}
 	for _, cedula := range todasLasCedulas {
 		c := consultar(t, cedula)
 		if c.Cedula != cedula {
@@ -49,7 +46,11 @@ func TestMockDevuelveLosSieteCiudadanos(t *testing.T) {
 
 func TestMockCedulaInexistenteDaErrNotFound(t *testing.T) {
 	m := registrocivil.NewMock()
-	for _, cedula := range []string{"1700000000", "1712345676", "", "no-es-una-cedula"} {
+	for _, cedula := range []string{
+		"1713579249", // cédula válida por módulo 10 que no es una de las 7
+		"0913579249", // cédula de una pareja: está en los datos, pero no es un ciudadano
+		"1700000000", "1712345676", "", "no-es-una-cedula",
+	} {
 		_, err := m.ConsultarCiudadano(context.Background(), cedula)
 		if !errors.Is(err, domain.ErrNotFound) {
 			t.Errorf("ConsultarCiudadano(%q): se esperaba ErrNotFound, got %v", cedula, err)

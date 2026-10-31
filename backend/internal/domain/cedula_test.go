@@ -30,18 +30,19 @@ func TestCedulaValida(t *testing.T) {
 		{"9 dígitos", "171234567", false},
 		{"11 dígitos", "17123456750", false},
 		{"con letras", "17123456A5", false},
+		// Cadenas de 10 bytes con un carácter que no es dígito: fallan por el chequeo
+		// de dígitos y no por la longitud.
 		{"con espacio al inicio", " 171234567", false},
-		{"con guion", "171234567-5", false},
-		{"dígitos de ancho completo", "１７１２３４５６７５", false},
+		{"con guion al final", "171234567-", false},
+		{"con carácter no ASCII (2 bytes)", "17123456é", false},
 
-		// Provincia
-		{"provincia 00", "0012345675", false},
-		{"provincia 25", "2512345678", false},
-		{"provincia 30", "3012345670", false},
-
-		// Tercer dígito
-		{"tercer dígito 6", "1762345670", false},
-		{"tercer dígito 9", "1792345670", false},
+		// Provincia y tercer dígito: todas estas cédulas tienen el dígito verificador
+		// CORRECTO, así que lo único que las hace inválidas es la regla que nombran.
+		{"provincia 00", "0012345674", false},
+		{"provincia 25", "2512345675", false},
+		{"provincia 30", "3012345678", false},
+		{"tercer dígito 6", "1762345674", false},
+		{"tercer dígito 9", "1792345678", false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

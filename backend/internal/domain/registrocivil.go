@@ -51,5 +51,10 @@ type Ciudadano struct {
 type RegistroCivil interface {
 	// ConsultarCiudadano devuelve los datos de la cédula, o un error que cumple
 	// errors.Is(err, ErrNotFound) si no existe.
+	//
+	// Seguridad: quien use este puerto en un flujo público (registro, recuperación de
+	// contraseña) no debe revelar si la cédula existe. Un ErrNotFound se trata igual que
+	// una fecha de expedición o un código dactilar incorrectos: mismo 401 y mismo mensaje
+	// ("la información ingresada es incorrecta"), y cuenta como intento fallido.
 	ConsultarCiudadano(ctx context.Context, cedula string) (Ciudadano, error)
 }
