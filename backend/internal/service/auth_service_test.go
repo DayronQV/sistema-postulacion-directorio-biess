@@ -3,13 +3,17 @@ package service_test
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/auth"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/middleware"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
 )
 
@@ -62,13 +66,51 @@ func TestLogin_Exito(t *testing.T) {
 	if f.intentos.fallos[cedula] != 0 {
 		t.Fatalf("el contador no se reinició")
 	}
-	// El token emitido sirve para una ruta protegida: lo valida el mismo emisor.
+	// También se comprueban aquí los datos emitidos; la integración con una ruta
+	// protegida se cubre en TestLogin_TokenFuncionaEnRutaProtegida.
 	claims, err := f.tokens.Validar(res.Token)
 	if err != nil {
 		t.Fatalf("el token no es válido: %v", err)
 	}
 	if claims.UsuarioID != "id-1" || claims.Cedula != cedula || claims.Rol != domain.RolPostulante {
 		t.Fatalf("claims = %+v", claims)
+	}
+}
+
+func TestLogin_TokenFuncionaEnRutaProtegida(t *testing.T) {
+	f := newLoginFixture(t)
+	res, err := login(f, passwordCorrecta)
+	if err != nil {
+		t.Fatalf("error inesperado: %v", err)
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	var claims domain.Claims
+	router.GET("/protegida",
+		middleware.RequireAuth(f.tokens),
+		middleware.RequireRole(domain.RolPostulante),
+		func(c *gin.Context) {
+			var ok bool
+			claims, ok = middleware.ClaimsFrom(c)
+			if !ok {
+				c.Status(http.StatusInternalServerError)
+				return
+			}
+			c.Status(http.StatusNoContent)
+		},
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/protegida", nil)
+	req.Header.Set("Authorization", "Bearer "+res.Token)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("la ruta protegida respondió %d: %s", w.Code, w.Body.String())
+	}
+	if claims.UsuarioID != "id-1" || claims.Cedula != cedula || claims.Rol != domain.RolPostulante {
+		t.Fatalf("claims de la ruta protegida = %+v", claims)
 	}
 }
 
