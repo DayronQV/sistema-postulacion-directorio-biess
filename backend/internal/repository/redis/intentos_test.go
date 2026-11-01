@@ -2,12 +2,14 @@ package redis_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
 
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	redisrepo "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/redis"
 )
 
@@ -88,5 +90,16 @@ func TestTicketsRegistro_Emitir(t *testing.T) {
 	}
 	if ttl := client.TTL(ctx, "registro:ticket:"+id).Val(); ttl <= 0 {
 		t.Fatalf("el ticket no tiene TTL: %v", ttl)
+	}
+
+	r := redisrepo.NewTicketsRegistro(client)
+	if cedula, err := r.Cedula(ctx, id); err != nil || cedula != "1712345675" {
+		t.Fatalf("Cedula = %q, %v", cedula, err)
+	}
+	if err := r.Eliminar(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Cedula(ctx, id); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("un ticket borrado debe dar ErrNotFound, llegó %v", err)
 	}
 }

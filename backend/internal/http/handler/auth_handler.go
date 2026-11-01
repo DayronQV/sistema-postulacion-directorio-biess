@@ -14,6 +14,7 @@ import (
 // aquí para poder probar el handler con un servicio falso.
 type RegistroUseCase interface {
 	ValidarIdentidad(ctx context.Context, in service.IdentidadInput) (string, error)
+	Registrar(ctx context.Context, in service.RegistroInput) (string, error)
 }
 
 // AuthHandler atiende las rutas /auth.
@@ -52,4 +53,32 @@ func (h *AuthHandler) Identidad(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, identidadResponse{Ticket: ticket})
+}
+
+type registroRequest struct {
+	Ticket   string `json:"ticket" binding:"required"`
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type registroResponse struct {
+	ID string `json:"id"`
+}
+
+// Registro atiende POST /auth/registro: segundo paso del registro.
+func (h *AuthHandler) Registro(c *gin.Context) {
+	var req registroRequest
+	if !middleware.BindJSON(c, &req) {
+		return
+	}
+	id, err := h.registro.Registrar(c.Request.Context(), service.RegistroInput{
+		Ticket:   req.Ticket,
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, registroResponse{ID: id})
 }

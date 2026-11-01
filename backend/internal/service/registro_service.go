@@ -5,9 +5,15 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/mail"
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
@@ -18,13 +24,15 @@ const (
 	VentanaIntentosRegistro = 10 * time.Minute
 	BloqueoRegistro         = 10 * time.Minute
 	TTLTicketRegistro       = 10 * time.Minute
+	MinPassword             = 8
+	MaxPasswordBytes        = 72 // límite de bcrypt
 )
 
 // Mensajes literales del requerimiento.
 const (
 	MsgIdentidadIncorrecta = "la información ingresada es incorrecta"
 	MsgRegistroBloqueado   = "registro fallido, inténtelo nuevamente en 10 minutos"
-	MsgCedulaRegistrada    = "La cédula ya se encuentra registrada"
+	MsgTicketInvalido      = "La validación de identidad expiró. Vuelva a validar su identidad"
 )
 
 // Formatos aceptados para la fecha de expedición: ISO (como el resto de fechas de la
@@ -108,9 +116,115 @@ func (s *RegistroService) ValidarIdentidad(ctx context.Context, in IdentidadInpu
 		return "", err
 	}
 	if existe {
-		return "", domain.Conflict(MsgCedulaRegistrada, map[string]string{"cedula": MsgCedulaRegistrada})
+		return "", domain.ConflictoCedula()
 	}
 	return s.tickets.Emitir(ctx, cedula, TTLTicketRegistro)
+}
+
+// RegistroInput son los datos del segundo paso del registro.
+type RegistroInput struct {
+	Ticket   string
+	Email    string
+	Password string
+}
+
+// Registrar crea la cuenta del postulante cuya identidad ya validó el ticket.
+// Devuelve el id de la cuenta. La contraseña se guarda solo como hash bcrypt y el
+// ticket se borra al terminar, para que no se pueda reutilizar.
+//
+// Los datos se validan antes de leer el ticket: si el correo o la contraseña no
+// sirven, el postulante los corrige sin repetir la validación de identidad.
+func (s *RegistroService) Registrar(ctx context.Context, in RegistroInput) (string, error) {
+	email := strings.ToLower(strings.TrimSpace(in.Email))
+	fields := map[string]string{}
+	if msg := validarEmail(email); msg != "" {
+		fields["email"] = msg
+	}
+	if msg := validarPassword(in.Password); msg != "" {
+		fields["password"] = msg
+	}
+	if len(fields) > 0 {
+		return "", domain.Validation("Datos inválidos", fields)
+	}
+
+	ticket := strings.TrimSpace(in.Ticket)
+	if ticket == "" {
+		return "", domain.Unauthorized(MsgTicketInvalido)
+	}
+	cedula, err := s.tickets.Cedula(ctx, ticket)
+	switch {
+	case errors.Is(err, domain.ErrNotFound):
+		return "", domain.Unauthorized(MsgTicketInvalido)
+	case err != nil:
+		return "", err
+	}
+
+	if existe, err := s.postulantes.ExisteCedula(ctx, cedula); err != nil {
+		return "", err
+	} else if existe {
+		return "", domain.ConflictoCedula()
+	}
+	if existe, err := s.postulantes.ExisteEmail(ctx, email); err != nil {
+		return "", err
+	} else if existe {
+		return "", domain.ConflictoEmail()
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("hasheando la contraseña: %w", err)
+	}
+	id, err := s.postulantes.Crear(ctx, domain.NuevoPostulante{
+		Cedula: cedula, Email: email, PasswordHash: string(hash),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	// La cuenta ya existe: si el borrado falla no se informa como error, porque un
+	// segundo uso del ticket choca igual con la cédula registrada (409) y el ticket
+	// expira solo en 10 minutos.
+	_ = s.tickets.Eliminar(ctx, ticket)
+	return id, nil
+}
+
+// validarEmail devuelve el mensaje de error del correo, o "" si es válido.
+func validarEmail(email string) string {
+	if email == "" {
+		return "Campo obligatorio"
+	}
+	addr, err := mail.ParseAddress(email)
+	// ParseAddress acepta "Nombre <correo>"; aquí solo vale la dirección sola.
+	if err != nil || addr.Address != email || !strings.Contains(email[strings.LastIndex(email, "@")+1:], ".") {
+		return "Correo electrónico no válido"
+	}
+	return ""
+}
+
+// validarPassword exige al menos 8 caracteres con letras y números. El mínimo cuenta
+// caracteres Unicode, no bytes ("á" es un carácter y dos bytes). El máximo sí cuenta
+// bytes: bcrypt solo usa los primeros 72, así que una contraseña más larga se
+// rechaza en lugar de truncarse en silencio.
+func validarPassword(p string) string {
+	if utf8.RuneCountInString(p) < MinPassword {
+		return "La contraseña debe tener al menos 8 caracteres"
+	}
+	if len(p) > MaxPasswordBytes {
+		return "La contraseña es demasiado larga (máximo 72 bytes)"
+	}
+	var letra, numero bool
+	for _, r := range p {
+		switch {
+		case unicode.IsLetter(r):
+			letra = true
+		case unicode.IsDigit(r):
+			numero = true
+		}
+	}
+	if !letra || !numero {
+		return "La contraseña debe combinar letras y números"
+	}
+	return ""
 }
 
 // fallo registra un intento fallido y bloquea la cédula al llegar al máximo.

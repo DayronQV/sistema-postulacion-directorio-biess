@@ -25,11 +25,19 @@ type fakeRegistro struct {
 	got    service.IdentidadInput
 	ticket string
 	err    error
+
+	gotRegistro service.RegistroInput
+	id          string
 }
 
 func (f *fakeRegistro) ValidarIdentidad(_ context.Context, in service.IdentidadInput) (string, error) {
 	f.got = in
 	return f.ticket, f.err
+}
+
+func (f *fakeRegistro) Registrar(_ context.Context, in service.RegistroInput) (string, error) {
+	f.gotRegistro = in
+	return f.id, f.err
 }
 
 func newRouter(reg handler.RegistroUseCase) *gin.Engine {
@@ -42,7 +50,11 @@ func newRouter(reg handler.RegistroUseCase) *gin.Engine {
 }
 
 func post(r *gin.Engine, body string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest("POST", "/api/v1/auth/identidad", strings.NewReader(body))
+	return postTo(r, "/api/v1/auth/identidad", body)
+}
+
+func postTo(r *gin.Engine, path, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest("POST", path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -85,6 +97,34 @@ func TestIdentidad_SinCedula(t *testing.T) {
 	reg := &fakeRegistro{}
 	w := post(newRouter(reg), `{"codigo_dactilar":"E5566V7788"}`)
 	if w.Code != 400 || !strings.Contains(w.Body.String(), `"cedula"`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRegistro_Created(t *testing.T) {
+	reg := &fakeRegistro{id: "uuid-1"}
+	w := postTo(newRouter(reg), "/api/v1/auth/registro",
+		`{"ticket":"t1","email":"ana@correo.com","password":"clave1234"}`)
+	if w.Code != 201 || strings.TrimSpace(w.Body.String()) != `{"id":"uuid-1"}` {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+	if reg.gotRegistro != (service.RegistroInput{Ticket: "t1", Email: "ana@correo.com", Password: "clave1234"}) {
+		t.Fatalf("el handler no pasó los datos al servicio: %+v", reg.gotRegistro)
+	}
+}
+
+func TestRegistro_Conflict(t *testing.T) {
+	reg := &fakeRegistro{err: domain.ConflictoEmail()}
+	w := postTo(newRouter(reg), "/api/v1/auth/registro",
+		`{"ticket":"t1","email":"ana@correo.com","password":"clave1234"}`)
+	if w.Code != 409 || !strings.Contains(w.Body.String(), `"email"`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRegistro_CamposObligatorios(t *testing.T) {
+	w := postTo(newRouter(&fakeRegistro{}), "/api/v1/auth/registro", `{"email":"ana@correo.com"}`)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), `"ticket"`) || !strings.Contains(w.Body.String(), `"password"`) {
 		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
 	}
 }
