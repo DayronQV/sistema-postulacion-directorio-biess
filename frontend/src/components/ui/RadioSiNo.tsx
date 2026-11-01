@@ -5,8 +5,11 @@ interface RadioSiNoProps {
   valor: boolean | null | undefined
   onChange: (valor: boolean) => void
   deshabilitado?: boolean
+  id?: string
   'aria-labelledby'?: string
   'aria-label'?: string
+  'aria-describedby'?: string
+  'aria-invalid'?: boolean
 }
 
 const opciones: Array<{ etiqueta: string; valor: boolean }> = [

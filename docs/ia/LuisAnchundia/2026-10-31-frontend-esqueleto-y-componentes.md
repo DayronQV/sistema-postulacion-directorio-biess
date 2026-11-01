@@ -22,4 +22,4 @@ recuperar contraseña, contenedor del formulario con barra lateral y secciones, 
 ## Revisión humana
 - Qué se verificó y cómo (pruebas, ejecución): `npm run lint`, `npm test` (20 pruebas), `npm run build`; se abrió `/componentes` en el navegador a 1280 px y a 375 px sin desbordamiento horizontal.
 - Qué se corrigió: se quitó `.oxlintrc.json` del scaffold (el proyecto usa ESLint), se fijó TypeScript 5.9, se arregló el fondo gris del `Select` y el ajuste del `FileUpload` en móvil.
-- Pendiente: revisión del código por la persona autora antes de abrir el PR.
+- Revisión de código en el PR #63/#64 (Cranell237): se aplicaron `envDir: '..'` para leer `VITE_API_URL` del `.env` de la raíz, accesibilidad de `CampoSiNo` y `CampoCheckbox`, foco del `Modal` y `/componentes` solo en desarrollo. Detalle en `docs/ia/Cranell237/2026-11-01-revision-frontend-luis.md`.

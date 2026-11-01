@@ -15,6 +15,6 @@ npm run build    # comprobación de tipos y build de producción
 
 ## Configuración
 
-- `VITE_API_URL` (en el `.env` de la raíz o del frontend) se lee solo desde `src/config/env.ts`.
+- `VITE_API_URL` se toma del `.env` de la raíz del repositorio (copia de `.env.example`; `envDir: '..'` en `vite.config.ts`) y se lee solo desde `src/config/env.ts`.
 - El alias `@/` apunta a `src/`.
 - Los colores, la tipografía y el espaciado del diseño institucional están en `tailwind.config.ts`.

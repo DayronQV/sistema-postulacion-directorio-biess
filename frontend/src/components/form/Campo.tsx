@@ -13,7 +13,7 @@ interface CampoProps {
 export default function Campo({ id, etiqueta, requerido, error, ayuda, children }: CampoProps) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-label-md text-on-surface">
+      <label id={`${id}-etiqueta`} htmlFor={id} className="text-label-md text-on-surface">
         {etiqueta}
         {requerido && (
           <span aria-hidden="true" className="ml-0.5 font-bold text-error">

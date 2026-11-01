@@ -134,7 +134,14 @@ export function CampoSiNo({ name, etiqueta, requerido, ayuda, reglas }: Base) {
         control={control}
         rules={reglas}
         render={({ field }) => (
-          <RadioSiNo aria-label={etiqueta} valor={field.value} onChange={field.onChange} />
+          <RadioSiNo
+            id={id}
+            aria-labelledby={`${id}-etiqueta`}
+            aria-describedby={describedBy(id, error, ayuda)}
+            aria-invalid={Boolean(error) || undefined}
+            valor={field.value}
+            onChange={field.onChange}
+          />
         )}
       />
     </Campo>
@@ -146,9 +153,15 @@ export function CampoCheckbox({ name, etiqueta, reglas }: Omit<Base, 'requerido'
   const { id, error } = useCampo(name)
   return (
     <div className="flex flex-col gap-1.5">
-      <Checkbox id={id} etiqueta={etiqueta} invalido={Boolean(error)} {...register(name, reglas)} />
+      <Checkbox
+        id={id}
+        etiqueta={etiqueta}
+        invalido={Boolean(error)}
+        aria-describedby={describedBy(id, error)}
+        {...register(name, reglas)}
+      />
       {error && (
-        <p role="alert" className="text-label-sm text-error">
+        <p id={`${id}-error`} role="alert" className="text-label-sm text-error">
           {error}
         </p>
       )}

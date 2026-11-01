@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
@@ -167,5 +168,65 @@ describe('FileUpload', () => {
     const pdf = new File(['%PDF'], 'titulo.pdf', { type: 'application/pdf' })
     await userEvent.upload(entrada, pdf)
     expect(alSeleccionar).toHaveBeenCalledWith(pdf)
+  })
+})
+
+describe('Modal (foco y bloqueo)', () => {
+  it('mueve el foco dentro al abrir y lo devuelve al cerrar', async () => {
+    function Demo() {
+      const [abierto, setAbierto] = useState(false)
+      return (
+        <>
+          <button onClick={() => setAbierto(true)}>Abrir</button>
+          <ModalConfirmacion
+            abierto={abierto}
+            titulo="Enviar"
+            mensaje="¿Seguro?"
+            onConfirmar={() => setAbierto(false)}
+            onCancelar={() => setAbierto(false)}
+          />
+        </>
+      )
+    }
+    render(<Demo />)
+    const abrir = screen.getByRole('button', { name: 'Abrir' })
+    await userEvent.click(abrir)
+    expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement)
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(abrir).toHaveFocus()
+  })
+
+  it('mantiene el foco dentro con Tab', async () => {
+    render(
+      <ModalConfirmacion
+        abierto
+        titulo="Enviar"
+        mensaje="¿Seguro?"
+        onConfirmar={() => undefined}
+        onCancelar={() => undefined}
+      />,
+    )
+    const dialogo = screen.getByRole('dialog')
+    for (let i = 0; i < 5; i++) {
+      await userEvent.tab()
+      expect(dialogo).toContainElement(document.activeElement as HTMLElement)
+    }
+  })
+
+  it('no se cierra con Escape mientras está cargando', async () => {
+    const cancelar = vi.fn()
+    render(
+      <ModalConfirmacion
+        abierto
+        cargando
+        titulo="Enviar"
+        mensaje="¿Seguro?"
+        onConfirmar={() => undefined}
+        onCancelar={cancelar}
+      />,
+    )
+    await userEvent.keyboard('{Escape}')
+    expect(cancelar).not.toHaveBeenCalled()
   })
 })
