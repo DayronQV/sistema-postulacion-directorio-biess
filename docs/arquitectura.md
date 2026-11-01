@@ -79,6 +79,18 @@ Un login correcto borra los contadores de fallo de esa cédula.
 ## Autenticación
 JWT firmado, expiración corta, enviado como `Authorization: Bearer`. Contraseñas con bcrypt.
 
+- **Emisor de tokens:** el puerto `domain.TokenIssuer` (`Emitir` y `Validar`) se implementa en `internal/auth` con JWT firmado con HS256 y vence a los `JWT_TTL_MINUTES`. `main.go` lo crea con `JWT_SECRET` (mínimo 32 caracteres) y lo entrega en el contenedor (`c.tokens`). Solo se acepta HS256 y el token debe traer fecha de vencimiento.
+- **Claims:** `sub` (id del usuario), `cedula` (postulantes) o `usuario` (analistas y administradores), `rol` y `exp`.
+- **Roles:** `domain.RolPostulante`, `domain.RolAnalista` y `domain.RolAdministrador`.
+- **Proteger rutas:** `middleware.RequireAuth(c.tokens)` exige el token (401 si falta o no sirve) y `middleware.RequireRole(...)` restringe por rol (403). `RequireRole` va siempre después de `RequireAuth`. Ejemplo:
+
+  ```go
+  g := api.Group("/admin", middleware.RequireAuth(tokens), middleware.RequireRole(domain.RolAdministrador))
+  ```
+
+- **Usuario actual:** en un handler, `claims, ok := middleware.ClaimsFrom(c)`.
+- **Login:** el servicio de login llama a `tokens.Emitir(domain.Claims{...})` y responde `token` y `expires_in`.
+
 ## Errores y tiempos
 - Formato único de error (ver `docs/api.md`): 400, 401, 403, 404, 409, 422, 429, 500. Un 500 nunca expone detalles internos.
 - Timeout por petición en el servidor y en las consultas a la base; el cliente cancela con `AbortController`.
