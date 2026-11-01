@@ -1,0 +1,71 @@
+import { http } from './http'
+
+// Llamadas de la postulación (docs/api.md, sección Postulación).
+//
+// PUT /postulacion REEMPLAZA el estado completo del formulario: lo que no se envía se
+// borra. Quien guarde una sección debe leer la postulación con obtenerPostulacion, cambiar
+// solo su parte y enviar el formulario entero con guardarPostulacion.
+
+export type Institucion = 'IESS' | 'BIESS'
+
+export interface Familiar {
+  nombres_apellidos: string
+  parentesco: string
+  institucion: Institucion
+  area: string
+  cargo: string
+}
+
+export interface Domicilio {
+  pais_id: number | null
+  provincia_id: number | null
+  canton_id: number | null
+  provincia_texto: string
+  ciudad_texto: string
+  telefono_celular: string
+  email_secundario: string
+  calle_principal: string
+  numero: string
+  calle_secundaria: string
+  sector: string
+  referencia: string
+  telefono_domicilio: string
+}
+
+export interface InformacionPersonal {
+  nombres: string
+  apellidos: string
+  genero: string
+  fecha_nacimiento: string // AAAA-MM-DD
+  nacionalidad: string
+  estado_civil: string
+  pareja?: { nombres_apellidos: string; cedula: string }
+}
+
+export interface Postulacion {
+  id: string
+  codigo: string
+  estado: 'borrador' | 'enviada' | 'cerrada'
+  informacion_personal: InformacionPersonal
+  domicilio: Domicilio
+  tiene_familiares: boolean
+  familiares: Familiar[]
+  cargo: string
+  respaldo_organizacion: { nombre: string; documento_id: string | null }
+  tiene_publicaciones: boolean
+  consentimiento: boolean
+  updated_at: string
+}
+
+// GET /postulacion: la postulación del usuario (el servidor la crea en borrador la primera vez).
+export async function obtenerPostulacion(): Promise<Postulacion> {
+  const { data } = await http.get<Postulacion>('/postulacion')
+  return data
+}
+
+// PUT /postulacion: guarda el formulario completo en una transacción y devuelve la
+// postulación guardada. El servidor ignora los campos de solo lectura (id, código, estado...).
+export async function guardarPostulacion(formulario: Postulacion): Promise<Postulacion> {
+  const { data } = await http.put<Postulacion>('/postulacion', formulario)
+  return data
+}
