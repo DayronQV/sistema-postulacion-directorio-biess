@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
 
 // Config agrupa toda la configuración del servicio.
@@ -60,6 +62,11 @@ func fromEnv(get func(string) string) (Config, error) {
 		DatabaseURL: required("DATABASE_URL"),
 		RedisAddr:   required("REDIS_ADDR"),
 		JWTSecret:   required("JWT_SECRET"),
+	}
+
+	if cfg.JWTSecret != "" && len(cfg.JWTSecret) < domain.MinJWTSecretLength {
+		invalid = append(invalid, fmt.Sprintf("JWT_SECRET debe tener al menos %d caracteres (tiene %d); genere uno con: openssl rand -hex 32",
+			domain.MinJWTSecretLength, len(cfg.JWTSecret)))
 	}
 
 	cfg.Port = strings.TrimSpace(get("API_PORT"))

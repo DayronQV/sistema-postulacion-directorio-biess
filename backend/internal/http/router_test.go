@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/auth"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
@@ -21,6 +22,24 @@ import (
 )
 
 func init() { gin.SetMode(gin.TestMode) }
+
+// emisorPrueba firma los tokens de las rutas protegidas de esta prueba.
+var emisorPrueba = func() *auth.JWTIssuer {
+	i, err := auth.NewJWTIssuer("secreto-de-prueba-con-mas-de-32-caracteres", time.Hour)
+	if err != nil {
+		panic(err)
+	}
+	return i
+}()
+
+func tokenParaRol(t *testing.T, rol domain.Rol) string {
+	t.Helper()
+	e, err := emisorPrueba.Emitir(domain.Claims{UsuarioID: "u-1", Cedula: "1712345675", Rol: rol})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Token
+}
 
 // bindReq simula el cuerpo de un endpoint real, con validaciones `binding`.
 type bindReq struct {
@@ -48,6 +67,13 @@ func newTestRouter(timeout time.Duration) *gin.Engine {
 			middleware.Fail(c, errors.New("password authentication failed for user biess"))
 		})
 		api.GET("/panic", func(c *gin.Context) { panic("boom") })
+		// Rutas protegidas: una con sesión y otra solo para administradores.
+		api.GET("/protegida", middleware.RequireAuth(emisorPrueba), func(c *gin.Context) {
+			claims, _ := middleware.ClaimsFrom(c)
+			c.JSON(nethttp.StatusOK, gin.H{"usuario": claims.UsuarioID, "rol": claims.Rol})
+		})
+		api.GET("/solo-admin", middleware.RequireAuth(emisorPrueba), middleware.RequireRole(domain.RolAdministrador),
+			func(c *gin.Context) { c.JSON(nethttp.StatusOK, gin.H{"ok": true}) })
 		// Handler que usa el helper BindJSON.
 		api.POST("/bind", func(c *gin.Context) {
 			var req bindReq
@@ -216,6 +242,44 @@ func TestValidBodyPassesBinding(t *testing.T) {
 	w := doJSON(newTestRouter(time.Second), "/api/v1/bind", `{"cedula":"1712345675","email":"a@b.com"}`)
 	if w.Code != 200 {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// Criterio de la issue: una ruta protegida responde 401 sin token, 403 con rol
+// incorrecto y 200 con token válido, todo con el formato de error de la API.
+func TestRutaProtegida(t *testing.T) {
+	r := newTestRouter(time.Second)
+	conToken := func(ruta, token string) *httptest.ResponseRecorder {
+		h := map[string]string{}
+		if token != "" {
+			h["Authorization"] = "Bearer " + token
+		}
+		return do(r, "GET", ruta, h)
+	}
+
+	w := conToken("/api/v1/protegida", "")
+	if w.Code != 401 || decodeError(t, w).Code != "UNAUTHORIZED" {
+		t.Fatalf("sin token: %d %s, se esperaba 401 UNAUTHORIZED", w.Code, w.Body.String())
+	}
+
+	w = conToken("/api/v1/protegida", "token-inventado")
+	if w.Code != 401 {
+		t.Fatalf("token inválido: %d %s, se esperaba 401", w.Code, w.Body.String())
+	}
+
+	w = conToken("/api/v1/solo-admin", tokenParaRol(t, domain.RolPostulante))
+	if w.Code != 403 || decodeError(t, w).Code != "FORBIDDEN" {
+		t.Fatalf("rol incorrecto: %d %s, se esperaba 403 FORBIDDEN", w.Code, w.Body.String())
+	}
+
+	w = conToken("/api/v1/protegida", tokenParaRol(t, domain.RolPostulante))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"usuario":"u-1"`) {
+		t.Fatalf("token válido: %d %s, se esperaba 200 con la identidad", w.Code, w.Body.String())
+	}
+
+	w = conToken("/api/v1/solo-admin", tokenParaRol(t, domain.RolAdministrador))
+	if w.Code != 200 {
+		t.Fatalf("rol correcto: %d %s, se esperaba 200", w.Code, w.Body.String())
 	}
 }
 

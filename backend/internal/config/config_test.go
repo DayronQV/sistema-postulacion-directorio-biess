@@ -16,7 +16,7 @@ func validEnv() map[string]string {
 	return map[string]string{
 		"DATABASE_URL": "postgres://u:p@localhost:5432/db",
 		"REDIS_ADDR":   "localhost:6379",
-		"JWT_SECRET":   "secreto",
+		"JWT_SECRET":   "secreto-de-prueba-con-mas-de-32-caracteres",
 	}
 }
 
@@ -76,6 +76,20 @@ func TestFromEnvRejectsInvalidNumbers(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), key) {
 			t.Errorf("%s=%s: se esperaba error que mencione la variable, got %v", key, value, err)
 		}
+	}
+}
+
+func TestFromEnvRejectsShortJWTSecret(t *testing.T) {
+	e := validEnv()
+	e["JWT_SECRET"] = "corto"
+	_, err := fromEnv(env(e))
+	if err == nil || !strings.Contains(err.Error(), "JWT_SECRET") || !strings.Contains(err.Error(), "32") {
+		t.Fatalf("se esperaba un error que explique el mínimo de 32 caracteres, got %v", err)
+	}
+
+	e["JWT_SECRET"] = strings.Repeat("a", 32)
+	if _, err := fromEnv(env(e)); err != nil {
+		t.Fatalf("un secreto de exactamente 32 caracteres debe aceptarse: %v", err)
 	}
 }
 

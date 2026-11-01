@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/auth"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
@@ -59,7 +60,12 @@ func run(logger *slog.Logger) error {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	c := &container{cfg: cfg, logger: logger, db: pool, redis: rdb}
+	tokens, err := auth.NewJWTIssuer(cfg.JWTSecret, cfg.JWTTTL)
+	if err != nil {
+		return err
+	}
+
+	c := &container{cfg: cfg, logger: logger, db: pool, redis: rdb, tokens: tokens}
 	router := apihttp.NewRouter(apihttp.Deps{
 		Config:  cfg,
 		Logger:  logger,

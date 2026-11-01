@@ -8,17 +8,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 )
 
-// container agrupa la infraestructura compartida (configuración, log, PostgreSQL y
-// Redis) que main.go entrega a cada módulo para construir sus repositorios,
+// container agrupa la infraestructura compartida (configuración, log, PostgreSQL,
+// Redis y emisor de tokens) que main.go entrega a cada módulo para construir sus repositorios,
 // servicios y handlers.
 type container struct {
 	cfg    config.Config
 	logger *slog.Logger
 	db     *pgxpool.Pool
 	redis  *goredis.Client
+	tokens domain.TokenIssuer // emite y valida los JWT de sesión
 }
 
 // modules devuelve el registro de rutas de cada módulo.
