@@ -8,7 +8,7 @@ interface PaginaVaciaProps {
 // Página provisional: cada módulo la reemplaza por su pantalla real.
 export default function PaginaVacia({ titulo, descripcion }: PaginaVaciaProps) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-space-md p-margin">
+    <main className="mx-auto flex w-full flex-1 max-w-xl flex-col justify-center gap-space-md p-margin">
       <h1 className="text-headline-lg text-primary">{titulo}</h1>
       {descripcion && <p className="text-body-lg text-on-surface-variant">{descripcion}</p>}
       <nav className="flex flex-wrap gap-space-md text-body-bold text-primary-container">
