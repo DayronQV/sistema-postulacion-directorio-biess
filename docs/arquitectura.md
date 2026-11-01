@@ -87,6 +87,7 @@ JWT firmado, expiración corta, enviado como `Authorization: Bearer`. Contraseñ
 - Rutas públicas: registro, login, recuperar contraseña. Rutas protegidas: formulario de postulación.
 - Formularios con `react-hook-form` y validación con `zod`.
 - Cada petición expone `loading`, `success` y `error` a la interfaz.
+- Sesión: el token JWT se guarda en `sessionStorage` (no en `localStorage`), así que vive solo en la pestaña: al cerrarla o abrir otra se pide login de nuevo. La sesión se cierra sola al vencer `expires_in` o ante un `401`. El rol se lee del claim `rol` solo para mostrar u ocultar pantallas; el servidor valida siempre.
 
 ## Datos de prueba (semilla)
 Un puñado de cédulas válidas en el Registro Civil simulado: al menos una ecuatoriana, una casada y una **extranjera** (para probar el cierre de la postulación). Se cargan desde `db/seed_catalogos.sql` o desde el propio adaptador `mock`.
