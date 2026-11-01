@@ -37,9 +37,9 @@ type container struct {
 //
 // Los handlers pasan siempre c.Request.Context() al servicio, y este a los
 // repositorios: así el timeout por petición cancela las consultas.
-func modules(_ *container) []apihttp.RouteRegistrar {
+func modules(c *container) []apihttp.RouteRegistrar {
 	return []apihttp.RouteRegistrar{
-		// authRoutes(c),
+		authRoutes(c),
 		// catalogoRoutes(c),
 		// postulacionRoutes(c),
 	}
