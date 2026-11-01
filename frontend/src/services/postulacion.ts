@@ -51,6 +51,16 @@ export interface InformacionPersonal {
   pareja?: { nombres_apellidos: string; cedula: string }
 }
 
+export type TipoCargo = 'afiliados' | 'jubilados' | 'empleador'
+
+// Resultado de validar el cargo con el Historial Laboral. Si el postulante no cumple la
+// calidad, el servidor responde 422 con el mensaje del requerimiento y cierra la postulación.
+export interface ResultadoCargo {
+  cargo: TipoCargo
+  elegible: boolean
+  mensaje: string
+}
+
 export interface Postulacion {
   id: string
   codigo: string
@@ -77,5 +87,13 @@ export async function obtenerPostulacion(): Promise<Postulacion> {
 // postulación guardada. El servidor ignora los campos de solo lectura (id, código, estado...).
 export async function guardarPostulacion(formulario: Postulacion): Promise<Postulacion> {
   const { data } = await http.put<Postulacion>('/postulacion', formulario)
+  return data
+}
+
+// POST /postulacion/cargo/validar: consulta el Historial Laboral para el cargo elegido. No
+// guarda el cargo (eso lo hace guardarPostulacion). 422 si no cumple la calidad: el servidor
+// cierra la postulación y el mensaje del ApiError es el del requerimiento.
+export async function validarCargo(cargo: TipoCargo): Promise<ResultadoCargo> {
+  const { data } = await http.post<ResultadoCargo>('/postulacion/cargo/validar', { cargo })
   return data
 }
