@@ -110,6 +110,7 @@ func personalDe(c domain.Ciudadano) domain.InformacionPersonal {
 // postulación queda cerrada y se responde 422.
 func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f domain.Formulario) (domain.Postulacion, error) {
 	f.Familiares = limpiarFamiliares(f.Familiares)
+	f.Referencias = limpiarReferencias(f.Referencias)
 	if err := validarFormulario(f); err != nil {
 		return domain.Postulacion{}, err
 	}
@@ -163,6 +164,7 @@ func validarFormulario(f domain.Formulario) error {
 		fields["cargo"] = "Cargo no válido"
 	}
 	validarFamiliares(f, fields)
+	validarReferencias(f, fields)
 	if len(fields) > 0 {
 		return domain.Validation("Datos inválidos", fields)
 	}

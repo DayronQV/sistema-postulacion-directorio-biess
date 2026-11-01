@@ -21,6 +21,7 @@ func postulacionRoutes(c *container) apihttp.RouteRegistrar {
 		registrocivil.NewMock(),
 		postgres.NewTxManager(c.db),
 		postgres.NewFamiliaresRepo(c.db),
+		postgres.NewReferenciasRepo(c.db),
 	).ConCatalogos(service.NewCatalogoService(
 		postgres.NewCatalogoRepo(c.db),
 		redisrepo.NewCacheCatalogos(c.redis),

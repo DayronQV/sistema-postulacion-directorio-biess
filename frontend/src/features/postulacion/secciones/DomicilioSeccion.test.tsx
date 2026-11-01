@@ -47,6 +47,7 @@ function postulacion(sobre: Partial<Postulacion> = {}): Postulacion {
     domicilio: SIN_DOMICILIO,
     tiene_familiares: false,
     familiares: [],
+    referencias: [],
     cargo: '',
     respaldo_organizacion: { nombre: '', documento_id: null },
     tiene_publicaciones: false,

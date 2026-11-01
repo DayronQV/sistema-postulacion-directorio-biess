@@ -130,8 +130,11 @@ El sistema debe además: separar postulantes por sector, verificar requisitos e 
 ## Restricciones
 Cumplimiento de la normativa de protección de datos personales de Ecuador, periodos definidos de publicación y cierre de postulación, y límites de tamaño y formato de documentos.
 
+## Decisiones aclaradas por issues
+- **Formación adicional** se cubre con Capacitación.
+- **Referencias personales** usa entre 1 y 3 contactos con nombres y apellidos, relación, teléfono y correo. En borrador puede permanecer vacía para permitir guardar el progreso; el envío final exige al menos una.
+
 ## Preguntas abiertas (decidir como grupo o consultar al profesor)
-1. **"Formación adicional" y "Referencias personales"** aparecen en la lista de campos del formulario pero el documento no define sus campos. Propuesta: "formación adicional" se cubre con Capacitación; "referencias personales" (nombre, parentesco o relación, teléfono, correo) queda por definir.
-2. El bloqueo de 3 intentos: el requerimiento lo pide en el registro y el examen en el login. Propuesta: aplicarlo a ambos, con claves separadas en Redis.
-3. Validación de identidad simulada: propuesta aceptar fecha de expedición **o** código dactilar.
-4. ¿Cómo se determina que un postulante "superó la Fase de Méritos"? Propuesta: el administrador lo marca manualmente.
+1. El bloqueo de 3 intentos: el requerimiento lo pide en el registro y el examen en el login. Propuesta: aplicarlo a ambos, con claves separadas en Redis.
+2. Validación de identidad simulada: propuesta aceptar fecha de expedición **o** código dactilar.
+3. ¿Cómo se determina que un postulante "superó la Fase de Méritos"? Propuesta: el administrador lo marca manualmente.
