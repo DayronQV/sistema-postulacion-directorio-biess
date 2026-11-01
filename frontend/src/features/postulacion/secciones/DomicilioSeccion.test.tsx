@@ -36,6 +36,7 @@ function postulacion(sobre: Partial<Postulacion> = {}): Postulacion {
     codigo: 'BIESS-2026-000001',
     estado: 'borrador',
     informacion_personal: {
+      cedula: '1712345675',
       email: 'ana@correo.com',
       nombres: 'Ana',
       apellidos: 'Pérez',
