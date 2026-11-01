@@ -18,8 +18,8 @@ export default function AppRoutes() {
         <Route path="/registro" element={<Registro />} />
         <Route path="/login" element={<Login />} />
         <Route path="/recuperar" element={<Recuperar />} />
-        {/* Muestra interna de componentes */}
-        <Route path="/componentes" element={<Componentes />} />
+        {/* Muestra interna de componentes: solo en desarrollo */}
+        {import.meta.env.DEV && <Route path="/componentes" element={<Componentes />} />}
       </Route>
 
       {/* Rutas privadas: exigen sesión */}

@@ -44,3 +44,10 @@ describe('campos de formulario', () => {
     expect(alEnviar.mock.calls[0][0]).toEqual({ cedula: '1712345675', familiares: true })
   })
 })
+
+describe('CampoSiNo', () => {
+  it('el grupo Sí/No toma el nombre de su etiqueta', () => {
+    render(<Formulario alEnviar={() => undefined} />)
+    expect(screen.getByRole('radiogroup', { name: '¿Tiene familiares?' })).toBeInTheDocument()
+  })
+})
