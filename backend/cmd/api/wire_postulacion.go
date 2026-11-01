@@ -7,6 +7,7 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/registrocivil"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/postgres"
+	redisrepo "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/redis"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
 )
 
@@ -20,7 +21,11 @@ func postulacionRoutes(c *container) apihttp.RouteRegistrar {
 		registrocivil.NewMock(),
 		postgres.NewTxManager(c.db),
 		postgres.NewFamiliaresRepo(c.db),
-	)
+	).ConCatalogos(service.NewCatalogoService(
+		postgres.NewCatalogoRepo(c.db),
+		redisrepo.NewCacheCatalogos(c.redis),
+		c.logger,
+	))
 	documentos := service.NewDocumentoService(postgres.NewDocumentoRepo(c.db))
 	postulacion := apihttp.PostulacionRoutes(handler.NewPostulacionHandler(svc), c.tokens)
 	archivos := apihttp.DocumentoRoutes(handler.NewDocumentoHandler(documentos), c.tokens)
