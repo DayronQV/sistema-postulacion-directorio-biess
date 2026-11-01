@@ -66,8 +66,11 @@ func newFakeCache() *fakeCache {
 	return &fakeCache{datos: map[string][]domain.ItemCatalogo{}, ttls: map[string]time.Duration{}}
 }
 
-func (f *fakeCache) Obtener(_ context.Context, clave string) ([]domain.ItemCatalogo, bool, error) {
+func (f *fakeCache) Obtener(ctx context.Context, clave string) ([]domain.ItemCatalogo, bool, error) {
 	f.gets++
+	if err := ctx.Err(); err != nil {
+		return nil, false, err // como go-redis con un contexto cancelado
+	}
 	if f.getErr != nil {
 		return nil, false, f.getErr
 	}
@@ -178,6 +181,22 @@ func TestCatalogo_RedisCaido_RespondeDesdePostgresYRegistraElAviso(t *testing.T)
 	}
 	if log := f.logs.String(); !strings.Contains(log, "level=WARN") || !strings.Contains(log, "connection refused") {
 		t.Fatalf("no se registró el aviso: %q", log)
+	}
+}
+
+func TestCatalogo_PeticionCancelada_NoRegistraAvisoNiEscribeEnCache(t *testing.T) {
+	f := newCatalogoFixture()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // el cliente cortó la conexión
+
+	if _, err := f.svc.Paises(ctx); err != nil {
+		t.Fatalf("el falso de PostgreSQL ignora el contexto; no debería fallar: %v", err)
+	}
+	if f.logs.Len() != 0 {
+		t.Fatalf("una petición cancelada no es una caché caída; no debe haber aviso: %q", f.logs.String())
+	}
+	if f.cache.sets != 0 {
+		t.Fatalf("no se debe escribir en la caché con la petición cancelada (%d escrituras)", f.cache.sets)
 	}
 }
 

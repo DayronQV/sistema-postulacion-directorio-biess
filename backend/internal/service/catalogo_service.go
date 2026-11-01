@@ -59,8 +59,11 @@ func (s *CatalogoService) listar(
 	cacheDisponible := err == nil
 	switch {
 	case err != nil:
-		s.logger.WarnContext(ctx, "caché de catálogos no disponible; se consulta PostgreSQL",
-			"clave", clave, "error", err)
+		// Si la petición ya está cancelada, el fallo es del cliente, no de la caché.
+		if ctx.Err() == nil {
+			s.logger.WarnContext(ctx, "caché de catálogos no disponible; se consulta PostgreSQL",
+				"clave", clave, "error", err)
+		}
 	case hit:
 		return items, nil
 	}
