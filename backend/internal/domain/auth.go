@@ -58,6 +58,13 @@ func ConflictoEmail() error {
 	return Conflict(MsgEmailRegistrado, map[string]string{"email": MsgEmailRegistrado})
 }
 
+// Cuenta es la cuenta de un postulante, tal como la necesita el inicio de sesión.
+type Cuenta struct {
+	ID           string
+	Cedula       string
+	PasswordHash string
+}
+
 // Postulantes es el puerto de la tabla postulantes.
 type Postulantes interface {
 	ExisteCedula(ctx context.Context, cedula string) (bool, error)
@@ -65,4 +72,10 @@ type Postulantes interface {
 	// Crear guarda la cuenta y devuelve su id. Si la cédula o el correo ya existen
 	// devuelve un error ErrConflict con el campo correspondiente en Fields.
 	Crear(ctx context.Context, p NuevoPostulante) (string, error)
+	// BuscarPorCedula devuelve la cuenta de la cédula, o un error que cumple
+	// errors.Is(err, ErrNotFound) si no tiene cuenta.
+	BuscarPorCedula(ctx context.Context, cedula string) (Cuenta, error)
+	// TienePostulacion indica si el postulante ya creó su postulación. Si no, es su
+	// primer ingreso y debe ir obligatoriamente al formulario.
+	TienePostulacion(ctx context.Context, postulanteID string) (bool, error)
 }

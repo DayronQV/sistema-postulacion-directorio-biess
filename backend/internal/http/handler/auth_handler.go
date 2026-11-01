@@ -17,14 +17,20 @@ type RegistroUseCase interface {
 	Registrar(ctx context.Context, in service.RegistroInput) (string, error)
 }
 
+// LoginUseCase es lo que el handler necesita del servicio de inicio de sesión.
+type LoginUseCase interface {
+	Login(ctx context.Context, in service.LoginInput) (service.LoginResult, error)
+}
+
 // AuthHandler atiende las rutas /auth.
 type AuthHandler struct {
 	registro RegistroUseCase
+	login    LoginUseCase
 }
 
 // NewAuthHandler crea el handler de autenticación.
-func NewAuthHandler(registro RegistroUseCase) *AuthHandler {
-	return &AuthHandler{registro: registro}
+func NewAuthHandler(registro RegistroUseCase, login LoginUseCase) *AuthHandler {
+	return &AuthHandler{registro: registro, login: login}
 }
 
 type identidadRequest struct {
@@ -81,4 +87,36 @@ func (h *AuthHandler) Registro(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, registroResponse{ID: id})
+}
+
+type loginRequest struct {
+	Cedula   string `json:"cedula" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type loginResponse struct {
+	Token         string `json:"token"`
+	ExpiresIn     int    `json:"expires_in"` // segundos
+	PrimerIngreso bool   `json:"primer_ingreso"`
+}
+
+// Login atiende POST /auth/login: inicio de sesión del postulante.
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req loginRequest
+	if !middleware.BindJSON(c, &req) {
+		return
+	}
+	res, err := h.login.Login(c.Request.Context(), service.LoginInput{
+		Cedula:   req.Cedula,
+		Password: req.Password,
+	})
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, loginResponse{
+		Token:         res.Token,
+		ExpiresIn:     int(res.ExpiraEn.Seconds()),
+		PrimerIngreso: res.PrimerIngreso,
+	})
 }

@@ -12,5 +12,6 @@ func AuthRoutes(h *handler.AuthHandler) RouteRegistrar {
 		auth := api.Group("/auth")
 		auth.POST("/identidad", h.Identidad)
 		auth.POST("/registro", h.Registro)
+		auth.POST("/login", h.Login)
 	}
 }

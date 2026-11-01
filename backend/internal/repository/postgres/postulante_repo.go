@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -75,4 +76,31 @@ func (r *PostulanteRepo) Crear(ctx context.Context, p domain.NuevoPostulante) (s
 		return "", fmt.Errorf("insertando el postulante: %w", err)
 	}
 	return id, nil
+}
+
+// BuscarPorCedula devuelve la cuenta de la cédula.
+func (r *PostulanteRepo) BuscarPorCedula(ctx context.Context, cedula string) (domain.Cuenta, error) {
+	var c domain.Cuenta
+	err := r.db.QueryRow(ctx,
+		`SELECT id, cedula, password_hash FROM postulantes WHERE cedula = $1`, cedula,
+	).Scan(&c.ID, &c.Cedula, &c.PasswordHash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Cuenta{}, domain.NotFound("La cédula no tiene cuenta")
+	}
+	if err != nil {
+		return domain.Cuenta{}, fmt.Errorf("buscando el postulante: %w", err)
+	}
+	return c, nil
+}
+
+// TienePostulacion indica si el postulante ya tiene una fila en postulaciones.
+func (r *PostulanteRepo) TienePostulacion(ctx context.Context, postulanteID string) (bool, error) {
+	var existe bool
+	err := r.db.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM postulaciones WHERE postulante_id = $1)`, postulanteID,
+	).Scan(&existe)
+	if err != nil {
+		return false, fmt.Errorf("consultando la postulación: %w", err)
+	}
+	return existe, nil
 }

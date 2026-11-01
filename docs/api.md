@@ -20,7 +20,7 @@ Base: `/api/v1`. JSON en ambos sentidos. Cambiar este archivo requiere una issue
 | --- | --- | --- |
 | `POST /auth/identidad` | `{ cedula, fecha_expedicion? , codigo_dactilar? }` (uno de los dos) | `200 { ticket }`; `401` si no coincide; `429 LOCKED` tras 3 fallos |
 | `POST /auth/registro` | `{ ticket, email, password }` | `201 { id }`; `409` si la cédula o el correo ya existen |
-| `POST /auth/login` | `{ cedula, password }` | `200 { token, expires_in }`; `401` si es incorrecto; `429 LOCKED` tras 3 fallos |
+| `POST /auth/login` | `{ cedula, password }` | `200 { token, expires_in, primer_ingreso }` (`expires_in` en segundos; `primer_ingreso` es `true` si aún no tiene postulación); `401` si es incorrecto; `429 LOCKED` tras 3 fallos |
 | `POST /auth/recuperar` | `{ cedula, fecha_expedicion? , codigo_dactilar? }` | `202`; el correo es simulado |
 
 ## Catálogos (públicos, con caché en Redis)
