@@ -4,11 +4,20 @@ import { vi } from 'vitest'
 import { ApiError } from '@/services/errores'
 import Referencias from './Referencias'
 
+// Reemplaza el texto del campo pegándolo de una vez: tipear carácter por carácter hace
+// estas pruebas lentas y, con todos los archivos en paralelo, superaban los 5 s del CI.
+async function escribir(etiqueta: RegExp, texto: string) {
+  const campo = screen.getByLabelText(etiqueta)
+  await userEvent.clear(campo)
+  await userEvent.click(campo)
+  await userEvent.paste(texto)
+}
+
 async function llenarReferencia() {
-  await userEvent.type(screen.getByLabelText(/Nombres y apellidos/), 'Ana Pérez')
-  await userEvent.type(screen.getByLabelText(/Relación/), 'Amiga')
-  await userEvent.type(screen.getByLabelText(/Teléfono/), '0999999999')
-  await userEvent.type(screen.getByLabelText(/Correo/), 'ana@example.com')
+  await escribir(/Nombres y apellidos/, 'Ana Pérez')
+  await escribir(/Relación/, 'Amiga')
+  await escribir(/Teléfono/, '0999999999')
+  await escribir(/Correo/, 'ana@example.com')
 }
 
 describe('Referencias', () => {
@@ -22,9 +31,7 @@ describe('Referencias', () => {
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Editar' }))
-    const relacion = screen.getByLabelText(/Relación/)
-    await userEvent.clear(relacion)
-    await userEvent.type(relacion, 'Compañera')
+    await escribir(/Relación/, 'Compañera')
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
     expect(screen.getByText('Compañera')).toBeInTheDocument()
 
@@ -70,18 +77,16 @@ describe('Referencias', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Agregar' }))
     expect(screen.getAllByText('Campo obligatorio')).toHaveLength(4)
 
-    await userEvent.type(screen.getByLabelText(/Nombres y apellidos/), '  Ana Pérez  ')
-    await userEvent.type(screen.getByLabelText(/Relación/), 'Amiga')
-    await userEvent.type(screen.getByLabelText(/Teléfono/), '12')
-    await userEvent.type(screen.getByLabelText(/Correo/), 'sin-arroba')
+    await escribir(/Nombres y apellidos/, '  Ana Pérez  ')
+    await escribir(/Relación/, 'Amiga')
+    await escribir(/Teléfono/, '12')
+    await escribir(/Correo/, 'sin-arroba')
     await userEvent.click(screen.getByRole('button', { name: 'Agregar' }))
     expect(screen.getByText('Teléfono no válido')).toBeInTheDocument()
     expect(screen.getByText('Correo no válido')).toBeInTheDocument()
 
-    await userEvent.clear(screen.getByLabelText(/Teléfono/))
-    await userEvent.type(screen.getByLabelText(/Teléfono/), '0999999999')
-    await userEvent.clear(screen.getByLabelText(/Correo/))
-    await userEvent.type(screen.getByLabelText(/Correo/), 'ana@example.com')
+    await escribir(/Teléfono/, '0999999999')
+    await escribir(/Correo/, 'ana@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Agregar' }))
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
   })
