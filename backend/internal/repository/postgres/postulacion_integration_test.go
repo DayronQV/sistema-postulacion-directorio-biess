@@ -1,0 +1,350 @@
+package postgres_test
+
+import (
+	"context"
+	"errors"
+	"os"
+	"regexp"
+	"sync"
+	"testing"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/registrocivil"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/postgres"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
+)
+
+// Estas pruebas usan el PostgreSQL de docker compose (db/schema.sql ya cargado). Si
+// DATABASE_URL no está definida, se saltan: las reglas del servicio ya se prueban con
+// repositorios falsos, pero solo aquí se demuestra el COMMIT y el ROLLBACK reales.
+
+// newPool abre el pool de pruebas y se asegura de que exista la secuencia del código.
+func newPool(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		t.Skip("DATABASE_URL no definida: se salta la prueba contra PostgreSQL")
+	}
+	pool, err := postgres.NewPool(context.Background(), url)
+	if err != nil {
+		t.Skipf("PostgreSQL no disponible: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	// La secuencia de los códigos de postulación (issue #20) vive en db/schema.sql; esta
+	// sentencia es idempotente y deja la prueba funcionando en una base ya creada.
+	if _, err := pool.Exec(context.Background(), `CREATE SEQUENCE IF NOT EXISTS postulacion_codigo_seq`); err != nil {
+		t.Fatalf("creando la secuencia: %v", err)
+	}
+	return pool
+}
+
+// crearPostulante inserta un postulante con la cédula dada (que existe en el Registro
+// Civil simulado) y lo borra al terminar. Si la cédula ya está registrada en la base, se
+// salta la prueba para no tocar datos ajenos.
+func crearPostulante(t *testing.T, pool *pgxpool.Pool, cedula string) string {
+	t.Helper()
+	ctx := context.Background()
+	var id string
+	err := pool.QueryRow(ctx, `
+INSERT INTO postulantes (cedula, email, password_hash)
+VALUES ($1, $2, 'x')
+ON CONFLICT DO NOTHING
+RETURNING id::text`, cedula, cedula+"@prueba.test").Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		t.Skipf("la cédula %s ya existe en la base: se salta para no tocar datos ajenos", cedula)
+	}
+	if err != nil {
+		t.Fatalf("creando el postulante: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(ctx, `DELETE FROM postulaciones WHERE postulante_id = $1`, id)
+		_, _ = pool.Exec(ctx, `DELETE FROM postulantes WHERE id = $1`, id)
+	})
+	return id
+}
+
+func newService(pool *pgxpool.Pool, extra ...domain.SeccionPostulacion) *service.PostulacionService {
+	secciones := append([]domain.SeccionPostulacion{postgres.NewFamiliaresRepo(pool)}, extra...)
+	return service.NewPostulacionService(
+		postgres.NewPostulacionRepo(pool),
+		registrocivil.NewMock(),
+		postgres.NewTxManager(pool),
+		secciones...,
+	)
+}
+
+// seccionRota escribe una fila inválida (viola el CHECK de institucion) dentro de la
+// transacción, después de que la postulación y los familiares ya se escribieron.
+type seccionRota struct{}
+
+func (seccionRota) Cargar(context.Context, string, *domain.Formulario) error { return nil }
+
+func (seccionRota) Reemplazar(ctx context.Context, tx domain.Tx, postulacionID string, _ domain.Formulario) error {
+	_, err := tx.(pgx.Tx).Exec(ctx, `
+INSERT INTO postulacion_familiares (postulacion_id, nombres_apellidos, parentesco, institucion, area, cargo)
+VALUES ($1, 'Fila inválida', 'primo', 'ISSFA', 'x', 'x')`, postulacionID)
+	return err
+}
+
+func familiar(nombre string) domain.Familiar {
+	return domain.Familiar{NombresApellidos: nombre, Parentesco: "hermano/a", Institucion: "IESS", Area: "Finanzas", Cargo: "Analista"}
+}
+
+func nombresFamiliares(t *testing.T, pool *pgxpool.Pool, postulanteID string) []string {
+	t.Helper()
+	rows, err := pool.Query(context.Background(), `
+SELECT f.nombres_apellidos FROM postulacion_familiares f
+JOIN postulaciones p ON p.id = f.postulacion_id
+WHERE p.postulante_id = $1 ORDER BY f.nombres_apellidos`, postulanteID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, n)
+	}
+	return out
+}
+
+func TestGuardar_COMMIT_PersisteTodoEnUnaTransaccion(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	id := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+	svc := newService(pool)
+
+	paisID := 1
+	p, err := svc.Guardar(ctx, id, domain.Formulario{
+		Domicilio:       domain.Domicilio{PaisID: &paisID, TelefonoCelular: "0999999999"},
+		Cargo:           domain.CargoAfiliados,
+		TieneFamiliares: true,
+		Familiares:      []domain.Familiar{familiar("Ana"), familiar("Beto")},
+		Consentimiento:  true,
+	})
+	if err != nil {
+		t.Fatalf("error inesperado: %v", err)
+	}
+	if p.Formulario.Cargo != domain.CargoAfiliados || p.Formulario.Domicilio.TelefonoCelular != "0999999999" ||
+		!p.Formulario.Consentimiento || len(p.Formulario.Familiares) != 2 {
+		t.Fatalf("no se guardó el formulario: %+v", p.Formulario)
+	}
+	if got := nombresFamiliares(t, pool, id); len(got) != 2 {
+		t.Fatalf("familiares en la base = %v", got)
+	}
+
+	// Un segundo PUT reemplaza el estado completo, no lo acumula.
+	p, err = svc.Guardar(ctx, id, domain.Formulario{Cargo: domain.CargoJubilados, TieneFamiliares: true, Familiares: []domain.Familiar{familiar("Carla")}})
+	if err != nil {
+		t.Fatalf("error inesperado: %v", err)
+	}
+	if got := nombresFamiliares(t, pool, id); len(got) != 1 || got[0] != "Carla" {
+		t.Fatalf("familiares en la base = %v, se esperaba [Carla]", got)
+	}
+	if p.Formulario.Cargo != domain.CargoJubilados || p.Formulario.Consentimiento {
+		t.Fatalf("el segundo PUT no reemplazó el estado: %+v", p.Formulario)
+	}
+}
+
+func TestGuardar_ROLLBACK_ErrorEnTablaHijaNoDejaNadaGuardado(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	id := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+
+	// Estado inicial confirmado: cargo "afiliados" y un familiar.
+	bueno := newService(pool)
+	if _, err := bueno.Guardar(ctx, id, domain.Formulario{
+		Cargo: domain.CargoAfiliados, TieneFamiliares: true, Familiares: []domain.Familiar{familiar("Original")},
+	}); err != nil {
+		t.Fatalf("estado inicial: %v", err)
+	}
+
+	// Este guardado escribe la postulación y los familiares nuevos y luego falla en una
+	// tabla hija: todo debe deshacerse, incluido el borrado de los familiares anteriores.
+	roto := newService(pool, seccionRota{})
+	_, err := roto.Guardar(ctx, id, domain.Formulario{
+		Cargo:           domain.CargoJubilados,
+		TieneFamiliares: true,
+		Familiares:      []domain.Familiar{familiar("Nuevo 1"), familiar("Nuevo 2")},
+		Consentimiento:  true,
+	})
+	if err == nil {
+		t.Fatal("se esperaba el error de la tabla hija")
+	}
+
+	var cargo string
+	var consentimiento bool
+	if err := pool.QueryRow(ctx,
+		`SELECT cargo, consentimiento_at IS NOT NULL FROM postulaciones WHERE postulante_id = $1`, id,
+	).Scan(&cargo, &consentimiento); err != nil {
+		t.Fatal(err)
+	}
+	if cargo != domain.CargoAfiliados || consentimiento {
+		t.Fatalf("la postulación quedó con escrituras parciales: cargo=%q consentimiento=%v", cargo, consentimiento)
+	}
+	if got := nombresFamiliares(t, pool, id); len(got) != 1 || got[0] != "Original" {
+		t.Fatalf("familiares tras el ROLLBACK = %v, se esperaba [Original]", got)
+	}
+}
+
+func TestGuardar_ROLLBACK_ErrorDeUnaSeccionConocida(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	id := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+	if _, err := newService(pool).Obtener(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+
+	boom := errors.New("falla de la sección")
+	svc := service.NewPostulacionService(
+		postgres.NewPostulacionRepo(pool), registrocivil.NewMock(), postgres.NewTxManager(pool),
+		postgres.NewFamiliaresRepo(pool), errSeccion{boom},
+	)
+	_, err := svc.Guardar(ctx, id, domain.Formulario{Cargo: domain.CargoEmpleador, TieneFamiliares: true, Familiares: []domain.Familiar{familiar("X")}})
+	if !errors.Is(err, boom) {
+		t.Fatalf("se esperaba el error original sin envolver, llegó %v", err)
+	}
+	var cargo *string
+	if err := pool.QueryRow(ctx, `SELECT cargo FROM postulaciones WHERE postulante_id = $1`, id).Scan(&cargo); err != nil {
+		t.Fatal(err)
+	}
+	if cargo != nil || len(nombresFamiliares(t, pool, id)) != 0 {
+		t.Fatalf("quedó algo escrito tras el ROLLBACK: cargo=%v", cargo)
+	}
+}
+
+type errSeccion struct{ err error }
+
+func (errSeccion) Cargar(context.Context, string, *domain.Formulario) error { return nil }
+func (s errSeccion) Reemplazar(context.Context, domain.Tx, string, domain.Formulario) error {
+	return s.err
+}
+
+func TestObtener_CreaBorradorConCodigoCorrelativo(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	primero := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+	segundo := crearPostulante(t, pool, registrocivil.CedulaCasada)
+	svc := newService(pool)
+
+	p1, err := svc.Obtener(ctx, primero)
+	if err != nil {
+		t.Fatalf("error inesperado: %v", err)
+	}
+	p2, err := svc.Obtener(ctx, segundo)
+	if err != nil {
+		t.Fatalf("error inesperado: %v", err)
+	}
+
+	formato := regexp.MustCompile(`^BIESS-\d{4}-\d{6}$`)
+	if !formato.MatchString(p1.Codigo) || !formato.MatchString(p2.Codigo) || p1.Codigo >= p2.Codigo {
+		t.Fatalf("códigos %q y %q: se esperaba formato BIESS-AAAA-NNNNNN y crecientes", p1.Codigo, p2.Codigo)
+	}
+	if p1.Estado != domain.EstadoBorrador || p1.Personal.Nombres == "" || p1.Personal.Nacionalidad != domain.NacionalidadEcuatoriana {
+		t.Fatalf("no se copió el Registro Civil: %+v", p1)
+	}
+	if p2.Personal.Pareja == nil {
+		t.Fatalf("la persona casada debe traer los datos de la pareja")
+	}
+
+	// Leer de nuevo no crea otra ni cambia el código.
+	otra, err := svc.Obtener(ctx, primero)
+	if err != nil || otra.Codigo != p1.Codigo || otra.ID != p1.ID {
+		t.Fatalf("segunda lectura: %+v, %v", otra, err)
+	}
+}
+
+func TestObtener_PeticionesSimultaneasCreanUnaSolaPostulacion(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	id := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+	svc := newService(pool)
+
+	const n = 8
+	var wg sync.WaitGroup
+	codigos := make([]string, n)
+	errs := make([]error, n)
+	for i := range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p, err := svc.Obtener(ctx, id)
+			codigos[i], errs[i] = p.Codigo, err
+		}()
+	}
+	wg.Wait()
+
+	for i := range n {
+		if errs[i] != nil {
+			t.Fatalf("petición %d: %v", i, errs[i])
+		}
+		if codigos[i] != codigos[0] {
+			t.Fatalf("códigos distintos para la misma postulación: %v", codigos)
+		}
+	}
+	var total int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM postulaciones WHERE postulante_id = $1`, id).Scan(&total); err != nil || total != 1 {
+		t.Fatalf("postulaciones = %d (%v), se esperaba 1", total, err)
+	}
+}
+
+func TestGuardar_NoEditableFueraDeBorrador(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	id := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+	svc := newService(pool)
+	if _, err := svc.Obtener(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE postulaciones SET estado = 'enviada' WHERE postulante_id = $1`, id); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := svc.Guardar(ctx, id, domain.Formulario{Cargo: domain.CargoAfiliados})
+	if !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("se esperaba 409, llegó %v", err)
+	}
+	var cargo *string
+	if err := pool.QueryRow(ctx, `SELECT cargo FROM postulaciones WHERE postulante_id = $1`, id).Scan(&cargo); err != nil || cargo != nil {
+		t.Fatalf("una postulación enviada no debe modificarse: cargo=%v err=%v", cargo, err)
+	}
+}
+
+func TestGuardar_ExtranjeroCierraLaPostulacionYSeConfirma(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	id := crearPostulante(t, pool, registrocivil.CedulaExtranjera)
+	svc := newService(pool)
+
+	_, err := svc.Guardar(ctx, id, domain.Formulario{Cargo: domain.CargoAfiliados})
+	if !errors.Is(err, domain.ErrUnprocessable) {
+		t.Fatalf("se esperaba 422, llegó %v", err)
+	}
+	var estado string
+	var cargo *string
+	if err := pool.QueryRow(ctx, `SELECT estado, cargo FROM postulaciones WHERE postulante_id = $1`, id).Scan(&estado, &cargo); err != nil {
+		t.Fatal(err)
+	}
+	if estado != domain.EstadoCerrada || cargo != nil {
+		t.Fatalf("estado=%q cargo=%v: debía quedar cerrada sin guardar el formulario", estado, cargo)
+	}
+}
+
+func TestGuardar_ReferenciaInexistenteEsErrorDelCliente(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	id := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+	svc := newService(pool)
+
+	inexistente := 999999
+	_, err := svc.Guardar(ctx, id, domain.Formulario{Domicilio: domain.Domicilio{PaisID: &inexistente}})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("se esperaba 400, llegó %v", err)
+	}
+}
