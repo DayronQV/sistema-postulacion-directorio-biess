@@ -47,6 +47,14 @@ function postulacion(sobre: Partial<Postulacion> = {}): Postulacion {
         cargo: 'A',
       },
     ],
+    referencias: [
+      {
+        nombres_apellidos: 'Rosa Vera',
+        relacion: 'Colega',
+        telefono: '0988888888',
+        correo: 'rosa@correo.com',
+      },
+    ],
     cargo: 'jubilados',
     respaldo_organizacion: { nombre: 'Asociación', documento_id: null },
     tiene_publicaciones: false,
@@ -137,6 +145,7 @@ describe('<InformacionPersonalSeccion />', () => {
     expect(enviado).toEqual(actual)
     expect(enviado.domicilio.calle_principal).toBe('Av. Amazonas')
     expect(enviado.familiares).toHaveLength(1)
+    expect(enviado.referencias).toHaveLength(1)
     expect(enviado.cargo).toBe('jubilados')
   })
 

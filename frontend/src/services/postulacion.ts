@@ -16,6 +16,13 @@ export interface Familiar {
   cargo: string
 }
 
+export interface ReferenciaPersonal {
+  nombres_apellidos: string
+  relacion: string
+  telefono: string
+  correo: string
+}
+
 export interface Domicilio {
   pais_id: number | null
   provincia_id: number | null
@@ -52,6 +59,7 @@ export interface Postulacion {
   domicilio: Domicilio
   tiene_familiares: boolean
   familiares: Familiar[]
+  referencias: ReferenciaPersonal[]
   cargo: string
   respaldo_organizacion: { nombre: string; documento_id: string | null }
   tiene_publicaciones: boolean

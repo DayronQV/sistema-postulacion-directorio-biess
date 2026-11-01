@@ -97,6 +97,7 @@ func TestPostulacionObtener_OK(t *testing.T) {
 		Estado              string `json:"estado"`
 		Cargo               string `json:"cargo"`
 		Familiares          []any  `json:"familiares"`
+		Referencias         []any  `json:"referencias"`
 		InformacionPersonal struct {
 			Nombres         string `json:"nombres"`
 			FechaNacimiento string `json:"fecha_nacimiento"`
@@ -111,6 +112,9 @@ func TestPostulacionObtener_OK(t *testing.T) {
 	}
 	if got.Familiares == nil {
 		t.Fatalf("familiares debe ser [], no null: %s", w.Body.String())
+	}
+	if got.Referencias == nil {
+		t.Fatalf("referencias debe ser [], no null: %s", w.Body.String())
 	}
 	if uc.obtenerID != "p-1" {
 		t.Fatalf("el handler no pasó el postulante autenticado: %q", uc.obtenerID)
@@ -150,6 +154,7 @@ func TestPostulacionGuardar_PasaElFormularioAlServicio(t *testing.T) {
 		"domicilio": {"pais_id": 1, "provincia_id": 17, "canton_id": 170, "telefono_celular": "0999999999"},
 		"tiene_familiares": true,
 		"familiares": [{"nombres_apellidos": "Luis", "parentesco": "primo", "institucion": "BIESS", "area": "TI", "cargo": "Jefe"}],
+		"referencias": [{"nombres_apellidos": "Ana Pérez", "relacion": "Amiga", "telefono": "0999999999", "correo": "ana@example.com"}],
 		"cargo": "afiliados",
 		"respaldo_organizacion": {"nombre": "Asociación", "documento_id": null},
 		"formacion": [{"nivel": "tercer_nivel"}],
@@ -162,7 +167,8 @@ func TestPostulacionGuardar_PasaElFormularioAlServicio(t *testing.T) {
 	g := uc.guardado
 	if uc.guardarID != "p-1" || g.Cargo != "afiliados" || !g.TieneFamiliares || !g.Consentimiento ||
 		g.Domicilio.PaisID == nil || *g.Domicilio.CantonID != 170 || g.Domicilio.TelefonoCelular != "0999999999" ||
-		len(g.Familiares) != 1 || g.Familiares[0].Institucion != "BIESS" || g.RespaldoOrganizacion.Nombre != "Asociación" {
+		len(g.Familiares) != 1 || g.Familiares[0].Institucion != "BIESS" || len(g.Referencias) != 1 ||
+		g.Referencias[0].Correo != "ana@example.com" || g.RespaldoOrganizacion.Nombre != "Asociación" {
 		t.Fatalf("formulario mal traducido: %+v", g)
 	}
 }

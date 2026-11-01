@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
+
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/registrocivil"
@@ -19,10 +21,17 @@ func postulacionRoutes(c *container) apihttp.RouteRegistrar {
 		registrocivil.NewMock(),
 		postgres.NewTxManager(c.db),
 		postgres.NewFamiliaresRepo(c.db),
+		postgres.NewReferenciasRepo(c.db),
 	).ConCatalogos(service.NewCatalogoService(
 		postgres.NewCatalogoRepo(c.db),
 		redisrepo.NewCacheCatalogos(c.redis),
 		c.logger,
 	))
-	return apihttp.PostulacionRoutes(handler.NewPostulacionHandler(svc), c.tokens)
+	documentos := service.NewDocumentoService(postgres.NewDocumentoRepo(c.db))
+	postulacion := apihttp.PostulacionRoutes(handler.NewPostulacionHandler(svc), c.tokens)
+	archivos := apihttp.DocumentoRoutes(handler.NewDocumentoHandler(documentos), c.tokens)
+	return func(api *gin.RouterGroup) {
+		postulacion(api)
+		archivos(api)
+	}
 }
