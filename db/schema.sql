@@ -82,6 +82,15 @@ CREATE TABLE postulacion_familiares (
     cargo             TEXT NOT NULL
 );
 
+CREATE TABLE referencias_personales (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    postulacion_id    UUID NOT NULL REFERENCES postulaciones (id) ON DELETE CASCADE,
+    nombres_apellidos TEXT NOT NULL,
+    relacion          TEXT NOT NULL,
+    telefono          TEXT NOT NULL,
+    correo            TEXT NOT NULL
+);
+
 CREATE TABLE documentos (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     postulacion_id UUID NOT NULL REFERENCES postulaciones (id) ON DELETE CASCADE,
@@ -203,6 +212,7 @@ CREATE TABLE eval_respuestas (
 CREATE INDEX idx_provincias_pais ON provincias (pais_id);
 CREATE INDEX idx_cantones_provincia ON cantones (provincia_id);
 CREATE INDEX idx_familiares_postulacion ON postulacion_familiares (postulacion_id);
+CREATE INDEX idx_referencias_postulacion ON referencias_personales (postulacion_id);
 CREATE INDEX idx_documentos_postulacion ON documentos (postulacion_id);
 CREATE INDEX idx_formacion_postulacion ON formacion_academica (postulacion_id);
 CREATE INDEX idx_experiencia_postulacion ON experiencia_profesional (postulacion_id);

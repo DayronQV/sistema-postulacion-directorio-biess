@@ -18,6 +18,7 @@ func postulacionRoutes(c *container) apihttp.RouteRegistrar {
 		registrocivil.NewMock(),
 		postgres.NewTxManager(c.db),
 		postgres.NewFamiliaresRepo(c.db),
+		postgres.NewReferenciasRepo(c.db),
 	)
 	return apihttp.PostulacionRoutes(handler.NewPostulacionHandler(svc), c.tokens)
 }

@@ -59,6 +59,9 @@ Forma de `PUT /postulacion`:
   "familiares": [
     { "nombres_apellidos": "", "parentesco": "hermano/a", "institucion": "IESS", "area": "", "cargo": "" }
   ],
+  "referencias": [
+    { "nombres_apellidos": "", "relacion": "", "telefono": "0999999999", "correo": "persona@correo.com" }
+  ],
   "cargo": "afiliados",
   "respaldo_organizacion": { "nombre": "", "documento_id": null },
   "formacion": [

@@ -64,6 +64,13 @@ type familiarDTO struct {
 	Cargo            string `json:"cargo"`
 }
 
+type referenciaDTO struct {
+	NombresApellidos string `json:"nombres_apellidos"`
+	Relacion         string `json:"relacion"`
+	Telefono         string `json:"telefono"`
+	Correo           string `json:"correo"`
+}
+
 type respaldoDTO struct {
 	Nombre      string  `json:"nombre"`
 	DocumentoID *string `json:"documento_id"`
@@ -73,13 +80,14 @@ type respaldoDTO struct {
 // Cada issue de sección agrega aquí su campo. Los campos que todavía no existen en este
 // DTO (formacion, experiencia, ...) se ignoran.
 type formularioDTO struct {
-	Domicilio            domicilioDTO  `json:"domicilio"`
-	TieneFamiliares      bool          `json:"tiene_familiares"`
-	Familiares           []familiarDTO `json:"familiares"`
-	Cargo                string        `json:"cargo"`
-	RespaldoOrganizacion respaldoDTO   `json:"respaldo_organizacion"`
-	TienePublicaciones   bool          `json:"tiene_publicaciones"`
-	Consentimiento       bool          `json:"consentimiento"`
+	Domicilio            domicilioDTO    `json:"domicilio"`
+	TieneFamiliares      bool            `json:"tiene_familiares"`
+	Familiares           []familiarDTO   `json:"familiares"`
+	Referencias          []referenciaDTO `json:"referencias"`
+	Cargo                string          `json:"cargo"`
+	RespaldoOrganizacion respaldoDTO     `json:"respaldo_organizacion"`
+	TienePublicaciones   bool            `json:"tiene_publicaciones"`
+	Consentimiento       bool            `json:"consentimiento"`
 }
 
 type parejaDTO struct {
@@ -125,6 +133,9 @@ func (d formularioDTO) dominio() domain.Formulario {
 	for _, fam := range d.Familiares {
 		f.Familiares = append(f.Familiares, domain.Familiar(fam))
 	}
+	for _, referencia := range d.Referencias {
+		f.Referencias = append(f.Referencias, domain.ReferenciaPersonal(referencia))
+	}
 	return f
 }
 
@@ -153,6 +164,7 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 			},
 			TieneFamiliares:      f.TieneFamiliares,
 			Familiares:           []familiarDTO{},
+			Referencias:          []referenciaDTO{},
 			Cargo:                f.Cargo,
 			RespaldoOrganizacion: respaldoDTO{Nombre: f.RespaldoOrganizacion.Nombre, DocumentoID: f.RespaldoOrganizacion.DocumentoID},
 			TienePublicaciones:   f.TienePublicaciones,
@@ -165,6 +177,9 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 	}
 	for _, fam := range f.Familiares {
 		r.Familiares = append(r.Familiares, familiarDTO(fam))
+	}
+	for _, referencia := range f.Referencias {
+		r.Referencias = append(r.Referencias, referenciaDTO(referencia))
 	}
 	return r
 }

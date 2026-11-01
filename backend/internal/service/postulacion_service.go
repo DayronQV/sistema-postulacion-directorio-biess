@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
+
+var telefonoReferencia = regexp.MustCompile(`^\+?[0-9]{7,15}$`)
 
 // Mensajes de la postulación.
 const (
@@ -176,6 +180,25 @@ func validarFormulario(f domain.Formulario) error {
 		}
 		if strings.TrimSpace(fam.Cargo) == "" {
 			fields[campo("cargo")] = "Campo obligatorio"
+		}
+	}
+	if len(f.Referencias) > 3 {
+		fields["referencias"] = "Se permiten máximo 3 referencias"
+	}
+	for i, referencia := range f.Referencias {
+		campo := func(n string) string { return fmt.Sprintf("referencias[%d].%s", i, n) }
+		if strings.TrimSpace(referencia.NombresApellidos) == "" {
+			fields[campo("nombres_apellidos")] = "Campo obligatorio"
+		}
+		if strings.TrimSpace(referencia.Relacion) == "" {
+			fields[campo("relacion")] = "Campo obligatorio"
+		}
+		if !telefonoReferencia.MatchString(strings.TrimSpace(referencia.Telefono)) {
+			fields[campo("telefono")] = "Teléfono no válido"
+		}
+		correo := strings.TrimSpace(referencia.Correo)
+		if direccion, err := mail.ParseAddress(correo); err != nil || direccion.Address != correo {
+			fields[campo("correo")] = "Correo no válido"
 		}
 	}
 	if len(fields) > 0 {

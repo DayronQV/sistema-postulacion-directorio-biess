@@ -74,6 +74,14 @@ type Familiar struct {
 	Cargo            string
 }
 
+// ReferenciaPersonal es una persona de contacto declarada por el postulante.
+type ReferenciaPersonal struct {
+	NombresApellidos string
+	Relacion         string
+	Telefono         string
+	Correo           string
+}
+
 // Formulario es el estado completo del formulario que se guarda con PUT
 // /postulacion. Contiene los campos de la propia postulación y una lista por cada
 // sección con filas. Cada issue de sección agrega aquí su lista y su repositorio
@@ -82,6 +90,7 @@ type Formulario struct {
 	Domicilio            Domicilio
 	TieneFamiliares      bool
 	Familiares           []Familiar
+	Referencias          []ReferenciaPersonal
 	Cargo                string // vacío mientras no lo haya elegido
 	RespaldoOrganizacion RespaldoOrganizacion
 	TienePublicaciones   bool
