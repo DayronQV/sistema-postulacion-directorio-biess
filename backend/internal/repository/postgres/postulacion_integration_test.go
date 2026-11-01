@@ -20,8 +20,9 @@ import (
 // Estas pruebas usan el PostgreSQL de docker compose (db/schema.sql ya cargado). Si
 // DATABASE_URL no está definida, se saltan: las reglas del servicio ya se prueban con
 // repositorios falsos, pero solo aquí se demuestra el COMMIT y el ROLLBACK reales.
+// Necesitan una base limpia (docker compose down -v) con el esquema actual.
 
-// newPool abre el pool de pruebas y se asegura de que exista la secuencia del código.
+// newPool abre el pool de pruebas y comprueba que la base tenga el esquema actual.
 func newPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	url := os.Getenv("DATABASE_URL")
@@ -33,17 +34,22 @@ func newPool(t *testing.T) *pgxpool.Pool {
 		t.Skipf("PostgreSQL no disponible: %v", err)
 	}
 	t.Cleanup(pool.Close)
-	// La secuencia de los códigos de postulación (issue #20) vive en db/schema.sql; esta
-	// sentencia es idempotente y deja la prueba funcionando en una base ya creada.
-	if _, err := pool.Exec(context.Background(), `CREATE SEQUENCE IF NOT EXISTS postulacion_codigo_seq`); err != nil {
-		t.Fatalf("creando la secuencia: %v", err)
+	// La secuencia de los códigos de postulación vive en db/schema.sql: no se crea aquí
+	// para que las pruebas fallen si el esquema no la trae.
+	var secuencia *string
+	if err := pool.QueryRow(context.Background(), `SELECT to_regclass('postulacion_codigo_seq')::text`).Scan(&secuencia); err != nil {
+		t.Fatalf("consultando la secuencia: %v", err)
+	}
+	if secuencia == nil {
+		t.Fatal("falta la secuencia postulacion_codigo_seq: recree la base con docker compose down -v")
 	}
 	return pool
 }
 
 // crearPostulante inserta un postulante con la cédula dada (que existe en el Registro
-// Civil simulado) y lo borra al terminar. Si la cédula ya está registrada en la base, se
-// salta la prueba para no tocar datos ajenos.
+// Civil simulado) y lo borra al terminar. Si la cédula ya está registrada en la base, la
+// prueba falla en lugar de saltarse: saltarla dejaría en verde una verificación que no
+// corrió. El simulador solo tiene 7 cédulas, así que no se pueden usar cédulas nuevas.
 func crearPostulante(t *testing.T, pool *pgxpool.Pool, cedula string) string {
 	t.Helper()
 	ctx := context.Background()
@@ -54,7 +60,7 @@ VALUES ($1, $2, 'x')
 ON CONFLICT DO NOTHING
 RETURNING id::text`, cedula, cedula+"@prueba.test").Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		t.Skipf("la cédula %s ya existe en la base: se salta para no tocar datos ajenos", cedula)
+		t.Fatalf("la cédula %s ya está registrada en la base: use una base limpia (docker compose down -v)", cedula)
 	}
 	if err != nil {
 		t.Fatalf("creando el postulante: %v", err)
