@@ -9,13 +9,21 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
 )
 
-// authRoutes cablea el módulo de autenticación: repositorios → servicio → handler.
+// authRoutes cablea el módulo de autenticación: repositorios → servicios → handler.
+// Registro y login usan contadores de intentos separados (auth:*:registro:* y
+// auth:*:login:*).
 func authRoutes(c *container) apihttp.RouteRegistrar {
+	postulantes := postgres.NewPostulanteRepo(c.db)
 	registro := service.NewRegistroService(
 		registrocivil.NewMock(),
 		redisrepo.NewIntentos(c.redis, "registro"),
 		redisrepo.NewTicketsRegistro(c.redis),
-		postgres.NewPostulanteRepo(c.db),
+		postulantes,
 	)
-	return apihttp.AuthRoutes(handler.NewAuthHandler(registro))
+	login := service.NewAuthService(
+		postulantes,
+		redisrepo.NewIntentos(c.redis, "login"),
+		c.tokens,
+	)
+	return apihttp.AuthRoutes(handler.NewAuthHandler(registro, login))
 }

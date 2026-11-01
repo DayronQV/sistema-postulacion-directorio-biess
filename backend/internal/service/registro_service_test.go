@@ -72,6 +72,21 @@ type fakePostulantes struct {
 	registradas map[string]bool
 	emails      map[string]bool
 	creados     []domain.NuevoPostulante
+
+	cuentas        map[string]domain.Cuenta // por cédula, para el login
+	conPostulacion map[string]bool          // por id de postulante
+}
+
+func (f *fakePostulantes) BuscarPorCedula(_ context.Context, cedula string) (domain.Cuenta, error) {
+	c, ok := f.cuentas[cedula]
+	if !ok {
+		return domain.Cuenta{}, domain.NotFound("La cédula no tiene cuenta")
+	}
+	return c, nil
+}
+
+func (f *fakePostulantes) TienePostulacion(_ context.Context, postulanteID string) (bool, error) {
+	return f.conPostulacion[postulanteID], nil
 }
 
 func (f *fakePostulantes) ExisteCedula(_ context.Context, cedula string) (bool, error) {

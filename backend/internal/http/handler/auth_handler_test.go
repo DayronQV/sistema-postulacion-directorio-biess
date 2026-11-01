@@ -40,12 +40,27 @@ func (f *fakeRegistro) Registrar(_ context.Context, in service.RegistroInput) (s
 	return f.id, f.err
 }
 
+type fakeLogin struct {
+	got service.LoginInput
+	res service.LoginResult
+	err error
+}
+
+func (f *fakeLogin) Login(_ context.Context, in service.LoginInput) (service.LoginResult, error) {
+	f.got = in
+	return f.res, f.err
+}
+
 func newRouter(reg handler.RegistroUseCase) *gin.Engine {
+	return newRouterCon(reg, &fakeLogin{})
+}
+
+func newRouterCon(reg handler.RegistroUseCase, login handler.LoginUseCase) *gin.Engine {
 	return apihttp.NewRouter(apihttp.Deps{
 		Config:  config.Config{RequestTimeout: time.Second},
 		Logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Health:  handler.NewHealthHandler(),
-		Modules: []apihttp.RouteRegistrar{apihttp.AuthRoutes(handler.NewAuthHandler(reg))},
+		Modules: []apihttp.RouteRegistrar{apihttp.AuthRoutes(handler.NewAuthHandler(reg, login))},
 	})
 }
 
@@ -125,6 +140,43 @@ func TestRegistro_Conflict(t *testing.T) {
 func TestRegistro_CamposObligatorios(t *testing.T) {
 	w := postTo(newRouter(&fakeRegistro{}), "/api/v1/auth/registro", `{"email":"ana@correo.com"}`)
 	if w.Code != 400 || !strings.Contains(w.Body.String(), `"ticket"`) || !strings.Contains(w.Body.String(), `"password"`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLogin_OK(t *testing.T) {
+	login := &fakeLogin{res: service.LoginResult{Token: "jwt", ExpiraEn: time.Hour, PrimerIngreso: true}}
+	w := postTo(newRouterCon(&fakeRegistro{}, login), "/api/v1/auth/login",
+		`{"cedula":"0924681356","password":"clave1234"}`)
+	if w.Code != 200 || strings.TrimSpace(w.Body.String()) != `{"token":"jwt","expires_in":3600,"primer_ingreso":true}` {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+	if login.got != (service.LoginInput{Cedula: "0924681356", Password: "clave1234"}) {
+		t.Fatalf("el handler no pasó las credenciales: %+v", login.got)
+	}
+}
+
+func TestLogin_Incorrecto(t *testing.T) {
+	login := &fakeLogin{err: domain.Unauthorized(service.MsgCredencialesIncorrectas)}
+	w := postTo(newRouterCon(&fakeRegistro{}, login), "/api/v1/auth/login",
+		`{"cedula":"0924681356","password":"mala1234"}`)
+	if w.Code != 401 || !strings.Contains(w.Body.String(), service.MsgCredencialesIncorrectas) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLogin_Bloqueado(t *testing.T) {
+	login := &fakeLogin{err: domain.Locked(service.MsgLoginBloqueado, 600*time.Second)}
+	w := postTo(newRouterCon(&fakeRegistro{}, login), "/api/v1/auth/login",
+		`{"cedula":"0924681356","password":"clave1234"}`)
+	if w.Code != 429 || w.Header().Get("Retry-After") != "600" || !strings.Contains(w.Body.String(), `"retry_after_seconds":600`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLogin_CamposObligatorios(t *testing.T) {
+	w := postTo(newRouter(&fakeRegistro{}), "/api/v1/auth/login", `{"cedula":"0924681356"}`)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), `"password"`) {
 		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
 	}
 }
