@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
+// Duración del bloqueo si el servidor no informa el tiempo restante (docs/arquitectura.md).
+export const BLOQUEO_POR_DEFECTO_S = 600
+
 // Cuenta regresiva del bloqueo por intentos fallidos. `iniciar(segundos)` la arranca con
 // el retry_after_seconds del servidor; `restante` llega a 0 al terminar. Se calcula
 // contra la hora de fin, así no se atrasa si el navegador demora los intervalos.
