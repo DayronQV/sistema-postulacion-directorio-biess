@@ -2,17 +2,48 @@ package redis_test
 
 import (
 	"context"
+	"os"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
+
+	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	redisrepo "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/redis"
 )
 
+var (
+	redisCheck    sync.Once
+	redisCheckErr error
+)
+
+// newCacheClient es newClient con la comprobación de disponibilidad hecha una sola
+// vez: sin servidor, solo la primera prueba espera el tiempo de conexión y el resto se
+// salta al instante.
+func newCacheClient(t *testing.T) *goredis.Client {
+	t.Helper()
+	redisCheck.Do(func() {
+		addr := os.Getenv("REDIS_ADDR")
+		if addr == "" {
+			addr = "localhost:6379"
+		}
+		client, err := redisrepo.NewClient(context.Background(), addr)
+		if err == nil {
+			_ = client.Close()
+		}
+		redisCheckErr = err
+	})
+	if redisCheckErr != nil {
+		t.Skipf("Redis no disponible: %v", redisCheckErr)
+	}
+	return newClient(t)
+}
+
 func TestCacheCatalogos_GuardarObtenerYTTL(t *testing.T) {
 	ctx := context.Background()
-	client := newClient(t)
+	client := newCacheClient(t)
 	clave := "test-" + time.Now().Format("150405.000000")
 	t.Cleanup(func() { client.Del(ctx, "cache:catalogo:"+clave) })
 	c := redisrepo.NewCacheCatalogos(client)
@@ -36,7 +67,7 @@ func TestCacheCatalogos_GuardarObtenerYTTL(t *testing.T) {
 
 func TestCacheCatalogos_ListaVaciaSeGuardaComoArreglo(t *testing.T) {
 	ctx := context.Background()
-	client := newClient(t)
+	client := newCacheClient(t)
 	clave := "test-vacia-" + time.Now().Format("150405.000000")
 	t.Cleanup(func() { client.Del(ctx, "cache:catalogo:"+clave) })
 	c := redisrepo.NewCacheCatalogos(client)
@@ -55,7 +86,7 @@ func TestCacheCatalogos_ListaVaciaSeGuardaComoArreglo(t *testing.T) {
 
 func TestCacheCatalogos_ValorIlegibleSeTrataComoAusente(t *testing.T) {
 	ctx := context.Background()
-	client := newClient(t)
+	client := newCacheClient(t)
 	clave := "test-corrupta-" + time.Now().Format("150405.000000")
 	t.Cleanup(func() { client.Del(ctx, "cache:catalogo:"+clave) })
 	if err := client.Set(ctx, "cache:catalogo:"+clave, "{no es json", time.Minute).Err(); err != nil {
@@ -69,7 +100,7 @@ func TestCacheCatalogos_ValorIlegibleSeTrataComoAusente(t *testing.T) {
 }
 
 func TestCacheCatalogos_RedisCaido_DevuelveError(t *testing.T) {
-	client := newClient(t)
+	client := newCacheClient(t)
 	_ = client.Close() // el cliente cerrado hace que cada comando falle, como un Redis caído
 	c := redisrepo.NewCacheCatalogos(client)
 
