@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"path"
 	"strings"
@@ -15,22 +16,30 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/middleware"
 )
 
+// maximoCuerpoMultipart acota el cuerpo de la subida antes de leerlo: el mayor PDF
+// admitido (4 MB de organización) más el margen del formulario multipart. Los límites
+// por tipo y el total de 50 MB los aplica el servicio.
 const maximoCuerpoMultipart = 5 * 1024 * 1024
 
+// DocumentoUseCase es lo que el handler necesita del servicio de documentos. Se define
+// aquí para poder probar el handler con un servicio falso.
 type DocumentoUseCase interface {
 	Subir(ctx context.Context, postulanteID, tipo, nombre string, contenido []byte) (domain.Documento, error)
 	Descargar(ctx context.Context, postulanteID, documentoID string) (domain.Documento, error)
 	Eliminar(ctx context.Context, postulanteID, documentoID string) error
 }
 
+// DocumentoHandler atiende las rutas /postulacion/documentos.
 type DocumentoHandler struct {
 	documentos DocumentoUseCase
 }
 
+// NewDocumentoHandler crea el handler de documentos.
 func NewDocumentoHandler(documentos DocumentoUseCase) *DocumentoHandler {
 	return &DocumentoHandler{documentos: documentos}
 }
 
+// usuarioID devuelve el postulante autenticado; si no hay sesión responde 401.
 func usuarioID(c *gin.Context) (string, bool) {
 	claims, ok := middleware.ClaimsFrom(c)
 	if !ok {
@@ -40,6 +49,7 @@ func usuarioID(c *gin.Context) (string, bool) {
 	return claims.UsuarioID, true
 }
 
+// Subir atiende POST /postulacion/documentos (multipart con archivo y tipo).
 func (h *DocumentoHandler) Subir(c *gin.Context) {
 	id, ok := usuarioID(c)
 	if !ok {
@@ -76,6 +86,8 @@ func (h *DocumentoHandler) Subir(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"documento_id": d.ID, "nombre": d.Nombre, "tamano_bytes": d.Tamano})
 }
 
+// Descargar atiende GET /postulacion/documentos/:id. Un documento ajeno responde 404,
+// igual que uno inexistente, para no revelar que existe.
 func (h *DocumentoHandler) Descargar(c *gin.Context) {
 	id, ok := usuarioID(c)
 	if !ok {
@@ -86,10 +98,21 @@ func (h *DocumentoHandler) Descargar(c *gin.Context) {
 		middleware.Fail(c, err)
 		return
 	}
-	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, strings.ReplaceAll(d.Nombre, `"`, "")))
+	c.Header("Content-Disposition", disposicionAdjunto(d.Nombre))
 	c.Data(http.StatusOK, "application/pdf", d.Contenido)
 }
 
+// disposicionAdjunto arma Content-Disposition con el nombre bien codificado: los nombres
+// con tildes o ñ usan filename* (RFC 2231) y las comillas no rompen la cabecera.
+func disposicionAdjunto(nombre string) string {
+	if v := mime.FormatMediaType("attachment", map[string]string{"filename": nombre}); v != "" {
+		return v
+	}
+	return `attachment; filename="documento.pdf"`
+}
+
+// Eliminar atiende DELETE /postulacion/documentos/:id: 204 si se borró, 409 si una
+// sección lo usa y 404 si no es del postulante.
 func (h *DocumentoHandler) Eliminar(c *gin.Context) {
 	id, ok := usuarioID(c)
 	if !ok {

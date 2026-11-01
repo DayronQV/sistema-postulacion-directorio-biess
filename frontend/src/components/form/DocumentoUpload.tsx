@@ -26,25 +26,39 @@ export default function DocumentoUpload({
   onChange,
   etiqueta,
 }: DocumentoUploadProps) {
+  // Subida/eliminación y descarga se cancelan por separado: descargar no debe perder la
+  // referencia a una subida en curso.
   const control = useRef<AbortController | null>(null)
+  const descarga = useRef<AbortController | null>(null)
   const [estado, setEstado] = useState<EstadoSubida>('inactivo')
   const [progreso, setProgreso] = useState(0)
   const [error, setError] = useState<string>()
 
-  useEffect(() => () => control.current?.abort(), [])
+  useEffect(
+    () => () => {
+      control.current?.abort()
+      descarga.current?.abort()
+    },
+    [],
+  )
 
   async function seleccionar(archivo: File) {
     control.current?.abort()
     const actual = new AbortController()
     control.current = actual
+    const anterior = valor
     setEstado('subiendo')
     setProgreso(0)
     setError(undefined)
     try {
       const documento = await subirDocumento(actual.signal, tipo, archivo, setProgreso)
-      if (!actual.signal.aborted) {
-        onChange(documento)
-        setEstado('exito')
+      if (actual.signal.aborted) return
+      onChange(documento)
+      setEstado('exito')
+      // Al reemplazar, el PDF anterior quedaría huérfano y seguiría sumando a los 50 MB.
+      // Si una sección guardada todavía lo usa, el servidor responde 409 y se conserva.
+      if (anterior && anterior.documento_id !== documento.documento_id) {
+        eliminarDocumento(actual.signal, anterior.documento_id).catch(() => undefined)
       }
     } catch (fallo) {
       if (!actual.signal.aborted) {
@@ -60,16 +74,19 @@ export default function DocumentoUpload({
 
   async function descargar() {
     if (!valor) return
+    descarga.current?.abort()
     const actual = new AbortController()
-    control.current = actual
+    descarga.current = actual
     try {
       const contenido = await descargarDocumento(actual.signal, valor.documento_id)
+      if (actual.signal.aborted) return
       const url = URL.createObjectURL(contenido)
       const enlace = document.createElement('a')
       enlace.href = url
       enlace.download = valor.nombre
       enlace.click()
-      URL.revokeObjectURL(url)
+      // Revocar en el mismo instante puede cortar la descarga en algunos navegadores.
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (fallo) {
       if (!actual.signal.aborted) {
         setError(fallo instanceof ApiError ? fallo.message : 'No se pudo descargar el documento.')
@@ -80,6 +97,7 @@ export default function DocumentoUpload({
 
   async function quitar() {
     if (!valor) return
+    control.current?.abort()
     const actual = new AbortController()
     control.current = actual
     setError(undefined)

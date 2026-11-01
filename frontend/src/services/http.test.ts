@@ -82,6 +82,22 @@ describe('cliente http', () => {
     expect(error.code).toBe('UNAUTHORIZED')
   })
 
+  it('lee el error del servidor aunque la respuesta sea un Blob (descargas)', async () => {
+    const cuerpo = new Blob(
+      [JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Documento no encontrado' } })],
+      { type: 'application/json' },
+    )
+    http.defaults.adapter = simular(404, cuerpo)
+    const error = await http
+      .get('/postulacion/documentos/x', { responseType: 'blob' })
+      .catch((e) => e)
+    expect(error).toMatchObject({
+      status: 404,
+      code: 'NOT_FOUND',
+      message: 'Documento no encontrado',
+    })
+  })
+
   it('devuelve NETWORK_ERROR si no hay respuesta del servidor', async () => {
     http.defaults.adapter = (config) =>
       Promise.reject(new AxiosError('Network Error', 'ERR_NETWORK', config))

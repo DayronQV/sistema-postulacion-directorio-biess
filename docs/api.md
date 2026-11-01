@@ -43,8 +43,8 @@ Las secciones con filas (familiares, formación, experiencia, publicaciones, cap
 | Método y ruta | Descripción |
 | --- | --- |
 | `POST /postulacion/documentos` | `multipart/form-data` con `archivo` (PDF) y `tipo` (`organizacion`, `formacion`, `experiencia`, `publicacion`, `capacitacion`). Devuelve `201 { documento_id, nombre, tamano_bytes }`. `422` si no es PDF o excede el límite del tipo (4 MB organización, 2 MB el resto) o los 50 MB totales. |
-| `GET /postulacion/documentos/{id}` | Descarga el PDF propio. |
-| `DELETE /postulacion/documentos/{id}` | Elimina un PDF propio únicamente si todavía no está referenciado por una sección. |
+| `GET /postulacion/documentos/{id}` | Descarga el PDF propio. `404` si no existe o es de otro postulante. |
+| `DELETE /postulacion/documentos/{id}` | Elimina un PDF propio únicamente si todavía no está referenciado por una sección. `204` si se eliminó, `409` si una sección lo usa, `404` si no existe o es de otro postulante. |
 
 Forma de `PUT /postulacion`:
 ```json

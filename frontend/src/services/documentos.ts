@@ -9,6 +9,10 @@ export interface DocumentoSubido {
   tamano_bytes: number
 }
 
+// El cliente general corta a los 15 s; un PDF de 4 MB en una conexión lenta tarda más,
+// así que la subida tiene su propio plazo. Se puede cancelar antes con la señal.
+const PLAZO_SUBIDA_MS = 120_000
+
 export async function subirDocumento(
   signal: AbortSignal,
   tipo: TipoDocumento,
@@ -20,6 +24,7 @@ export async function subirDocumento(
   formulario.append('archivo', archivo)
   const { data } = await http.post<DocumentoSubido>('/postulacion/documentos', formulario, {
     signal,
+    timeout: PLAZO_SUBIDA_MS,
     onUploadProgress: ({ loaded, total }) => {
       if (total && alProgresar) alProgresar(Math.min(100, Math.round((loaded * 100) / total)))
     },
