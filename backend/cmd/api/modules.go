@@ -43,7 +43,7 @@ type container struct {
 func modules(c *container) []apihttp.RouteRegistrar {
 	return []apihttp.RouteRegistrar{
 		authRoutes(c),
-		// catalogoRoutes(c),
+		catalogoRoutes(c),
 		// postulacionRoutes(c),
 	}
 }
