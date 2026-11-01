@@ -1,5 +1,11 @@
 import { cedulaValida } from './cedula'
-import { esquemaCuenta, esquemaIdentidad, mensajePassword } from './esquemas'
+import {
+  esquemaCuenta,
+  esquemaIdentidad,
+  fechaLocalISO,
+  mensajeFechaExpedicion,
+  mensajePassword,
+} from './esquemas'
 import { fortalezaPassword } from './fortaleza'
 
 // Primer mensaje de error del campo, o undefined si el campo es válido.
@@ -76,6 +82,21 @@ describe('esquemaIdentidad', () => {
         'codigoDactilar',
       ),
     ).toBeDefined()
+  })
+})
+
+describe('fecha de expedición', () => {
+  it('usa el día local aunque UTC ya esté en el día siguiente', () => {
+    const nocheLocal = new Date(2026, 10, 1, 20, 0)
+    expect(fechaLocalISO(nocheLocal)).toBe('2026-11-01')
+  })
+
+  it('rechaza fechas inexistentes y futuras', () => {
+    expect(mensajeFechaExpedicion('2026-02-30', '2026-11-01')).toBe('Fecha no válida')
+    expect(mensajeFechaExpedicion('2026-11-02', '2026-11-01')).toBe(
+      'La fecha no puede ser futura',
+    )
+    expect(mensajeFechaExpedicion('2026-11-01', '2026-11-01')).toBeUndefined()
   })
 })
 
