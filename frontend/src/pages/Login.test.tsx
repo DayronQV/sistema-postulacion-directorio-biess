@@ -67,6 +67,16 @@ describe('Login', () => {
     expect(obtenerSesion()?.token).toBe('jwt')
   })
 
+  it('avisa que la sesión expiró cuando llega desde una ruta protegida', () => {
+    renderLogin({ desde: '/otra-privada', expirada: true })
+    expect(screen.getByText('Su sesión expiró')).toBeInTheDocument()
+  })
+
+  it('sin expiración no muestra el aviso', () => {
+    renderLogin({ desde: '/otra-privada', expirada: false })
+    expect(screen.queryByText('Su sesión expiró')).not.toBeInTheDocument()
+  })
+
   it('si no es el primer ingreso vuelve a la ruta privada que pidió el login', async () => {
     mockLogin.mockResolvedValue({ token: 'jwt', expires_in: 3600, primer_ingreso: false })
     const user = userEvent.setup()
