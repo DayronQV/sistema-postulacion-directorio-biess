@@ -169,6 +169,34 @@ describe('FileUpload', () => {
     await userEvent.upload(entrada, pdf)
     expect(alSeleccionar).toHaveBeenCalledWith(pdf)
   })
+
+  it('muestra el progreso y permite descargar el archivo subido', async () => {
+    const descargar = vi.fn()
+    const { rerender } = render(
+      <FileUpload
+        archivo={{ nombre: 'titulo.pdf', tamano: 1024 }}
+        estado="subiendo"
+        progreso={65}
+        maxMb={2}
+        onSeleccionar={() => undefined}
+        onDescargar={descargar}
+      />,
+    )
+    expect(screen.getByLabelText('Progreso de subida: 65%')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Descargar' })).not.toBeInTheDocument()
+
+    rerender(
+      <FileUpload
+        archivo={{ nombre: 'titulo.pdf', tamano: 1024 }}
+        estado="exito"
+        maxMb={2}
+        onSeleccionar={() => undefined}
+        onDescargar={descargar}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Descargar' }))
+    expect(descargar).toHaveBeenCalled()
+  })
 })
 
 describe('Modal (foco y bloqueo)', () => {
