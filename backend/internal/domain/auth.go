@@ -27,10 +27,42 @@ type TicketsRegistro interface {
 	// Emitir guarda un ticket nuevo para la cédula, válido durante ttl, y devuelve
 	// su identificador.
 	Emitir(ctx context.Context, cedula string, ttl time.Duration) (string, error)
+	// Cedula devuelve la cédula del ticket, o un error que cumple
+	// errors.Is(err, ErrNotFound) si no existe o ya expiró.
+	Cedula(ctx context.Context, id string) (string, error)
+	// Eliminar borra el ticket para que no se pueda reutilizar.
+	Eliminar(ctx context.Context, id string) error
 }
 
-// Postulantes es el puerto de la tabla postulantes. Por ahora solo consulta si la
-// cédula ya tiene cuenta; el registro de la cuenta se agrega en su propia issue.
+// NuevoPostulante son los datos de una cuenta nueva. La contraseña llega ya
+// hasheada: el repositorio nunca ve la contraseña en texto plano.
+type NuevoPostulante struct {
+	Cedula       string
+	Email        string
+	PasswordHash string
+}
+
+// Mensajes de una cuenta que ya existe.
+const (
+	MsgCedulaRegistrada = "La cédula ya se encuentra registrada"
+	MsgEmailRegistrado  = "El correo electrónico ya se encuentra registrado"
+)
+
+// ConflictoCedula es el 409 de una cédula que ya tiene cuenta.
+func ConflictoCedula() error {
+	return Conflict(MsgCedulaRegistrada, map[string]string{"cedula": MsgCedulaRegistrada})
+}
+
+// ConflictoEmail es el 409 de un correo que ya pertenece a una cuenta.
+func ConflictoEmail() error {
+	return Conflict(MsgEmailRegistrado, map[string]string{"email": MsgEmailRegistrado})
+}
+
+// Postulantes es el puerto de la tabla postulantes.
 type Postulantes interface {
 	ExisteCedula(ctx context.Context, cedula string) (bool, error)
+	ExisteEmail(ctx context.Context, email string) (bool, error)
+	// Crear guarda la cuenta y devuelve su id. Si la cédula o el correo ya existen
+	// devuelve un error ErrConflict con el campo correspondiente en Fields.
+	Crear(ctx context.Context, p NuevoPostulante) (string, error)
 }
