@@ -22,6 +22,11 @@ type container struct {
 	redis  *goredis.Client
 	tokens domain.TokenIssuer // emite y valida los JWT de sesión
 	mailer domain.Mailer      // envía los correos (hoy, el simulador que escribe en el log)
+
+	// historial es el Historial Laboral del IESS (hoy el simulador). Todavía no
+	// tiene lector: lo consumirá la selección del cargo (#26). No borrar por
+	// "código sin uso".
+	historial domain.HistorialLaboral
 }
 
 // modules devuelve el registro de rutas de cada módulo.

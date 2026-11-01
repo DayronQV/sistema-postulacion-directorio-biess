@@ -20,6 +20,7 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/historiallaboral"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/mailer"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/postgres"
 	redisrepo "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/redis"
@@ -72,7 +73,10 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 
-	c := &container{cfg: cfg, logger: logger, db: pool, redis: rdb, tokens: tokens, mailer: correo}
+	c := &container{
+		cfg: cfg, logger: logger, db: pool, redis: rdb, tokens: tokens, mailer: correo,
+		historial: historiallaboral.NewMock(),
+	}
 	router := apihttp.NewRouter(apihttp.Deps{
 		Config:  cfg,
 		Logger:  logger,
