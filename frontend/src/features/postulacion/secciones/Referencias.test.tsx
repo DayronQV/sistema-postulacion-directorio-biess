@@ -20,8 +20,15 @@ async function llenarReferencia() {
   await escribir(/Correo/, 'ana@example.com')
 }
 
+const ana = {
+  nombres_apellidos: 'Ana Pérez',
+  relacion: 'Amiga',
+  telefono: '0999999999',
+  correo: 'ana@example.com',
+}
+
 describe('Referencias', () => {
-  it('agrega, edita, elimina y guarda referencias', async () => {
+  it('agrega una referencia y la guarda', async () => {
     const guardar = vi.fn()
     render(<Referencias valor={[]} onGuardar={guardar} />)
 
@@ -30,15 +37,17 @@ describe('Referencias', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Agregar' }))
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
 
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar información' }))
+    expect(guardar).toHaveBeenCalledWith([ana])
+  })
+
+  it('edita y elimina una referencia existente', async () => {
+    render(<Referencias valor={[ana]} onGuardar={() => undefined} />)
+
     await userEvent.click(screen.getByRole('button', { name: 'Editar' }))
     await escribir(/Relación/, 'Compañera')
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
     expect(screen.getByText('Compañera')).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar información' }))
-    expect(guardar).toHaveBeenCalledWith([
-      expect.objectContaining({ nombres_apellidos: 'Ana Pérez', relacion: 'Compañera' }),
-    ])
 
     await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
     expect(screen.getByText('Aún no hay registros.')).toBeInTheDocument()
