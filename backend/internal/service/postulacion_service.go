@@ -4,15 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/mail"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
-
-var telefonoReferencia = regexp.MustCompile(`^\+?[0-9]{7,15}$`)
 
 // Mensajes de la postulación.
 const (
@@ -113,6 +108,8 @@ func personalDe(c domain.Ciudadano) domain.InformacionPersonal {
 // borrador (409 si está enviada o cerrada). Si la nacionalidad no es ecuatoriana, la
 // postulación queda cerrada y se responde 422.
 func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f domain.Formulario) (domain.Postulacion, error) {
+	f.Familiares = limpiarFamiliares(f.Familiares)
+	f.Referencias = limpiarReferencias(f.Referencias)
 	if err := validarFormulario(f); err != nil {
 		return domain.Postulacion{}, err
 	}
@@ -161,46 +158,8 @@ func validarFormulario(f domain.Formulario) error {
 	if f.Cargo != "" && !domain.CargoValido(f.Cargo) {
 		fields["cargo"] = "Cargo no válido"
 	}
-	if !f.TieneFamiliares && len(f.Familiares) > 0 {
-		fields["familiares"] = "Hay familiares pero se indicó que no tiene"
-	}
-	for i, fam := range f.Familiares {
-		campo := func(n string) string { return fmt.Sprintf("familiares[%d].%s", i, n) }
-		if strings.TrimSpace(fam.NombresApellidos) == "" {
-			fields[campo("nombres_apellidos")] = "Campo obligatorio"
-		}
-		if strings.TrimSpace(fam.Parentesco) == "" {
-			fields[campo("parentesco")] = "Campo obligatorio"
-		}
-		if fam.Institucion != "IESS" && fam.Institucion != "BIESS" {
-			fields[campo("institucion")] = "Valor no permitido"
-		}
-		if strings.TrimSpace(fam.Area) == "" {
-			fields[campo("area")] = "Campo obligatorio"
-		}
-		if strings.TrimSpace(fam.Cargo) == "" {
-			fields[campo("cargo")] = "Campo obligatorio"
-		}
-	}
-	if len(f.Referencias) > 3 {
-		fields["referencias"] = "Se permiten máximo 3 referencias"
-	}
-	for i, referencia := range f.Referencias {
-		campo := func(n string) string { return fmt.Sprintf("referencias[%d].%s", i, n) }
-		if strings.TrimSpace(referencia.NombresApellidos) == "" {
-			fields[campo("nombres_apellidos")] = "Campo obligatorio"
-		}
-		if strings.TrimSpace(referencia.Relacion) == "" {
-			fields[campo("relacion")] = "Campo obligatorio"
-		}
-		if !telefonoReferencia.MatchString(strings.TrimSpace(referencia.Telefono)) {
-			fields[campo("telefono")] = "Teléfono no válido"
-		}
-		correo := strings.TrimSpace(referencia.Correo)
-		if direccion, err := mail.ParseAddress(correo); err != nil || direccion.Address != correo {
-			fields[campo("correo")] = "Correo no válido"
-		}
-	}
+	validarFamiliares(f, fields)
+	validarReferencias(f, fields)
 	if len(fields) > 0 {
 		return domain.Validation("Datos inválidos", fields)
 	}
