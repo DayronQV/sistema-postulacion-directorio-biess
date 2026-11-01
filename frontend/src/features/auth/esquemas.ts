@@ -13,6 +13,38 @@ export const esquemaCedula = z
   .min(1, 'Ingrese su número de cédula')
   .refine(cedulaValida, 'Cédula no válida')
 
+export function fechaLocalISO(fecha = new Date()): string {
+  const anio = fecha.getFullYear()
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0')
+  const dia = String(fecha.getDate()).padStart(2, '0')
+  return `${anio}-${mes}-${dia}`
+}
+
+export function mensajeFechaExpedicion(
+  valor: string,
+  hoy = fechaLocalISO(),
+): string | undefined {
+  if (!valor) return 'Ingrese la fecha de expedición'
+
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor)
+  if (!partes) return 'Fecha no válida'
+
+  const [, anioTexto, mesTexto, diaTexto] = partes
+  const anio = Number(anioTexto)
+  const mes = Number(mesTexto)
+  const dia = Number(diaTexto)
+  const fecha = new Date(anio, mes - 1, dia)
+  if (
+    fecha.getFullYear() !== anio ||
+    fecha.getMonth() !== mes - 1 ||
+    fecha.getDate() !== dia
+  ) {
+    return 'Fecha no válida'
+  }
+  if (valor > hoy) return 'La fecha no puede ser futura'
+  return undefined
+}
+
 export const esquemaIdentidad = z
   .object({
     cedula: esquemaCedula,
@@ -22,17 +54,12 @@ export const esquemaIdentidad = z
   })
   .superRefine((v, ctx) => {
     if (v.dato === 'fecha') {
-      if (!v.fechaExpedicion) {
+      const mensaje = mensajeFechaExpedicion(v.fechaExpedicion)
+      if (mensaje) {
         ctx.addIssue({
           code: 'custom',
           path: ['fechaExpedicion'],
-          message: 'Ingrese la fecha de expedición',
-        })
-      } else if (v.fechaExpedicion > new Date().toISOString().slice(0, 10)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['fechaExpedicion'],
-          message: 'La fecha no puede ser futura',
+          message: mensaje,
         })
       }
     } else if (!/^[A-Za-z0-9]{10}$/.test(v.codigoDactilar.trim())) {
