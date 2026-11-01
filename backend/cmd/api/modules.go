@@ -13,7 +13,7 @@ import (
 )
 
 // container agrupa la infraestructura compartida (configuración, log, PostgreSQL,
-// Redis y emisor de tokens) que main.go entrega a cada módulo para construir sus repositorios,
+// Redis, emisor de tokens y correo) que main.go entrega a cada módulo para construir sus repositorios,
 // servicios y handlers.
 type container struct {
 	cfg    config.Config
@@ -21,6 +21,7 @@ type container struct {
 	db     *pgxpool.Pool
 	redis  *goredis.Client
 	tokens domain.TokenIssuer // emite y valida los JWT de sesión
+	mailer domain.Mailer      // envía los correos (hoy, el simulador que escribe en el log)
 }
 
 // modules devuelve el registro de rutas de cada módulo.

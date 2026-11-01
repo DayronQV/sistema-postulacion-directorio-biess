@@ -93,6 +93,26 @@ func TestFromEnvRejectsShortJWTSecret(t *testing.T) {
 	}
 }
 
+func TestFromEnvMailer(t *testing.T) {
+	cfg, err := fromEnv(env(validEnv()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Mailer != "log" {
+		t.Errorf("por defecto MAILER debe ser \"log\", got %q", cfg.Mailer)
+	}
+
+	e := validEnv()
+	e["MAILER"] = "  SMTP "
+	cfg, err = fromEnv(env(e))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Mailer != "smtp" {
+		t.Errorf("MAILER debe leerse sin espacios y en minúsculas, got %q", cfg.Mailer)
+	}
+}
+
 func TestApplyDotEnv(t *testing.T) {
 	// Registra la restauración de las variables para no contaminar otras pruebas.
 	t.Setenv("DOTENV_KEEP", "del-entorno")

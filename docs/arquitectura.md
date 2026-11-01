@@ -43,6 +43,13 @@ docker-compose.yml
 - **Cuerpo JSON:** los handlers lo leen con `middleware.BindJSON(c, &req)`. Un JSON mal formado, un tipo incorrecto o un campo `binding` inválido responde 400 `VALIDATION_ERROR` con `fields`, nunca 500.
 - **Errores:** los servicios devuelven errores de `domain` (`domain.Validation`, `domain.NotFound`, ...) y el handler llama a `middleware.Fail(c, err)`. Una petición cancelada por el cliente (`context.Canceled`) no se registra como error interno.
 
+## Correo
+- **Puerto:** `domain.Mailer` con `Enviar(ctx, Mensaje)`. Un `Mensaje` lleva destinatario (una sola dirección), asunto, texto y/o HTML, y adjuntos opcionales (nombre y bytes, por ejemplo un PDF).
+- **Cómo se usa:** los servicios reciben un `domain.Mailer` por inyección (`c.mailer` en el contenedor) y llaman a `Enviar`; no saben qué adaptador hay detrás. Para un correo con adjunto: `Enviar(ctx, domain.Mensaje{Para: ..., Asunto: ..., Texto: ..., Adjuntos: []domain.Adjunto{{Nombre: "postulacion.pdf", Contenido: pdf}}})`.
+- **Validación:** `Mensaje.Validar()` la llama cada adaptador. Rechaza con 400 y `fields` un destinatario inválido, un asunto vacío, un correo sin cuerpo y adjuntos sin nombre o vacíos. No acepta saltos de línea en el destinatario, el asunto ni el nombre de un adjunto, para evitar la inyección de cabeceras.
+- **Adaptador de desarrollo:** `MAILER=log` (por defecto) no envía nada; escribe el correo en el log del backend (destinatario, asunto, cuerpo y nombre y tamaño de los adjuntos). Por ejemplo, el enlace para restablecer la contraseña se copia del log. No usarlo en producción, porque el log muestra el cuerpo completo.
+- **Producción:** `MAILER=smtp` queda reservado para la issue #52. Hoy arranca con un error claro, y un valor desconocido también falla al arrancar, no al enviar el primer correo.
+
 ## Transacciones
 `PostulacionService.Guardar` abre una transacción en el repositorio (`BEGIN`), escribe `postulaciones`, `postulacion_familiares` y lo que se agregue, y hace `COMMIT`; ante cualquier error hace `ROLLBACK`. Ninguna escritura parcial es válida.
 
