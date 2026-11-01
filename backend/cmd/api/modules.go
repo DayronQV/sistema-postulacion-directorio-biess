@@ -21,8 +21,9 @@ type container struct {
 	db     *pgxpool.Pool
 	redis  *goredis.Client
 
-	// historial es el Historial Laboral del IESS (hoy el simulador); lo usa la
-	// selección del cargo de la postulación.
+	// historial es el Historial Laboral del IESS (hoy el simulador). Todavía no
+	// tiene lector: lo consumirá la selección del cargo (#26). No borrar por
+	// "código sin uso".
 	historial domain.HistorialLaboral
 }
 
