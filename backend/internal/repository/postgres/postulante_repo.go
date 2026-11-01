@@ -82,8 +82,8 @@ func (r *PostulanteRepo) Crear(ctx context.Context, p domain.NuevoPostulante) (s
 func (r *PostulanteRepo) BuscarPorCedula(ctx context.Context, cedula string) (domain.Cuenta, error) {
 	var c domain.Cuenta
 	err := r.db.QueryRow(ctx,
-		`SELECT id, cedula, password_hash FROM postulantes WHERE cedula = $1`, cedula,
-	).Scan(&c.ID, &c.Cedula, &c.PasswordHash)
+		`SELECT id, cedula, email, password_hash FROM postulantes WHERE cedula = $1`, cedula,
+	).Scan(&c.ID, &c.Cedula, &c.Email, &c.PasswordHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Cuenta{}, domain.NotFound("La cédula no tiene cuenta")
 	}
@@ -103,4 +103,18 @@ func (r *PostulanteRepo) TienePostulacion(ctx context.Context, postulanteID stri
 		return false, fmt.Errorf("consultando la postulación: %w", err)
 	}
 	return existe, nil
+}
+
+// ActualizarPassword guarda el nuevo hash de la contraseña.
+func (r *PostulanteRepo) ActualizarPassword(ctx context.Context, cedula, passwordHash string) error {
+	tag, err := r.db.Exec(ctx,
+		`UPDATE postulantes SET password_hash = $2 WHERE cedula = $1`, cedula, passwordHash,
+	)
+	if err != nil {
+		return fmt.Errorf("actualizando la contraseña: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.NotFound("La cédula no tiene cuenta")
+	}
+	return nil
 }
