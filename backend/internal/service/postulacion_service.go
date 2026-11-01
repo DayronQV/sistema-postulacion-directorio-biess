@@ -111,18 +111,24 @@ func personalDe(c domain.Ciudadano) domain.InformacionPersonal {
 func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f domain.Formulario) (domain.Postulacion, error) {
 	f.Familiares = limpiarFamiliares(f.Familiares)
 	f.Referencias = limpiarReferencias(f.Referencias)
-	if err := validarFormulario(f); err != nil {
+	actual, err := s.asegurar(ctx, postulanteID)
+	if err != nil {
 		return domain.Postulacion{}, err
 	}
-	if err := s.validarGeografia(ctx, f.Domicilio); err != nil {
-		return domain.Postulacion{}, err
-	}
-	if _, err := s.asegurar(ctx, postulanteID); err != nil {
-		return domain.Postulacion{}, err
+	// Quien no es ecuatoriano no puede continuar: se omite la validación del formulario
+	// para que un cuerpo inválido no oculte el cierre (422 en lugar de 400). La transacción
+	// de abajo cierra la postulación o responde 409 si ya no es un borrador.
+	if domain.EsNacionalidadEcuatoriana(actual.Personal.Nacionalidad) {
+		if err := validarFormulario(f); err != nil {
+			return domain.Postulacion{}, err
+		}
+		if err := s.validarGeografia(ctx, f.Domicilio); err != nil {
+			return domain.Postulacion{}, err
+		}
 	}
 
 	var cerrada bool
-	err := s.tx.Ejecutar(ctx, func(ctx context.Context, tx domain.Tx) error {
+	err = s.tx.Ejecutar(ctx, func(ctx context.Context, tx domain.Tx) error {
 		// La fila queda bloqueada hasta el final: una edición concurrente o un envío
 		// simultáneo esperan en lugar de pisarse.
 		p, err := s.postulaciones.BloquearPorPostulante(ctx, tx, postulanteID)
@@ -132,7 +138,7 @@ func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f
 		if p.Estado != domain.EstadoBorrador {
 			return domain.Conflict(MsgPostulacionNoEditable, nil)
 		}
-		if p.Personal.Nacionalidad != domain.NacionalidadEcuatoriana {
+		if !domain.EsNacionalidadEcuatoriana(p.Personal.Nacionalidad) {
 			cerrada = true
 			return s.postulaciones.Cerrar(ctx, tx, p.ID)
 		}
