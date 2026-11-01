@@ -144,12 +144,19 @@ func completar(p domain.Postulacion, err error, contexto string) (domain.Postula
 	return p, nil
 }
 
+// msgReferenciaInvalida es el mensaje de un identificador que no existe o no se puede
+// usar en esta postulación.
+const msgReferenciaInvalida = "Referencia no válida"
+
 // Actualizar escribe los campos de la postulación. Una referencia que no existe (país,
-// provincia, cantón, documento) o un identificador mal formado es un dato inválido del
-// cliente, no un error del servidor.
+// provincia, cantón), un documento que no es de esta postulación o un identificador mal
+// formado es un dato inválido del cliente, no un error del servidor.
 func (r *PostulacionRepo) Actualizar(ctx context.Context, tx domain.Tx, postulacionID string, f domain.Formulario) error {
 	ptx, err := pgxTx(tx)
 	if err != nil {
+		return err
+	}
+	if err := r.comprobarRespaldo(ctx, ptx, postulacionID, f.RespaldoOrganizacion.DocumentoID); err != nil {
 		return err
 	}
 	d := f.Domicilio
@@ -176,13 +183,45 @@ WHERE id = $1`,
 		f.RespaldoOrganizacion.Nombre, f.RespaldoOrganizacion.DocumentoID,
 		f.Consentimiento)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && (pgErr.Code == pgForeignKeyViolation || pgErr.Code == pgInvalidTextRepr) {
-			return domain.Validation("Datos inválidos", map[string]string{"domicilio": "Referencia no válida"})
+		if esReferenciaInvalida(err) {
+			return domain.Validation("Datos inválidos", map[string]string{"domicilio": msgReferenciaInvalida})
 		}
 		return fmt.Errorf("actualizando la postulación: %w", err)
 	}
 	return nil
+}
+
+// comprobarRespaldo exige que el documento de respaldo de la organización exista, sea de
+// tipo organizacion y pertenezca a esta misma postulación: la clave foránea sola
+// aceptaría el documento de otro postulante.
+func (r *PostulacionRepo) comprobarRespaldo(ctx context.Context, tx pgx.Tx, postulacionID string, documentoID *string) error {
+	if documentoID == nil {
+		return nil
+	}
+	var propio bool
+	err := tx.QueryRow(ctx, `
+SELECT EXISTS (
+    SELECT 1 FROM documentos
+    WHERE id = $1::uuid AND postulacion_id = $2 AND tipo = 'organizacion')`,
+		*documentoID, postulacionID).Scan(&propio)
+	if err != nil {
+		if esReferenciaInvalida(err) {
+			propio = false
+		} else {
+			return fmt.Errorf("comprobando el documento de respaldo: %w", err)
+		}
+	}
+	if !propio {
+		return domain.Validation("Datos inválidos", map[string]string{"respaldo_organizacion.documento_id": msgReferenciaInvalida})
+	}
+	return nil
+}
+
+// esReferenciaInvalida indica un error de PostgreSQL causado por un dato del cliente: una
+// clave foránea que no existe o un identificador mal formado.
+func esReferenciaInvalida(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && (pgErr.Code == pgForeignKeyViolation || pgErr.Code == pgInvalidTextRepr)
 }
 
 // Cerrar pasa la postulación a estado "cerrada".

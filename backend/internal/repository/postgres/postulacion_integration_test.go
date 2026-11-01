@@ -348,3 +348,67 @@ func TestGuardar_ReferenciaInexistenteEsErrorDelCliente(t *testing.T) {
 		t.Fatalf("se esperaba 400, llegó %v", err)
 	}
 }
+
+func TestGuardar_DocumentoDeRespaldoDebeSerDeLaMismaPostulacion(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	idA := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+	idB := crearPostulante(t, pool, registrocivil.CedulaUnionDeHecho)
+	svc := newService(pool)
+	pA, err := svc.Obtener(ctx, idA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pB, err := svc.Obtener(ctx, idB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	documento := func(postulacionID, tipo string) string {
+		var id string
+		if err := pool.QueryRow(ctx, `
+INSERT INTO documentos (postulacion_id, tipo, nombre, tamano_bytes, contenido)
+VALUES ($1, $2, 'respaldo.pdf', 4, '%504446') RETURNING id::text`, postulacionID, tipo).Scan(&id); err != nil {
+			t.Fatalf("creando el documento: %v", err)
+		}
+		return id
+	}
+	respaldoDe := func(postulanteID string) *string {
+		var doc *string
+		if err := pool.QueryRow(ctx,
+			`SELECT respaldo_organizacion_doc_id::text FROM postulaciones WHERE postulante_id = $1`, postulanteID,
+		).Scan(&doc); err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+	guardar := func(doc string) error {
+		_, err := svc.Guardar(ctx, idA, domain.Formulario{
+			Cargo:                domain.CargoAfiliados,
+			RespaldoOrganizacion: domain.RespaldoOrganizacion{Nombre: "Asociación", DocumentoID: &doc},
+		})
+		return err
+	}
+
+	ajeno := documento(pB.ID, "organizacion")
+	if err := guardar(ajeno); !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("el documento de otro postulante debe responder 400, llegó %v", err)
+	}
+	if doc := respaldoDe(idA); doc != nil {
+		t.Fatalf("la postulación de A quedó apuntando al documento %s de B", *doc)
+	}
+
+	if err := guardar(documento(pA.ID, "formacion")); !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("un documento de otro tipo debe responder 400, llegó %v", err)
+	}
+	if err := guardar("no-es-un-uuid"); !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("un identificador mal formado debe responder 400, llegó %v", err)
+	}
+
+	propio := documento(pA.ID, "organizacion")
+	if err := guardar(propio); err != nil {
+		t.Fatalf("el documento propio debe aceptarse: %v", err)
+	}
+	if doc := respaldoDe(idA); doc == nil || *doc != propio {
+		t.Fatalf("respaldo guardado = %v, se esperaba %s", doc, propio)
+	}
+}
