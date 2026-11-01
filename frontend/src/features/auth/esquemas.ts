@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { cedulaValida } from './cedula'
 
-// Esquemas de los formularios de registro. Reproducen las reglas del servidor para
-// avisar antes de enviar; el servidor sigue siendo quien decide.
+// Esquemas de los formularios de registro e inicio de sesión. Reproducen las reglas
+// del servidor para avisar antes de enviar; el servidor sigue siendo quien decide.
 
 export const MIN_PASSWORD = 8
 export const MAX_PASSWORD_BYTES = 72 // límite de bcrypt en el servidor
@@ -75,3 +75,11 @@ export const esquemaCuenta = z
   })
 
 export type FormCuenta = z.infer<typeof esquemaCuenta>
+
+// En el login la contraseña solo se exige: la regla de formato es del registro.
+export const esquemaLogin = z.object({
+  cedula: esquemaCedula,
+  password: z.string().min(1, 'Ingrese su contraseña'),
+})
+
+export type FormLogin = z.infer<typeof esquemaLogin>

@@ -26,3 +26,20 @@ export async function registrarCuenta(signal: AbortSignal, datos: DatosCuenta) {
   const { data } = await http.post<{ id: string }>('/auth/registro', datos, { signal })
   return data.id
 }
+
+export interface Credenciales {
+  cedula: string
+  password: string
+}
+
+export interface RespuestaLogin {
+  token: string
+  expires_in: number // segundos
+  primer_ingreso: boolean // aún no tiene postulación: va obligatoriamente al formulario
+}
+
+// POST /auth/login: inicio de sesión del postulante.
+export async function iniciarSesionPostulante(signal: AbortSignal, credenciales: Credenciales) {
+  const { data } = await http.post<RespuestaLogin>('/auth/login', credenciales, { signal })
+  return data
+}

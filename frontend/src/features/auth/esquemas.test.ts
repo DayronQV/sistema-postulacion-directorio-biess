@@ -1,5 +1,5 @@
 import { cedulaValida } from './cedula'
-import { esquemaCuenta, esquemaIdentidad, mensajePassword } from './esquemas'
+import { esquemaCuenta, esquemaIdentidad, esquemaLogin, mensajePassword } from './esquemas'
 import { fortalezaPassword } from './fortaleza'
 
 // Primer mensaje de error del campo, o undefined si el campo es válido.
@@ -125,5 +125,17 @@ describe('fortalezaPassword', () => {
     expect(fortalezaPassword('clave1234').etiqueta).toBe('Débil')
     expect(fortalezaPassword('Clave12345').etiqueta).toBe('Aceptable')
     expect(fortalezaPassword('Clave-Segura-2026').etiqueta).toBe('Fuerte')
+  })
+})
+
+describe('esquemaLogin', () => {
+  it('pide cédula válida y contraseña, sin la regla de formato del registro', () => {
+    expect(esquemaLogin.safeParse({ cedula: '1712345675', password: 'x' }).success).toBe(true)
+    expect(
+      errorDe(esquemaLogin.safeParse({ cedula: '1712345675', password: '' }), 'password'),
+    ).toBe('Ingrese su contraseña')
+    expect(errorDe(esquemaLogin.safeParse({ cedula: '123', password: 'x' }), 'cedula')).toBe(
+      'Cédula no válida',
+    )
   })
 })

@@ -11,10 +11,8 @@ import { ApiError } from '@/services/errores'
 import { aplicarErroresDeCampo } from './errores'
 import { esquemaIdentidad, type FormIdentidad } from './esquemas'
 import SelectorDato from './SelectorDato'
-import { formatoMinutos, useCuentaRegresiva } from './useCuentaRegresiva'
+import { BLOQUEO_POR_DEFECTO_S, formatoMinutos, useCuentaRegresiva } from './useCuentaRegresiva'
 
-// Duración del bloqueo si el servidor no informa el tiempo restante (docs/arquitectura.md).
-const BLOQUEO_POR_DEFECTO_S = 600
 const MSG_BLOQUEO = 'registro fallido, inténtelo nuevamente en 10 minutos'
 
 interface PasoIdentidadProps {

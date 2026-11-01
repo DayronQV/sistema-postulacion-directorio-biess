@@ -1,5 +1,5 @@
 import type { InternalAxiosRequestConfig } from 'axios'
-import { registrarCuenta, validarIdentidad } from './auth'
+import { iniciarSesionPostulante, registrarCuenta, validarIdentidad } from './auth'
 import { http } from './http'
 
 // Adaptador falso: guarda la petición y responde con `data`, sin red.
@@ -48,5 +48,18 @@ describe('servicio de autenticación', () => {
       email: 'ana@correo.com',
       password: 'Clave12345',
     })
+  })
+
+  it('iniciarSesionPostulante envía POST /auth/login y devuelve la respuesta completa', async () => {
+    const respuesta = { token: 'jwt', expires_in: 3600, primer_ingreso: true }
+    const peticiones = capturar(respuesta)
+    const r = await iniciarSesionPostulante(new AbortController().signal, {
+      cedula: '1712345675',
+      password: 'Clave12345',
+    })
+
+    expect(r).toEqual(respuesta)
+    expect(peticiones[0]).toMatchObject({ method: 'post', url: '/auth/login' })
+    expect(JSON.parse(peticiones[0].data)).toEqual({ cedula: '1712345675', password: 'Clave12345' })
   })
 })
