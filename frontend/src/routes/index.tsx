@@ -7,6 +7,7 @@ import Inicio from '@/pages/Inicio'
 import Login from '@/pages/Login'
 import Recuperar from '@/pages/Recuperar'
 import Registro from '@/pages/Registro'
+import RutaProtegida from './RutaProtegida'
 
 export default function AppRoutes() {
   return (
@@ -21,9 +22,11 @@ export default function AppRoutes() {
         <Route path="/componentes" element={<Componentes />} />
       </Route>
 
-      {/* Rutas privadas: la guardia de sesión se agrega con la issue #9 */}
-      <Route element={<LayoutPrivado />}>
-        <Route path="/postulacion" element={<FormularioPostulacion />} />
+      {/* Rutas privadas: exigen sesión */}
+      <Route element={<RutaProtegida />}>
+        <Route element={<LayoutPrivado />}>
+          <Route path="/postulacion" element={<FormularioPostulacion />} />
+        </Route>
       </Route>
     </Routes>
   )

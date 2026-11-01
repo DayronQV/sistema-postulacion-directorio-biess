@@ -3,17 +3,22 @@ import { Outlet } from 'react-router-dom'
 import Badge from '@/components/ui/Badge'
 import Icon from '@/components/ui/Icon'
 import Marca from './Marca'
+import { cerrarSesion } from '@/store/sesion'
 import PieDePagina from './PieDePagina'
 
 interface LayoutPrivadoProps {
-  // La sesión real llega con la issue #9; hasta entonces el layout recibe estos datos por props.
+  // El login no devuelve datos del usuario (docs/api.md), así que el nombre llega por props si se tiene.
   usuario?: { nombre: string; cedula: string }
   onCerrarSesion?: () => void
   children?: ReactNode
 }
 
 // Pantallas con sesión: encabezado con el usuario y el botón Cerrar sesión.
-export default function LayoutPrivado({ usuario, onCerrarSesion, children }: LayoutPrivadoProps) {
+export default function LayoutPrivado({
+  usuario,
+  onCerrarSesion = cerrarSesion,
+  children,
+}: LayoutPrivadoProps) {
   return (
     <div className="flex min-h-screen flex-col bg-surface">
       <header className="sticky top-0 z-40 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
