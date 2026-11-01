@@ -40,6 +40,7 @@ export interface Domicilio {
 }
 
 export interface InformacionPersonal {
+  email: string // correo del registro (correo 1 del domicilio); solo lectura
   nombres: string
   apellidos: string
   genero: string

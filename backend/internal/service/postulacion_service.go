@@ -22,6 +22,7 @@ type PostulacionService struct {
 	registroCivil domain.RegistroCivil
 	tx            domain.TxManager
 	secciones     []domain.SeccionPostulacion
+	catalogos     domain.Catalogos // opcional: ver ConCatalogos
 	ahora         func() time.Time
 }
 
@@ -113,6 +114,9 @@ func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f
 	if err := validarFormulario(f); err != nil {
 		return domain.Postulacion{}, err
 	}
+	if err := s.validarGeografia(ctx, f.Domicilio); err != nil {
+		return domain.Postulacion{}, err
+	}
 	if _, err := s.asegurar(ctx, postulanteID); err != nil {
 		return domain.Postulacion{}, err
 	}
@@ -155,6 +159,7 @@ func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f
 // postulación. La validación de cada sección con filas la hace su propio código.
 func validarFormulario(f domain.Formulario) error {
 	fields := map[string]string{}
+	validarDomicilioFormato(f.Domicilio, fields)
 	if f.Cargo != "" && !domain.CargoValido(f.Cargo) {
 		fields["cargo"] = "Cargo no válido"
 	}

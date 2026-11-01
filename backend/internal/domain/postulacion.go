@@ -32,6 +32,7 @@ func CargoValido(cargo string) bool {
 // postulación. El postulante no la edita.
 type InformacionPersonal struct {
 	Cedula          string
+	Email           string // correo del registro (correo 1 del domicilio); solo lectura
 	Nombres         string
 	Apellidos       string
 	Genero          string
