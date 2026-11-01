@@ -20,6 +20,7 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/mailer"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/postgres"
 	redisrepo "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/redis"
 )
@@ -36,6 +37,12 @@ func main() {
 
 func run(logger *slog.Logger) error {
 	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	// Un MAILER inválido se detecta aquí, antes de conectarse a las bases de datos.
+	correo, err := mailer.New(cfg.Mailer, logger)
 	if err != nil {
 		return err
 	}
@@ -65,7 +72,7 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 
-	c := &container{cfg: cfg, logger: logger, db: pool, redis: rdb, tokens: tokens}
+	c := &container{cfg: cfg, logger: logger, db: pool, redis: rdb, tokens: tokens, mailer: correo}
 	router := apihttp.NewRouter(apihttp.Deps{
 		Config:  cfg,
 		Logger:  logger,
