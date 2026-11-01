@@ -69,6 +69,9 @@ CREATE TABLE postulaciones (
     enviada_at         TIMESTAMPTZ
 );
 
+-- Códigos de postulación (BIESS-AAAA-NNNNNN): únicos y crecientes.
+CREATE SEQUENCE IF NOT EXISTS postulacion_codigo_seq;
+
 CREATE TABLE postulacion_familiares (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     postulacion_id    UUID NOT NULL REFERENCES postulaciones (id) ON DELETE CASCADE,
