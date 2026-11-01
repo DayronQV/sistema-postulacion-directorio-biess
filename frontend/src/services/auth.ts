@@ -43,3 +43,20 @@ export async function iniciarSesionPostulante(signal: AbortSignal, credenciales:
   const { data } = await http.post<RespuestaLogin>('/auth/login', credenciales, { signal })
   return data
 }
+
+// POST /auth/recuperar: valida la identidad y, si la cédula tiene cuenta, el servidor
+// envía el enlace de restablecimiento al correo registrado. Responde 202 sin cuerpo
+// tenga o no cuenta la cédula.
+export async function solicitarRecuperacion(signal: AbortSignal, datos: DatosIdentidad) {
+  await http.post('/auth/recuperar', datos, { signal })
+}
+
+export interface DatosRestablecer {
+  token: string
+  password: string
+}
+
+// POST /auth/restablecer: cambia la contraseña con el token del enlace (204 sin cuerpo).
+export async function restablecerPassword(signal: AbortSignal, datos: DatosRestablecer) {
+  await http.post('/auth/restablecer', datos, { signal })
+}
