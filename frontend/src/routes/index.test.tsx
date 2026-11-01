@@ -19,6 +19,7 @@ describe('AppRoutes', () => {
     ['/registro', /^Registro$/],
     ['/login', /^Iniciar sesión$/],
     ['/recuperar', /^Recuperar contraseña$/],
+    ['/restablecer?token=abc', /^Restablecer contraseña$/],
   ])('muestra la página pública de %s', (ruta, titulo) => {
     renderEn(ruta)
     expect(screen.getByRole('heading', { level: 1, name: titulo })).toBeInTheDocument()

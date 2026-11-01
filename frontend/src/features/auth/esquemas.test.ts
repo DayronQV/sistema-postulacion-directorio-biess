@@ -3,6 +3,7 @@ import {
   esquemaCuenta,
   esquemaIdentidad,
   esquemaLogin,
+  esquemaRestablecer,
   fechaLocalISO,
   mensajeFechaExpedicion,
   mensajePassword,
@@ -159,5 +160,19 @@ describe('esquemaLogin', () => {
     expect(errorDe(esquemaLogin.safeParse({ cedula: '123', password: 'x' }), 'cedula')).toBe(
       'Cédula no válida',
     )
+  })
+})
+
+describe('esquemaRestablecer', () => {
+  it('aplica la regla de contraseña del registro y exige la confirmación', () => {
+    const ok = { password: 'ñandú123', confirmacion: 'ñandú123' }
+    expect(esquemaRestablecer.safeParse(ok).success).toBe(true)
+    const corta = { password: 'áááá1', confirmacion: 'áááá1' }
+    expect(errorDe(esquemaRestablecer.safeParse(corta), 'password')).toBe(
+      'La contraseña debe tener al menos 8 caracteres',
+    )
+    expect(
+      errorDe(esquemaRestablecer.safeParse({ ...ok, confirmacion: 'otra1234' }), 'confirmacion'),
+    ).toBe('Las contraseñas no coinciden')
   })
 })

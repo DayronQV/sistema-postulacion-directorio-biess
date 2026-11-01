@@ -7,6 +7,7 @@ import Inicio from '@/pages/Inicio'
 import Login from '@/pages/Login'
 import Recuperar from '@/pages/Recuperar'
 import Registro from '@/pages/Registro'
+import Restablecer from '@/pages/Restablecer'
 import RutaProtegida from './RutaProtegida'
 
 export default function AppRoutes() {
@@ -18,6 +19,7 @@ export default function AppRoutes() {
         <Route path="/registro" element={<Registro />} />
         <Route path="/login" element={<Login />} />
         <Route path="/recuperar" element={<Recuperar />} />
+        <Route path="/restablecer" element={<Restablecer />} />
         {/* Muestra interna de componentes: solo en desarrollo */}
         {import.meta.env.DEV && <Route path="/componentes" element={<Componentes />} />}
       </Route>

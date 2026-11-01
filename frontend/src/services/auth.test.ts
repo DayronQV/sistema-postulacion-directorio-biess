@@ -1,5 +1,11 @@
 import type { InternalAxiosRequestConfig } from 'axios'
-import { iniciarSesionPostulante, registrarCuenta, validarIdentidad } from './auth'
+import {
+  iniciarSesionPostulante,
+  registrarCuenta,
+  restablecerPassword,
+  solicitarRecuperacion,
+  validarIdentidad,
+} from './auth'
 import { http } from './http'
 
 // Adaptador falso: guarda la petición y responde con `data`, sin red.
@@ -61,5 +67,25 @@ describe('servicio de autenticación', () => {
     expect(r).toEqual(respuesta)
     expect(peticiones[0]).toMatchObject({ method: 'post', url: '/auth/login' })
     expect(JSON.parse(peticiones[0].data)).toEqual({ cedula: '1712345675', password: 'Clave12345' })
+  })
+
+  it('solicitarRecuperacion envía POST /auth/recuperar', async () => {
+    const peticiones = capturar('')
+    await solicitarRecuperacion(new AbortController().signal, {
+      cedula: '1802468130',
+      codigo_dactilar: 'V3141V5926',
+    })
+    expect(peticiones[0]).toMatchObject({ method: 'post', url: '/auth/recuperar' })
+    expect(JSON.parse(peticiones[0].data)).toEqual({
+      cedula: '1802468130',
+      codigo_dactilar: 'V3141V5926',
+    })
+  })
+
+  it('restablecerPassword envía POST /auth/restablecer con el token', async () => {
+    const peticiones = capturar('')
+    await restablecerPassword(new AbortController().signal, { token: 't', password: 'Nueva12345' })
+    expect(peticiones[0]).toMatchObject({ method: 'post', url: '/auth/restablecer' })
+    expect(JSON.parse(peticiones[0].data)).toEqual({ token: 't', password: 'Nueva12345' })
   })
 })

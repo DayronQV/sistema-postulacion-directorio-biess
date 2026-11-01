@@ -83,6 +83,18 @@ export function mensajePassword(p: string): string | undefined {
   return undefined
 }
 
+const esquemaPassword = z.string().superRefine((p, ctx) => {
+  const msg = mensajePassword(p)
+  if (msg) ctx.addIssue({ code: 'custom', message: msg })
+})
+
+const esquemaConfirmacion = z.string().min(1, 'Confirme su contraseña')
+
+const coincidenPasswords = {
+  check: (v: { password: string; confirmacion: string }) => v.password === v.confirmacion,
+  params: { path: ['confirmacion'], message: 'Las contraseñas no coinciden' },
+}
+
 export const esquemaCuenta = z
   .object({
     email: z
@@ -90,18 +102,19 @@ export const esquemaCuenta = z
       .trim()
       .min(1, 'Ingrese su correo electrónico')
       .pipe(z.email('Correo electrónico no válido')),
-    password: z.string().superRefine((p, ctx) => {
-      const msg = mensajePassword(p)
-      if (msg) ctx.addIssue({ code: 'custom', message: msg })
-    }),
-    confirmacion: z.string().min(1, 'Confirme su contraseña'),
+    password: esquemaPassword,
+    confirmacion: esquemaConfirmacion,
   })
-  .refine((v) => v.password === v.confirmacion, {
-    path: ['confirmacion'],
-    message: 'Las contraseñas no coinciden',
-  })
+  .refine(coincidenPasswords.check, coincidenPasswords.params)
 
 export type FormCuenta = z.infer<typeof esquemaCuenta>
+
+// Nueva contraseña desde el enlace del correo: misma regla que en el registro.
+export const esquemaRestablecer = z
+  .object({ password: esquemaPassword, confirmacion: esquemaConfirmacion })
+  .refine(coincidenPasswords.check, coincidenPasswords.params)
+
+export type FormRestablecer = z.infer<typeof esquemaRestablecer>
 
 // En el login la contraseña solo se exige: la regla de formato es del registro.
 export const esquemaLogin = z.object({
