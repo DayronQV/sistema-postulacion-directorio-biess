@@ -98,6 +98,7 @@ func TestPostulacionObtener_OK(t *testing.T) {
 		Cargo               string `json:"cargo"`
 		Familiares          []any  `json:"familiares"`
 		Referencias         []any  `json:"referencias"`
+		Formacion           []any  `json:"formacion"`
 		InformacionPersonal struct {
 			Nombres         string `json:"nombres"`
 			FechaNacimiento string `json:"fecha_nacimiento"`
@@ -115,6 +116,9 @@ func TestPostulacionObtener_OK(t *testing.T) {
 	}
 	if got.Referencias == nil {
 		t.Fatalf("referencias debe ser [], no null: %s", w.Body.String())
+	}
+	if got.Formacion == nil {
+		t.Fatalf("formacion debe ser [], no null: %s", w.Body.String())
 	}
 	if uc.obtenerID != "p-1" {
 		t.Fatalf("el handler no pasó el postulante autenticado: %q", uc.obtenerID)
@@ -157,7 +161,7 @@ func TestPostulacionGuardar_PasaElFormularioAlServicio(t *testing.T) {
 		"referencias": [{"nombres_apellidos": "Ana Pérez", "relacion": "Amiga", "telefono": "0999999999", "correo": "ana@example.com"}],
 		"cargo": "afiliados",
 		"respaldo_organizacion": {"nombre": "Asociación", "documento_id": null},
-		"formacion": [{"nivel": "tercer_nivel"}],
+		"formacion": [{"nivel": "tercer_nivel", "institucion": "UPSE", "tipo": "nacional", "titulo": "Economista", "area": "economia", "senescyt_numero": "1001", "senescyt_fecha": "2020-01-31", "documento_id": "doc-1"}],
 		"consentimiento": true
 	}`
 	w := send(newPostulacionRouter(uc), "PUT", "postulante", body)
@@ -168,7 +172,8 @@ func TestPostulacionGuardar_PasaElFormularioAlServicio(t *testing.T) {
 	if uc.guardarID != "p-1" || g.Cargo != "afiliados" || !g.TieneFamiliares || !g.Consentimiento ||
 		g.Domicilio.PaisID == nil || *g.Domicilio.CantonID != 170 || g.Domicilio.TelefonoCelular != "0999999999" ||
 		len(g.Familiares) != 1 || g.Familiares[0].Institucion != "BIESS" || len(g.Referencias) != 1 ||
-		g.Referencias[0].Correo != "ana@example.com" || g.RespaldoOrganizacion.Nombre != "Asociación" {
+		g.Referencias[0].Correo != "ana@example.com" || len(g.Formacion) != 1 ||
+		g.Formacion[0].DocumentoID != "doc-1" || g.RespaldoOrganizacion.Nombre != "Asociación" {
 		t.Fatalf("formulario mal traducido: %+v", g)
 	}
 }

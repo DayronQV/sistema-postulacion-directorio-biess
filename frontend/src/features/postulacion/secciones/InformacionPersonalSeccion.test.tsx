@@ -55,6 +55,7 @@ function postulacion(sobre: Partial<Postulacion> = {}): Postulacion {
         correo: 'rosa@correo.com',
       },
     ],
+    formacion: [],
     cargo: 'jubilados',
     respaldo_organizacion: { nombre: 'Asociación', documento_id: null },
     tiene_publicaciones: false,

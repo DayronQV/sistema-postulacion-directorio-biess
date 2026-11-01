@@ -71,6 +71,17 @@ type referenciaDTO struct {
 	Correo           string `json:"correo"`
 }
 
+type formacionDTO struct {
+	Nivel          string `json:"nivel"`
+	Institucion    string `json:"institucion"`
+	Tipo           string `json:"tipo"`
+	Titulo         string `json:"titulo"`
+	Area           string `json:"area"`
+	SenescytNumero string `json:"senescyt_numero"`
+	SenescytFecha  string `json:"senescyt_fecha"`
+	DocumentoID    string `json:"documento_id"`
+}
+
 type respaldoDTO struct {
 	Nombre      string  `json:"nombre"`
 	DocumentoID *string `json:"documento_id"`
@@ -84,6 +95,7 @@ type formularioDTO struct {
 	TieneFamiliares      bool            `json:"tiene_familiares"`
 	Familiares           []familiarDTO   `json:"familiares"`
 	Referencias          []referenciaDTO `json:"referencias"`
+	Formacion            []formacionDTO  `json:"formacion"`
 	Cargo                string          `json:"cargo"`
 	RespaldoOrganizacion respaldoDTO     `json:"respaldo_organizacion"`
 	TienePublicaciones   bool            `json:"tiene_publicaciones"`
@@ -138,6 +150,9 @@ func (d formularioDTO) dominio() domain.Formulario {
 	for _, referencia := range d.Referencias {
 		f.Referencias = append(f.Referencias, domain.ReferenciaPersonal(referencia))
 	}
+	for _, fila := range d.Formacion {
+		f.Formacion = append(f.Formacion, domain.FormacionAcademica(fila))
+	}
 	return f
 }
 
@@ -169,6 +184,7 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 			TieneFamiliares:      f.TieneFamiliares,
 			Familiares:           []familiarDTO{},
 			Referencias:          []referenciaDTO{},
+			Formacion:            []formacionDTO{},
 			Cargo:                f.Cargo,
 			RespaldoOrganizacion: respaldoDTO{Nombre: f.RespaldoOrganizacion.Nombre, DocumentoID: f.RespaldoOrganizacion.DocumentoID},
 			TienePublicaciones:   f.TienePublicaciones,
@@ -184,6 +200,9 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 	}
 	for _, referencia := range f.Referencias {
 		r.Referencias = append(r.Referencias, referenciaDTO(referencia))
+	}
+	for _, fila := range f.Formacion {
+		r.Formacion = append(r.Formacion, formacionDTO(fila))
 	}
 	return r
 }

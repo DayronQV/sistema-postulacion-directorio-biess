@@ -23,6 +23,22 @@ export interface ReferenciaPersonal {
   correo: string
 }
 
+export type NivelFormacion = 'tercer_nivel' | 'especialidad' | 'maestria' | 'phd'
+export type TipoInstitucion = 'nacional' | 'extranjera'
+export type AreaFormacion =
+  'finanzas' | 'mercado_capitales' | 'administracion_empresas' | 'economia' | 'derecho' | 'afines'
+
+export interface FormacionAcademica {
+  nivel: NivelFormacion
+  institucion: string
+  tipo: TipoInstitucion
+  titulo: string
+  area: AreaFormacion
+  senescyt_numero: string
+  senescyt_fecha: string
+  documento_id: string
+}
+
 export interface Domicilio {
   pais_id: number | null
   provincia_id: number | null
@@ -60,6 +76,7 @@ export interface Postulacion {
   tiene_familiares: boolean
   familiares: Familiar[]
   referencias: ReferenciaPersonal[]
+  formacion: FormacionAcademica[]
   cargo: string
   respaldo_organizacion: { nombre: string; documento_id: string | null }
   tiene_publicaciones: boolean
