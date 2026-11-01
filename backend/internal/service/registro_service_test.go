@@ -3,8 +3,11 @@ package service_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/registrocivil"
@@ -42,6 +45,12 @@ func (f *fakeIntentos) Reiniciar(_ context.Context, cedula string) error {
 	return f.err
 }
 
+func (f *fakeIntentos) Desbloquear(_ context.Context, cedula string) error {
+	delete(f.fallos, cedula)
+	delete(f.bloqueos, cedula)
+	return f.err
+}
+
 type fakeTickets struct {
 	emitidos map[string]string
 }
@@ -52,12 +61,63 @@ func (f *fakeTickets) Emitir(_ context.Context, cedula string, _ time.Duration) 
 	return id, nil
 }
 
+func (f *fakeTickets) Cedula(_ context.Context, id string) (string, error) {
+	cedula, ok := f.emitidos[id]
+	if !ok {
+		return "", domain.NotFound("El ticket no existe o expiró")
+	}
+	return cedula, nil
+}
+
+func (f *fakeTickets) Eliminar(_ context.Context, id string) error {
+	delete(f.emitidos, id)
+	return nil
+}
+
 type fakePostulantes struct {
 	registradas map[string]bool
+	emails      map[string]bool
+	creados     []domain.NuevoPostulante
+
+	cuentas        map[string]domain.Cuenta // por cédula, para el login
+	conPostulacion map[string]bool          // por id de postulante
+}
+
+func (f *fakePostulantes) BuscarPorCedula(_ context.Context, cedula string) (domain.Cuenta, error) {
+	c, ok := f.cuentas[cedula]
+	if !ok {
+		return domain.Cuenta{}, domain.NotFound("La cédula no tiene cuenta")
+	}
+	return c, nil
+}
+
+func (f *fakePostulantes) TienePostulacion(_ context.Context, postulanteID string) (bool, error) {
+	return f.conPostulacion[postulanteID], nil
+}
+
+func (f *fakePostulantes) ActualizarPassword(_ context.Context, cedula, passwordHash string) error {
+	c, ok := f.cuentas[cedula]
+	if !ok {
+		return domain.NotFound("La cédula no tiene cuenta")
+	}
+	c.PasswordHash = passwordHash
+	f.cuentas[cedula] = c
+	return nil
 }
 
 func (f *fakePostulantes) ExisteCedula(_ context.Context, cedula string) (bool, error) {
 	return f.registradas[cedula], nil
+}
+
+func (f *fakePostulantes) ExisteEmail(_ context.Context, email string) (bool, error) {
+	return f.emails[email], nil
+}
+
+func (f *fakePostulantes) Crear(_ context.Context, p domain.NuevoPostulante) (string, error) {
+	f.creados = append(f.creados, p)
+	f.registradas[p.Cedula] = true
+	f.emails[p.Email] = true
+	return "id-" + p.Cedula, nil
 }
 
 type fixture struct {
@@ -71,7 +131,7 @@ func newFixture() fixture {
 	f := fixture{
 		intentos:    newFakeIntentos(),
 		tickets:     &fakeTickets{emitidos: map[string]string{}},
-		postulantes: &fakePostulantes{registradas: map[string]bool{}},
+		postulantes: &fakePostulantes{registradas: map[string]bool{}, emails: map[string]bool{}},
 	}
 	f.svc = service.NewRegistroService(registrocivil.NewMock(), f.intentos, f.tickets, f.postulantes)
 	return f
@@ -225,5 +285,126 @@ func TestValidarIdentidad_ErrorDeInfraestructura(t *testing.T) {
 	var de *domain.Error
 	if err == nil || errors.As(err, &de) {
 		t.Fatalf("se esperaba el error interno sin convertir, llegó %v", err)
+	}
+}
+
+// conTicket deja emitido un ticket válido para la cédula de prueba.
+func conTicket(f fixture) string {
+	id, _ := f.tickets.Emitir(context.Background(), cedula, service.TTLTicketRegistro)
+	return id
+}
+
+func registrar(f fixture, in service.RegistroInput) (string, error) {
+	return f.svc.Registrar(context.Background(), in)
+}
+
+func TestRegistrar_Exito(t *testing.T) {
+	f := newFixture()
+	ticket := conTicket(f)
+	id, err := registrar(f, service.RegistroInput{Ticket: ticket, Email: "  Diego@Correo.COM ", Password: "clave1234"})
+	if err != nil {
+		t.Fatalf("error inesperado: %v", err)
+	}
+	if id != "id-"+cedula || len(f.postulantes.creados) != 1 {
+		t.Fatalf("id = %q, creados = %d", id, len(f.postulantes.creados))
+	}
+	p := f.postulantes.creados[0]
+	if p.Cedula != cedula || p.Email != "diego@correo.com" {
+		t.Fatalf("postulante = %+v", p)
+	}
+	if p.PasswordHash == "clave1234" || bcrypt.CompareHashAndPassword([]byte(p.PasswordHash), []byte("clave1234")) != nil {
+		t.Fatalf("la contraseña no se guardó como hash bcrypt")
+	}
+	if _, ok := f.tickets.emitidos[ticket]; ok {
+		t.Fatalf("el ticket debe borrarse al terminar")
+	}
+}
+
+func TestRegistrar_TicketNoReutilizable(t *testing.T) {
+	f := newFixture()
+	ticket := conTicket(f)
+	in := service.RegistroInput{Ticket: ticket, Email: "diego@correo.com", Password: "clave1234"}
+	if _, err := registrar(f, in); err != nil {
+		t.Fatal(err)
+	}
+	in.Email = "otro@correo.com"
+	if _, err := registrar(f, in); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("un ticket usado debe responder 401, llegó %v", err)
+	}
+}
+
+func TestRegistrar_TicketInvalido(t *testing.T) {
+	for nombre, ticket := range map[string]string{"vacío": " ", "inexistente o expirado": "no-existe"} {
+		t.Run(nombre, func(t *testing.T) {
+			_, err := registrar(newFixture(), service.RegistroInput{Ticket: ticket, Email: "a@b.com", Password: "clave1234"})
+			if !errors.Is(err, domain.ErrUnauthorized) || mensaje(err) != service.MsgTicketInvalido {
+				t.Fatalf("se esperaba 401, llegó %v", err)
+			}
+		})
+	}
+}
+
+func TestRegistrar_Conflictos(t *testing.T) {
+	t.Run("cédula", func(t *testing.T) {
+		f := newFixture()
+		ticket := conTicket(f)
+		f.postulantes.registradas[cedula] = true
+		_, err := registrar(f, service.RegistroInput{Ticket: ticket, Email: "a@b.com", Password: "clave1234"})
+		var de *domain.Error
+		if !errors.As(err, &de) || !errors.Is(err, domain.ErrConflict) || de.Fields["cedula"] == "" {
+			t.Fatalf("se esperaba 409 con fields.cedula, llegó %v", err)
+		}
+	})
+	t.Run("correo", func(t *testing.T) {
+		f := newFixture()
+		ticket := conTicket(f)
+		f.postulantes.emails["a@b.com"] = true
+		_, err := registrar(f, service.RegistroInput{Ticket: ticket, Email: "A@b.com", Password: "clave1234"})
+		var de *domain.Error
+		if !errors.As(err, &de) || !errors.Is(err, domain.ErrConflict) || de.Fields["email"] == "" {
+			t.Fatalf("se esperaba 409 con fields.email, llegó %v", err)
+		}
+		if _, ok := f.tickets.emitidos[ticket]; !ok {
+			t.Fatalf("ante un conflicto el ticket debe seguir vigente para corregir el correo")
+		}
+	})
+}
+
+func TestRegistrar_Validaciones(t *testing.T) {
+	casos := map[string]struct {
+		email, password, campo string
+	}{
+		"correo vacío":             {"", "clave1234", "email"},
+		"correo sin arroba":        {"diego.correo.com", "clave1234", "email"},
+		"correo con nombre":        {"Diego <diego@correo.com>", "clave1234", "email"},
+		"correo sin dominio":       {"diego@correo", "clave1234", "email"},
+		"contraseña corta":         {"a@b.com", "abc123", "password"},
+		"contraseña corta unicode": {"a@b.com", "áááá1", "password"}, // 5 caracteres, 9 bytes
+		"contraseña sin número":    {"a@b.com", "clavesegura", "password"},
+		"contraseña sin letra":     {"a@b.com", "12345678", "password"},
+		"contraseña muy larga":     {"a@b.com", strings.Repeat("a1", 37), "password"},
+	}
+	for nombre, c := range casos {
+		t.Run(nombre, func(t *testing.T) {
+			f := newFixture()
+			ticket := conTicket(f)
+			_, err := registrar(f, service.RegistroInput{Ticket: ticket, Email: c.email, Password: c.password})
+			var de *domain.Error
+			if !errors.As(err, &de) || !errors.Is(err, domain.ErrValidation) || de.Fields[c.campo] == "" {
+				t.Fatalf("se esperaba 400 con fields.%s, llegó %v", c.campo, err)
+			}
+			if len(f.postulantes.creados) != 0 {
+				t.Fatalf("no debe crearse la cuenta")
+			}
+		})
+	}
+}
+
+func TestRegistrar_PasswordUnicodeCuentaCaracteres(t *testing.T) {
+	f := newFixture()
+	ticket := conTicket(f)
+	// 8 caracteres y 10 bytes: cumple el mínimo aunque tenga tildes.
+	if _, err := registrar(f, service.RegistroInput{Ticket: ticket, Email: "a@b.com", Password: "ñandú123"}); err != nil {
+		t.Fatalf("una contraseña de 8 caracteres con tildes debe aceptarse: %v", err)
 	}
 }

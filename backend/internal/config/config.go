@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
 
 // Config agrupa toda la configuración del servicio.
@@ -19,6 +21,7 @@ type Config struct {
 	JWTTTL             time.Duration // JWT_TTL_MINUTES
 	RequestTimeout     time.Duration // REQUEST_TIMEOUT_SECONDS
 	CORSAllowedOrigins []string      // CORS_ALLOWED_ORIGIN (uno o varios, separados por coma)
+	Mailer             string        // MAILER: adaptador de correo ("log" por defecto)
 }
 
 // Load carga el archivo .env si existe (sin pisar variables ya definidas en el
@@ -62,6 +65,11 @@ func fromEnv(get func(string) string) (Config, error) {
 		JWTSecret:   required("JWT_SECRET"),
 	}
 
+	if cfg.JWTSecret != "" && len(cfg.JWTSecret) < domain.MinJWTSecretLength {
+		invalid = append(invalid, fmt.Sprintf("JWT_SECRET debe tener al menos %d caracteres (tiene %d); genere uno con: openssl rand -hex 32",
+			domain.MinJWTSecretLength, len(cfg.JWTSecret)))
+	}
+
 	cfg.Port = strings.TrimSpace(get("API_PORT"))
 	if cfg.Port == "" {
 		cfg.Port = "8080"
@@ -72,6 +80,11 @@ func fromEnv(get func(string) string) (Config, error) {
 
 	cfg.JWTTTL = time.Duration(positiveInt("JWT_TTL_MINUTES", 60)) * time.Minute
 	cfg.RequestTimeout = time.Duration(positiveInt("REQUEST_TIMEOUT_SECONDS", 10)) * time.Second
+
+	cfg.Mailer = strings.ToLower(strings.TrimSpace(get("MAILER")))
+	if cfg.Mailer == "" {
+		cfg.Mailer = "log"
+	}
 
 	origins := strings.TrimSpace(get("CORS_ALLOWED_ORIGIN"))
 	if origins == "" {

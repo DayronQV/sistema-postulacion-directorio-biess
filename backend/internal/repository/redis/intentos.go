@@ -81,3 +81,11 @@ func (r *Intentos) Reiniciar(ctx context.Context, cedula string) error {
 	}
 	return nil
 }
+
+// Desbloquear borra el bloqueo y el contador.
+func (r *Intentos) Desbloquear(ctx context.Context, cedula string) error {
+	if err := r.client.Del(ctx, r.lockKey(cedula), r.failKey(cedula)).Err(); err != nil {
+		return fmt.Errorf("desbloqueando %s: %w", r.flujo, err)
+	}
+	return nil
+}

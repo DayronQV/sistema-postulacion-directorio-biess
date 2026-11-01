@@ -11,5 +11,9 @@ func AuthRoutes(h *handler.AuthHandler) RouteRegistrar {
 	return func(api *gin.RouterGroup) {
 		auth := api.Group("/auth")
 		auth.POST("/identidad", h.Identidad)
+		auth.POST("/registro", h.Registro)
+		auth.POST("/login", h.Login)
+		auth.POST("/recuperar", h.Recuperar)
+		auth.POST("/restablecer", h.Restablecer)
 	}
 }

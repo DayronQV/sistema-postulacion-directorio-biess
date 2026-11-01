@@ -28,14 +28,12 @@ Módulo de registro y postulación del Concurso Público de Méritos y Oposició
    cd backend && go run ./cmd/api
    ```
    Comprobar que responde: `curl http://localhost:8080/health` devuelve `{"status":"ok"}`.
-4. Frontend (cuando exista `frontend/`):
+4. Frontend:
    ```bash
    cd frontend && npm install && npm run dev
    ```
 
 Si el puerto 5432 de tu máquina ya está ocupado por otro PostgreSQL, cambia `POSTGRES_PORT` y el puerto de `DATABASE_URL` en tu `.env` (por ejemplo a 5433).
-
-La instrucción del paso 4 se confirma cuando se agregue el frontend.
 
 ## Datos de prueba (Registro Civil simulado)
 El Registro Civil real no es accesible para este proyecto, así que se simula con 7 ciudadanos de prueba (`backend/internal/integration/registrocivil/mock.go`). Las cédulas son válidas por módulo 10 y no pertenecen a personas reales. Para comprobar la identidad (registro y recuperación de contraseña) basta con acertar **uno** de los dos datos: la fecha de expedición o el código dactilar.

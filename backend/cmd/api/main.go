@@ -16,10 +16,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/auth"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/historiallaboral"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/mailer"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/postgres"
 	redisrepo "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/redis"
 )
@@ -36,6 +38,12 @@ func main() {
 
 func run(logger *slog.Logger) error {
 	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	// Un MAILER inválido se detecta aquí, antes de conectarse a las bases de datos.
+	correo, err := mailer.New(cfg.Mailer, logger)
 	if err != nil {
 		return err
 	}
@@ -60,8 +68,13 @@ func run(logger *slog.Logger) error {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	tokens, err := auth.NewJWTIssuer(cfg.JWTSecret, cfg.JWTTTL)
+	if err != nil {
+		return err
+	}
+
 	c := &container{
-		cfg: cfg, logger: logger, db: pool, redis: rdb,
+		cfg: cfg, logger: logger, db: pool, redis: rdb, tokens: tokens, mailer: correo,
 		historial: historiallaboral.NewMock(),
 	}
 	router := apihttp.NewRouter(apihttp.Deps{

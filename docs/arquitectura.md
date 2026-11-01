@@ -43,6 +43,13 @@ docker-compose.yml
 - **Cuerpo JSON:** los handlers lo leen con `middleware.BindJSON(c, &req)`. Un JSON mal formado, un tipo incorrecto o un campo `binding` inválido responde 400 `VALIDATION_ERROR` con `fields`, nunca 500.
 - **Errores:** los servicios devuelven errores de `domain` (`domain.Validation`, `domain.NotFound`, ...) y el handler llama a `middleware.Fail(c, err)`. Una petición cancelada por el cliente (`context.Canceled`) no se registra como error interno.
 
+## Correo
+- **Puerto:** `domain.Mailer` con `Enviar(ctx, Mensaje)`. Un `Mensaje` lleva destinatario (una sola dirección), asunto, texto y/o HTML, y adjuntos opcionales (nombre y bytes, por ejemplo un PDF).
+- **Cómo se usa:** los servicios reciben un `domain.Mailer` por inyección (`c.mailer` en el contenedor) y llaman a `Enviar`; no saben qué adaptador hay detrás. Para un correo con adjunto: `Enviar(ctx, domain.Mensaje{Para: ..., Asunto: ..., Texto: ..., Adjuntos: []domain.Adjunto{{Nombre: "postulacion.pdf", Contenido: pdf}}})`.
+- **Validación:** `Mensaje.Validar()` la llama cada adaptador. Rechaza con 400 y `fields` un destinatario inválido, un asunto vacío, un correo sin cuerpo y adjuntos sin nombre o vacíos. No acepta saltos de línea en el destinatario, el asunto ni el nombre de un adjunto, para evitar la inyección de cabeceras.
+- **Adaptador de desarrollo:** `MAILER=log` (por defecto) no envía nada; escribe el correo en el log del backend (destinatario, asunto, cuerpo y nombre y tamaño de los adjuntos). Por ejemplo, el enlace para restablecer la contraseña se copia del log. No usarlo en producción, porque el log muestra el cuerpo completo.
+- **Producción:** `MAILER=smtp` queda reservado para la issue #52. Hoy arranca con un error claro, y un valor desconocido también falla al arrancar, no al enviar el primer correo.
+
 ## Transacciones
 `PostulacionService.Guardar` abre una transacción en el repositorio (`BEGIN`), escribe `postulaciones`, `postulacion_familiares` y lo que se agregue, y hace `COMMIT`; ante cualquier error hace `ROLLBACK`. Ninguna escritura parcial es válida.
 
@@ -54,11 +61,14 @@ docker-compose.yml
 | `auth:fail:registro:{cedula}` | contador de fallos de registro | 10 min |
 | `auth:lock:registro:{cedula}` | bloqueo activo de registro | 10 min |
 | `registro:ticket:{id}` | identidad ya validada, pendiente de correo y contraseña | 10 min |
+| `auth:fail:recuperar:{cedula}` | contador de fallos de la validación de identidad al recuperar la contraseña | 10 min |
+| `auth:lock:recuperar:{cedula}` | bloqueo activo de la recuperación de contraseña | 10 min |
+| `auth:reset:{token}` | cédula del enlace para restablecer la contraseña; se borra al usarlo (`GETDEL`) | 30 min |
 | `cache:catalogo:paises` | lista de países | 1 h |
 | `cache:catalogo:provincias:{paisId}` | provincias | 1 h |
 | `cache:catalogo:cantones:{provinciaId}` | cantones | 1 h |
 
-Un login correcto borra los contadores de fallo de esa cédula.
+Un login correcto borra los contadores de fallo de esa cédula. Restablecer la contraseña borra además el bloqueo de login, para que el postulante entre enseguida con la contraseña nueva.
 
 ## Modelo de datos (resumen; el DDL vive en `db/schema.sql`)
 - `paises`, `provincias`, `cantones`: catálogos con claves foráneas encadenadas.
@@ -79,6 +89,18 @@ Un login correcto borra los contadores de fallo de esa cédula.
 ## Autenticación
 JWT firmado, expiración corta, enviado como `Authorization: Bearer`. Contraseñas con bcrypt.
 
+- **Emisor de tokens:** el puerto `domain.TokenIssuer` (`Emitir` y `Validar`) se implementa en `internal/auth` con JWT firmado con HS256 y vence a los `JWT_TTL_MINUTES`. `main.go` lo crea con `JWT_SECRET` (mínimo 32 caracteres) y lo entrega en el contenedor (`c.tokens`). Solo se acepta HS256 y el token debe traer fecha de vencimiento.
+- **Claims:** `sub` (id del usuario), `cedula` (postulantes) o `usuario` (analistas y administradores), `rol` y `exp`.
+- **Roles:** `domain.RolPostulante`, `domain.RolAnalista` y `domain.RolAdministrador`.
+- **Proteger rutas:** `middleware.RequireAuth(c.tokens)` exige el token (401 si falta o no sirve) y `middleware.RequireRole(...)` restringe por rol (403). `RequireRole` va siempre después de `RequireAuth`. Ejemplo:
+
+  ```go
+  g := api.Group("/admin", middleware.RequireAuth(tokens), middleware.RequireRole(domain.RolAdministrador))
+  ```
+
+- **Usuario actual:** en un handler, `claims, ok := middleware.ClaimsFrom(c)`.
+- **Login:** el servicio de login llama a `tokens.Emitir(domain.Claims{...})` y responde `token` y `expires_in`.
+
 ## Errores y tiempos
 - Formato único de error (ver `docs/api.md`): 400, 401, 403, 404, 409, 422, 429, 500. Un 500 nunca expone detalles internos.
 - Timeout por petición en el servidor y en las consultas a la base; el cliente cancela con `AbortController`.
@@ -87,6 +109,7 @@ JWT firmado, expiración corta, enviado como `Authorization: Bearer`. Contraseñ
 - Rutas públicas: registro, login, recuperar contraseña. Rutas protegidas: formulario de postulación.
 - Formularios con `react-hook-form` y validación con `zod`.
 - Cada petición expone `loading`, `success` y `error` a la interfaz.
+- Sesión: el token JWT se guarda en `sessionStorage` (no en `localStorage`), así que vive solo en la pestaña: al cerrarla o abrir otra se pide login de nuevo. La sesión se cierra sola al vencer `expires_in` o ante un `401`. El rol se lee del claim `rol` solo para mostrar u ocultar pantallas; el servidor valida siempre.
 
 ## Datos de prueba (semilla)
 Un puñado de cédulas válidas en el Registro Civil simulado: al menos una ecuatoriana, una casada y una **extranjera** (para probar el cierre de la postulación). Se cargan desde `db/seed_catalogos.sql` o desde el propio adaptador `mock`.

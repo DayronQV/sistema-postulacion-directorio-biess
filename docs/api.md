@@ -20,8 +20,9 @@ Base: `/api/v1`. JSON en ambos sentidos. Cambiar este archivo requiere una issue
 | --- | --- | --- |
 | `POST /auth/identidad` | `{ cedula, fecha_expedicion? , codigo_dactilar? }` (uno de los dos) | `200 { ticket }`; `401` si no coincide; `429 LOCKED` tras 3 fallos |
 | `POST /auth/registro` | `{ ticket, email, password }` | `201 { id }`; `409` si la cédula o el correo ya existen |
-| `POST /auth/login` | `{ cedula, password }` | `200 { token, expires_in }`; `401` si es incorrecto; `429 LOCKED` tras 3 fallos |
-| `POST /auth/recuperar` | `{ cedula, fecha_expedicion? , codigo_dactilar? }` | `202`; el correo es simulado |
+| `POST /auth/login` | `{ cedula, password }` | `200 { token, expires_in, primer_ingreso }` (`expires_in` en segundos; `primer_ingreso` es `true` si aún no tiene postulación); `401` si es incorrecto; `429 LOCKED` tras 3 fallos |
+| `POST /auth/recuperar` | `{ cedula, fecha_expedicion? , codigo_dactilar? }` (uno de los dos) | `202` sin cuerpo si la identidad coincide, tenga o no cuenta la cédula (no se revela quién está registrado); si tiene cuenta, se envía al correo registrado (simulado en el log) el enlace `<frontend>/restablecer?token=...`, válido 30 min y de un solo uso. `401` si no coincide; `429 LOCKED` tras 3 fallos |
+| `POST /auth/restablecer` | `{ token, password }` | `204`; cambia la contraseña y borra el token y los bloqueos de login. `400` si la contraseña no cumple la regla del registro; `401` si el token no existe, venció o ya se usó |
 
 ## Catálogos (públicos, con caché en Redis)
 | Método y ruta | Respuesta |

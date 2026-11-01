@@ -12,14 +12,16 @@ import (
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 )
 
-// container agrupa la infraestructura compartida (configuración, log, PostgreSQL y
-// Redis) que main.go entrega a cada módulo para construir sus repositorios,
+// container agrupa la infraestructura compartida (configuración, log, PostgreSQL,
+// Redis, emisor de tokens y correo) que main.go entrega a cada módulo para construir sus repositorios,
 // servicios y handlers.
 type container struct {
 	cfg    config.Config
 	logger *slog.Logger
 	db     *pgxpool.Pool
 	redis  *goredis.Client
+	tokens domain.TokenIssuer // emite y valida los JWT de sesión
+	mailer domain.Mailer      // envía los correos (hoy, el simulador que escribe en el log)
 
 	// historial es el Historial Laboral del IESS (hoy el simulador). Todavía no
 	// tiene lector: lo consumirá la selección del cargo (#26). No borrar por

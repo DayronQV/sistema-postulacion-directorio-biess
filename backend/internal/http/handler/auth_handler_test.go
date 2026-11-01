@@ -25,6 +25,9 @@ type fakeRegistro struct {
 	got    service.IdentidadInput
 	ticket string
 	err    error
+
+	gotRegistro service.RegistroInput
+	id          string
 }
 
 func (f *fakeRegistro) ValidarIdentidad(_ context.Context, in service.IdentidadInput) (string, error) {
@@ -32,17 +35,62 @@ func (f *fakeRegistro) ValidarIdentidad(_ context.Context, in service.IdentidadI
 	return f.ticket, f.err
 }
 
+func (f *fakeRegistro) Registrar(_ context.Context, in service.RegistroInput) (string, error) {
+	f.gotRegistro = in
+	return f.id, f.err
+}
+
+type fakeLogin struct {
+	got service.LoginInput
+	res service.LoginResult
+	err error
+}
+
+func (f *fakeLogin) Login(_ context.Context, in service.LoginInput) (service.LoginResult, error) {
+	f.got = in
+	return f.res, f.err
+}
+
+type fakeRecuperacion struct {
+	gotIdentidad service.IdentidadInput
+	gotToken     string
+	gotPassword  string
+	err          error
+}
+
+func (f *fakeRecuperacion) Recuperar(_ context.Context, in service.IdentidadInput) error {
+	f.gotIdentidad = in
+	return f.err
+}
+
+func (f *fakeRecuperacion) Restablecer(_ context.Context, token, password string) error {
+	f.gotToken, f.gotPassword = token, password
+	return f.err
+}
+
 func newRouter(reg handler.RegistroUseCase) *gin.Engine {
+	return newRouterCon(reg, &fakeLogin{})
+}
+
+func newRouterCon(reg handler.RegistroUseCase, login handler.LoginUseCase) *gin.Engine {
+	return newRouterCompleto(reg, login, &fakeRecuperacion{})
+}
+
+func newRouterCompleto(reg handler.RegistroUseCase, login handler.LoginUseCase, rec handler.RecuperacionUseCase) *gin.Engine {
 	return apihttp.NewRouter(apihttp.Deps{
 		Config:  config.Config{RequestTimeout: time.Second},
 		Logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Health:  handler.NewHealthHandler(),
-		Modules: []apihttp.RouteRegistrar{apihttp.AuthRoutes(handler.NewAuthHandler(reg))},
+		Modules: []apihttp.RouteRegistrar{apihttp.AuthRoutes(handler.NewAuthHandler(reg, login, rec))},
 	})
 }
 
 func post(r *gin.Engine, body string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest("POST", "/api/v1/auth/identidad", strings.NewReader(body))
+	return postTo(r, "/api/v1/auth/identidad", body)
+}
+
+func postTo(r *gin.Engine, path, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest("POST", path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -85,6 +133,120 @@ func TestIdentidad_SinCedula(t *testing.T) {
 	reg := &fakeRegistro{}
 	w := post(newRouter(reg), `{"codigo_dactilar":"E5566V7788"}`)
 	if w.Code != 400 || !strings.Contains(w.Body.String(), `"cedula"`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRegistro_Created(t *testing.T) {
+	reg := &fakeRegistro{id: "uuid-1"}
+	w := postTo(newRouter(reg), "/api/v1/auth/registro",
+		`{"ticket":"t1","email":"ana@correo.com","password":"clave1234"}`)
+	if w.Code != 201 || strings.TrimSpace(w.Body.String()) != `{"id":"uuid-1"}` {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+	if reg.gotRegistro != (service.RegistroInput{Ticket: "t1", Email: "ana@correo.com", Password: "clave1234"}) {
+		t.Fatalf("el handler no pasó los datos al servicio: %+v", reg.gotRegistro)
+	}
+}
+
+func TestRegistro_Conflict(t *testing.T) {
+	reg := &fakeRegistro{err: domain.ConflictoEmail()}
+	w := postTo(newRouter(reg), "/api/v1/auth/registro",
+		`{"ticket":"t1","email":"ana@correo.com","password":"clave1234"}`)
+	if w.Code != 409 || !strings.Contains(w.Body.String(), `"email"`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRegistro_CamposObligatorios(t *testing.T) {
+	w := postTo(newRouter(&fakeRegistro{}), "/api/v1/auth/registro", `{"email":"ana@correo.com"}`)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), `"ticket"`) || !strings.Contains(w.Body.String(), `"password"`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLogin_OK(t *testing.T) {
+	login := &fakeLogin{res: service.LoginResult{Token: "jwt", ExpiraEn: time.Hour, PrimerIngreso: true}}
+	w := postTo(newRouterCon(&fakeRegistro{}, login), "/api/v1/auth/login",
+		`{"cedula":"0924681356","password":"clave1234"}`)
+	if w.Code != 200 || strings.TrimSpace(w.Body.String()) != `{"token":"jwt","expires_in":3600,"primer_ingreso":true}` {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+	if login.got != (service.LoginInput{Cedula: "0924681356", Password: "clave1234"}) {
+		t.Fatalf("el handler no pasó las credenciales: %+v", login.got)
+	}
+}
+
+func TestLogin_Incorrecto(t *testing.T) {
+	login := &fakeLogin{err: domain.Unauthorized(service.MsgCredencialesIncorrectas)}
+	w := postTo(newRouterCon(&fakeRegistro{}, login), "/api/v1/auth/login",
+		`{"cedula":"0924681356","password":"mala1234"}`)
+	if w.Code != 401 || !strings.Contains(w.Body.String(), service.MsgCredencialesIncorrectas) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLogin_Bloqueado(t *testing.T) {
+	login := &fakeLogin{err: domain.Locked(service.MsgLoginBloqueado, 600*time.Second)}
+	w := postTo(newRouterCon(&fakeRegistro{}, login), "/api/v1/auth/login",
+		`{"cedula":"0924681356","password":"clave1234"}`)
+	if w.Code != 429 || w.Header().Get("Retry-After") != "600" || !strings.Contains(w.Body.String(), `"retry_after_seconds":600`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLogin_CamposObligatorios(t *testing.T) {
+	w := postTo(newRouter(&fakeRegistro{}), "/api/v1/auth/login", `{"cedula":"0924681356"}`)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), `"password"`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRecuperar_Accepted(t *testing.T) {
+	rec := &fakeRecuperacion{}
+	w := postTo(newRouterCompleto(&fakeRegistro{}, &fakeLogin{}, rec), "/api/v1/auth/recuperar",
+		`{"cedula":"1802468130","codigo_dactilar":"V3141V5926"}`)
+	if w.Code != 202 || w.Body.Len() != 0 {
+		t.Fatalf("respuesta = %d %q", w.Code, w.Body.String())
+	}
+	if rec.gotIdentidad.Cedula != "1802468130" || rec.gotIdentidad.CodigoDactilar != "V3141V5926" {
+		t.Fatalf("el handler no pasó los datos: %+v", rec.gotIdentidad)
+	}
+}
+
+func TestRecuperar_Bloqueado(t *testing.T) {
+	rec := &fakeRecuperacion{err: domain.Locked(service.MsgRecuperarBloqueado, 600*time.Second)}
+	w := postTo(newRouterCompleto(&fakeRegistro{}, &fakeLogin{}, rec), "/api/v1/auth/recuperar",
+		`{"cedula":"1802468130","fecha_expedicion":"22/03/2016"}`)
+	if w.Code != 429 || !strings.Contains(w.Body.String(), `"retry_after_seconds":600`) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRestablecer_NoContent(t *testing.T) {
+	rec := &fakeRecuperacion{}
+	w := postTo(newRouterCompleto(&fakeRegistro{}, &fakeLogin{}, rec), "/api/v1/auth/restablecer",
+		`{"token":"abc","password":"nueva1234"}`)
+	if w.Code != 204 {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+	if rec.gotToken != "abc" || rec.gotPassword != "nueva1234" {
+		t.Fatalf("el handler no pasó los datos: %q %q", rec.gotToken, rec.gotPassword)
+	}
+}
+
+func TestRestablecer_EnlaceInvalido(t *testing.T) {
+	rec := &fakeRecuperacion{err: domain.Unauthorized(service.MsgEnlaceInvalido)}
+	w := postTo(newRouterCompleto(&fakeRegistro{}, &fakeLogin{}, rec), "/api/v1/auth/restablecer",
+		`{"token":"vencido","password":"nueva1234"}`)
+	if w.Code != 401 || !strings.Contains(w.Body.String(), service.MsgEnlaceInvalido) {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRestablecer_CamposObligatorios(t *testing.T) {
+	w := postTo(newRouter(&fakeRegistro{}), "/api/v1/auth/restablecer", `{"password":"nueva1234"}`)
+	if w.Code != 400 || !strings.Contains(w.Body.String(), `"token"`) {
 		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
 	}
 }
