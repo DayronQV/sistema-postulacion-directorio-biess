@@ -78,3 +78,24 @@ func TestFormacion_RechazaDocumentoAjenoODeOtroTipo(t *testing.T) {
 		}
 	}
 }
+
+func TestFormacion_SinRespaldoSeGuardaYSeRecarga(t *testing.T) {
+	pool := newPool(t)
+	postulanteID := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+	svc := newService(pool, postgres.NewFormacionRepo(pool))
+	if _, err := svc.Obtener(context.Background(), postulanteID); err != nil {
+		t.Fatal(err)
+	}
+	fila := domain.FormacionAcademica{
+		Nivel: domain.NivelMaestria, Institucion: "ESPOL", Tipo: domain.InstitucionNacional,
+		Titulo: "Magíster en Finanzas", Area: domain.AreaFinanzas, SenescytNumero: "2002",
+		SenescytFecha: "2022-06-30",
+	}
+	guardada, err := svc.Guardar(context.Background(), postulanteID, domain.Formulario{Formacion: []domain.FormacionAcademica{fila}})
+	if err != nil {
+		t.Fatalf("guardando sin respaldo: %v", err)
+	}
+	if len(guardada.Formulario.Formacion) != 1 || guardada.Formulario.Formacion[0] != fila {
+		t.Fatalf("formación recargada = %+v", guardada.Formulario.Formacion)
+	}
+}

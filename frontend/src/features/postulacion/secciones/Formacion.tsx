@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Campo from '@/components/form/Campo'
 import DocumentoUpload from '@/components/form/DocumentoUpload'
 import Alert from '@/components/ui/Alert'
@@ -8,7 +8,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import TablaFilas from '@/components/ui/TablaFilas'
 import { fechaLocalISO } from '@/features/auth/esquemas'
-import type { DocumentoSubido } from '@/services/documentos'
+import { eliminarDocumento, type DocumentoSubido } from '@/services/documentos'
 import { ApiError } from '@/services/errores'
 import type {
   AreaFormacion,
@@ -16,6 +16,9 @@ import type {
   NivelFormacion,
   TipoInstitucion,
 } from '@/services/postulacion'
+
+// Igual que domain.MaxFormaciones en el servidor.
+export const MAX_FORMACIONES = 20
 
 export interface FormacionProps {
   valor: FormacionAcademica[]
@@ -55,14 +58,18 @@ const vacia = (): FilaEditor => ({
   documento: null,
 })
 
+// La API solo devuelve documento_id: el nombre es descriptivo y el tamaño 0 indica a
+// FileUpload que no lo muestre.
 function alEditor(fila: FormacionAcademica): FilaEditor {
   return {
     ...fila,
-    documento: {
-      documento_id: fila.documento_id,
-      nombre: `respaldo-${fila.titulo || 'formacion'}.pdf`,
-      tamano_bytes: 0,
-    },
+    documento: fila.documento_id
+      ? {
+          documento_id: fila.documento_id,
+          nombre: `respaldo-${fila.titulo || 'formacion'}.pdf`,
+          tamano_bytes: 0,
+        }
+      : null,
   }
 }
 
@@ -79,6 +86,14 @@ function alDominio(fila: FilaEditor): FormacionAcademica {
   }
 }
 
+// Borra PDF que ya no usa ninguna fila. Un fallo (por ejemplo 409 si sigue en uso) se
+// ignora: lo peor es que el archivo quede guardado.
+function descartar(documentos: string[]) {
+  for (const id of documentos) {
+    eliminarDocumento(new AbortController().signal, id).catch(() => undefined)
+  }
+}
+
 function erroresDe(fila: FilaEditor) {
   const errores: Partial<Record<keyof FilaEditor, string>> = {}
   if (!fila.nivel) errores.nivel = 'Seleccione el nivel de instrucción'
@@ -90,7 +105,8 @@ function erroresDe(fila: FilaEditor) {
   if (!fila.senescyt_fecha) errores.senescyt_fecha = 'Ingrese la fecha de registro'
   else if (fila.senescyt_fecha > fechaLocalISO())
     errores.senescyt_fecha = 'La fecha no puede ser futura'
-  if (!fila.documento) errores.documento = 'El documento de respaldo es obligatorio'
+  // El respaldo es opcional: formacion_academica.documento_id admite NULL y la
+  // especificación solo lo exige en Experiencia.
   return errores
 }
 
@@ -102,6 +118,21 @@ export default function Formacion({ valor, onGuardar }: FormacionProps) {
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
   const [errorGuardar, setErrorGuardar] = useState<ApiError | null>(null)
+  // PDF subidos en esta pantalla y todavía no guardados. Si al guardar ninguna fila los
+  // usa (se canceló la edición, se eliminó la fila o se reemplazó el archivo) se borran,
+  // para que no sigan sumando al límite de 50 MB. Los que ya estaban guardados los limpia
+  // guardarFormacion comparando con la versión anterior.
+  const subidos = useRef(new Set<string>())
+
+  useEffect(
+    () => () => {
+      // Al salir sin guardar, lo subido aquí no lo referencia ninguna fila guardada.
+      const pendientes = [...subidos.current]
+      subidos.current.clear()
+      descartar(pendientes)
+    },
+    [],
+  )
 
   function abrir(fila?: FormacionAcademica) {
     setIndice(fila ? filas.indexOf(fila) : null)
@@ -130,6 +161,10 @@ export default function Formacion({ valor, onGuardar }: FormacionProps) {
     setErrorGuardar(null)
     try {
       await onGuardar(filas)
+      const usados = new Set(filas.map((fila) => fila.documento_id))
+      const sobrantes = [...subidos.current].filter((id) => !usados.has(id))
+      subidos.current.clear()
+      descartar(sobrantes)
       setGuardado(true)
     } catch (e) {
       setErrorGuardar(
@@ -144,6 +179,10 @@ export default function Formacion({ valor, onGuardar }: FormacionProps) {
 
   const actualizar = <K extends keyof FilaEditor>(campo: K, valorCampo: FilaEditor[K]) =>
     setBorrador((actual) => ({ ...actual, [campo]: valorCampo }))
+
+  const erroresServidor = errorGuardar?.fields
+    ? Object.entries(errorGuardar.fields).filter(([campo]) => campo.startsWith('formacion'))
+    : []
 
   return (
     <section className="flex flex-col gap-5" aria-labelledby="formacion-titulo">
@@ -166,7 +205,7 @@ export default function Formacion({ valor, onGuardar }: FormacionProps) {
         ]}
         filas={filas}
         obtenerClave={(fila) => filas.indexOf(fila)}
-        onAgregar={() => abrir()}
+        onAgregar={filas.length >= MAX_FORMACIONES ? undefined : () => abrir()}
         onEditar={abrir}
         onEliminar={(fila) => {
           setFilas((actuales) => actuales.filter((actual) => actual !== fila))
@@ -282,14 +321,13 @@ export default function Formacion({ valor, onGuardar }: FormacionProps) {
                   tipo="formacion"
                   maxMb={2}
                   valor={borrador.documento}
-                  onChange={(documento) => actualizar('documento', documento)}
-                  etiqueta="Documento de respaldo (PDF, máximo 2 MB)"
+                  onChange={(documento) => {
+                    if (documento) subidos.current.add(documento.documento_id)
+                    actualizar('documento', documento)
+                  }}
+                  etiqueta="Documento de respaldo (PDF, máximo 2 MB, opcional)"
+                  eliminarEnServidor={false}
                 />
-                {errores.documento && (
-                  <p role="alert" className="mt-1 text-label-sm text-error">
-                    {errores.documento}
-                  </p>
-                )}
               </div>
             </>
           )}
@@ -303,7 +341,19 @@ export default function Formacion({ valor, onGuardar }: FormacionProps) {
       )}
 
       {guardado && <Alert tipo="success">La información se guardó correctamente.</Alert>}
-      {errorGuardar && <Alert tipo="error">{errorGuardar.message}</Alert>}
+      {errorGuardar && (
+        <Alert tipo="error" titulo={errorGuardar.message}>
+          {erroresServidor.length > 0 && (
+            <ul className="list-disc pl-4">
+              {erroresServidor.map(([campo, mensaje]) => (
+                <li key={campo}>
+                  {campo}: {mensaje}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Alert>
+      )}
       <div className="flex justify-end">
         <Button onClick={guardar} cargando={guardando} textoCargando="Guardando...">
           Guardar información

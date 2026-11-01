@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,19 +30,18 @@ func TestValidarFormacion_AceptaFilaValidaYLimpiaTextos(t *testing.T) {
 	}
 }
 
-func TestValidarFormacion_RechazaListasFechaYDocumentoInvalidos(t *testing.T) {
+func TestValidarFormacion_RechazaListasYFechaInvalidas(t *testing.T) {
 	fila := formacionValida()
 	fila.Nivel = "bachiller"
 	fila.Tipo = "publica"
 	fila.Area = "medicina"
 	fila.SenescytFecha = "2026-11-02"
-	fila.DocumentoID = ""
 	err := validarFormularioEn(domain.Formulario{Formacion: []domain.FormacionAcademica{fila}}, time.Date(2026, 11, 1, 23, 0, 0, 0, time.Local))
 	var de *domain.Error
 	if !errors.As(err, &de) {
 		t.Fatalf("error = %v", err)
 	}
-	for _, campo := range []string{"nivel", "tipo", "area", "senescyt_fecha", "documento_id"} {
+	for _, campo := range []string{"nivel", "tipo", "area", "senescyt_fecha"} {
 		clave := "formacion[0]." + campo
 		if de.Fields[clave] == "" {
 			t.Errorf("falta error para %s: %v", clave, de.Fields)
@@ -55,5 +55,50 @@ func TestValidarFormacion_RechazaFechaInexistente(t *testing.T) {
 	err := validarFormularioEn(domain.Formulario{Formacion: []domain.FormacionAcademica{fila}}, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
 	if !errors.Is(err, domain.ErrValidation) {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+var hoyFormacion = time.Date(2026, 11, 1, 12, 0, 0, 0, time.Local)
+
+func camposConError(t *testing.T, err error) map[string]string {
+	t.Helper()
+	var de *domain.Error
+	if !errors.As(err, &de) {
+		t.Fatalf("error = %v; se esperaba validación", err)
+	}
+	return de.Fields
+}
+
+func TestValidarFormacion_ElRespaldoEsOpcional(t *testing.T) {
+	fila := formacionValida()
+	fila.DocumentoID = ""
+	if err := validarFormularioEn(domain.Formulario{Formacion: []domain.FormacionAcademica{fila}}, hoyFormacion); err != nil {
+		t.Fatalf("sin respaldo debe ser válida (documento_id admite NULL en el esquema): %v", err)
+	}
+}
+
+func TestValidarFormacion_RechazaElMismoDocumentoEnDosFilas(t *testing.T) {
+	a, b := formacionValida(), formacionValida()
+	b.Titulo = "Economista"
+	fields := camposConError(t, validarFormularioEn(domain.Formulario{Formacion: []domain.FormacionAcademica{a, b}}, hoyFormacion))
+	if fields["formacion[1].documento_id"] == "" || fields["formacion[0].documento_id"] != "" {
+		t.Fatalf("se esperaba el error solo en la segunda fila: %v", fields)
+	}
+}
+
+func TestValidarFormacion_LimitesDeFilasYDeTexto(t *testing.T) {
+	filas := make([]domain.FormacionAcademica, domain.MaxFormaciones+1)
+	for i := range filas {
+		filas[i] = formacionValida()
+		filas[i].DocumentoID = ""
+	}
+	if fields := camposConError(t, validarFormularioEn(domain.Formulario{Formacion: filas}, hoyFormacion)); fields["formacion"] == "" {
+		t.Fatalf("se esperaba el máximo de filas: %v", fields)
+	}
+
+	larga := formacionValida()
+	larga.Titulo = strings.Repeat("á", domain.MaxLongitudTituloFormacion+1)
+	if fields := camposConError(t, validarFormularioEn(domain.Formulario{Formacion: []domain.FormacionAcademica{larga}}, hoyFormacion)); fields["formacion[0].titulo"] == "" {
+		t.Fatalf("se esperaba el límite de caracteres: %v", fields)
 	}
 }
