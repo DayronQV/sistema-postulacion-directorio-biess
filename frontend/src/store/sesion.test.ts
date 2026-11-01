@@ -38,3 +38,10 @@ describe('sesión', () => {
     expect(obtenerToken()).toBeNull()
   })
 })
+
+describe('obtenerSesion', () => {
+  it('no tiene efectos: devuelve el mismo objeto en llamadas seguidas', () => {
+    iniciarSesion('abc', 600)
+    expect(obtenerSesion()).toBe(obtenerSesion())
+  })
+})

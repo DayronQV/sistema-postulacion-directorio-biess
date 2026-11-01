@@ -2,9 +2,15 @@ import type { ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import Badge from '@/components/ui/Badge'
 import Icon from '@/components/ui/Icon'
+import { cerrarSesion, useSesion, type Rol } from '@/store/sesion'
 import Marca from './Marca'
-import { cerrarSesion } from '@/store/sesion'
 import PieDePagina from './PieDePagina'
+
+const nombreRol: Record<Rol, string> = {
+  postulante: 'Postulante',
+  analista: 'Analista',
+  administrador: 'Administrador',
+}
 
 interface LayoutPrivadoProps {
   // El login no devuelve datos del usuario (docs/api.md), así que el nombre llega por props si se tiene.
@@ -19,6 +25,7 @@ export default function LayoutPrivado({
   onCerrarSesion = cerrarSesion,
   children,
 }: LayoutPrivadoProps) {
+  const rol = useSesion()?.rol
   return (
     <div className="flex min-h-screen flex-col bg-surface">
       <header className="sticky top-0 z-40 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
@@ -33,7 +40,7 @@ export default function LayoutPrivado({
                 </span>
               </div>
             )}
-            <Badge>Postulante</Badge>
+            {rol && <Badge>{nombreRol[rol]}</Badge>}
             <button
               type="button"
               onClick={onCerrarSesion}

@@ -24,4 +24,4 @@ sesión en el cliente, ruta protegida por sesión y rol, y un hook para llamadas
 ## Revisión humana
 - Qué se verificó y cómo (pruebas, ejecución): `npm run lint`, `npm test` (40 pruebas) y `npm run build`.
 - Qué se corrigió: la firma de `useApi` pasó a recibir la señal como primer argumento porque TypeScript no inferia bien los argumentos con la señal al final.
-- Pendiente: revisión del código por la persona autora. El rol se lee del payload del JWT (`rol`); falta confirmar con el backend (#20) el nombre exacto del claim.
+- Revisión de código en el PR #65 (Cranell237): `getSnapshot` sin efectos y cierre de sesión por temporizador al vencer el token, `sessionStorage` documentado en `docs/arquitectura.md`, rol real en el encabezado. El claim `rol` quedó confirmado con `backend/internal/auth/jwt.go`. Detalle en `docs/ia/Cranell237/2026-11-01-revision-frontend-luis.md`.

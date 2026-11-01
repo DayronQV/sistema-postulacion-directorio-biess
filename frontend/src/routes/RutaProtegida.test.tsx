@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
+import { vi } from 'vitest'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { cerrarSesion, iniciarSesion } from '@/store/sesion'
 import RutaProtegida from './RutaProtegida'
@@ -46,5 +47,20 @@ describe('RutaProtegida', () => {
     iniciarSesion(`x.${btoa(JSON.stringify({ rol: 'administrador' }))}.y`, 600)
     renderConRoles(['administrador'])
     expect(screen.getByText('panel')).toBeInTheDocument()
+  })
+})
+
+describe('RutaProtegida al vencer el token', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('redirige al login sola cuando vence la sesión, sin otra interacción', () => {
+    vi.useFakeTimers()
+    iniciarSesion('token', 60)
+    renderConRoles()
+    expect(screen.getByText('panel')).toBeInTheDocument()
+    act(() => {
+      vi.advanceTimersByTime(61_000)
+    })
+    expect(screen.getByText('login desde /admin')).toBeInTheDocument()
   })
 })
