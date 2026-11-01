@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -200,15 +201,16 @@ func validarEmail(email string) string {
 	return ""
 }
 
-// validarPassword exige al menos 8 caracteres con letras y números. bcrypt solo usa
-// los primeros 72 bytes, así que una contraseña más larga se rechaza en lugar de
-// truncarse en silencio.
+// validarPassword exige al menos 8 caracteres con letras y números. El mínimo cuenta
+// caracteres Unicode, no bytes ("á" es un carácter y dos bytes). El máximo sí cuenta
+// bytes: bcrypt solo usa los primeros 72, así que una contraseña más larga se
+// rechaza en lugar de truncarse en silencio.
 func validarPassword(p string) string {
-	if len(p) < MinPassword {
+	if utf8.RuneCountInString(p) < MinPassword {
 		return "La contraseña debe tener al menos 8 caracteres"
 	}
 	if len(p) > MaxPasswordBytes {
-		return "La contraseña es demasiado larga (máximo 72 caracteres)"
+		return "La contraseña es demasiado larga (máximo 72 bytes)"
 	}
 	var letra, numero bool
 	for _, r := range p {

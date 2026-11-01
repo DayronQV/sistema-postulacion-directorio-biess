@@ -21,4 +21,4 @@ si es posible trabajar ahora en el #13, adelante.
 
 ## Revisión humana
 - Qué se verificó y cómo (pruebas, ejecución): `go vet ./...` y `go test ./...` en verde. Las pruebas del servicio cubren éxito (hash bcrypt verificado), ticket no reutilizable, ticket inválido, conflictos de cédula y correo y validaciones. Las pruebas del repositorio Redis se saltan si Redis no está levantado.
-- Qué se corrigió:
+- Qué se corrigió: en la revisión del PR (gualter302) se detectó que el mínimo de 8 caracteres se contaba en bytes (`len`), así que `áááá1` (5 caracteres, 9 bytes) pasaba. Ahora el mínimo usa `utf8.RuneCountInString` y el máximo sigue en 72 bytes, con su mensaje corregido; se agregaron pruebas con contraseñas Unicode.

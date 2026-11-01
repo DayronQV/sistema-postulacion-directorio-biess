@@ -343,14 +343,15 @@ func TestRegistrar_Validaciones(t *testing.T) {
 	casos := map[string]struct {
 		email, password, campo string
 	}{
-		"correo vacío":          {"", "clave1234", "email"},
-		"correo sin arroba":     {"diego.correo.com", "clave1234", "email"},
-		"correo con nombre":     {"Diego <diego@correo.com>", "clave1234", "email"},
-		"correo sin dominio":    {"diego@correo", "clave1234", "email"},
-		"contraseña corta":      {"a@b.com", "abc123", "password"},
-		"contraseña sin número": {"a@b.com", "clavesegura", "password"},
-		"contraseña sin letra":  {"a@b.com", "12345678", "password"},
-		"contraseña muy larga":  {"a@b.com", strings.Repeat("a1", 37), "password"},
+		"correo vacío":             {"", "clave1234", "email"},
+		"correo sin arroba":        {"diego.correo.com", "clave1234", "email"},
+		"correo con nombre":        {"Diego <diego@correo.com>", "clave1234", "email"},
+		"correo sin dominio":       {"diego@correo", "clave1234", "email"},
+		"contraseña corta":         {"a@b.com", "abc123", "password"},
+		"contraseña corta unicode": {"a@b.com", "áááá1", "password"}, // 5 caracteres, 9 bytes
+		"contraseña sin número":    {"a@b.com", "clavesegura", "password"},
+		"contraseña sin letra":     {"a@b.com", "12345678", "password"},
+		"contraseña muy larga":     {"a@b.com", strings.Repeat("a1", 37), "password"},
 	}
 	for nombre, c := range casos {
 		t.Run(nombre, func(t *testing.T) {
@@ -365,5 +366,14 @@ func TestRegistrar_Validaciones(t *testing.T) {
 				t.Fatalf("no debe crearse la cuenta")
 			}
 		})
+	}
+}
+
+func TestRegistrar_PasswordUnicodeCuentaCaracteres(t *testing.T) {
+	f := newFixture()
+	ticket := conTicket(f)
+	// 8 caracteres y 10 bytes: cumple el mínimo aunque tenga tildes.
+	if _, err := registrar(f, service.RegistroInput{Ticket: ticket, Email: "a@b.com", Password: "ñandú123"}); err != nil {
+		t.Fatalf("una contraseña de 8 caracteres con tildes debe aceptarse: %v", err)
 	}
 }
