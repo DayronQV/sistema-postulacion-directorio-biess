@@ -22,7 +22,8 @@ type PostulacionService struct {
 	registroCivil domain.RegistroCivil
 	tx            domain.TxManager
 	secciones     []domain.SeccionPostulacion
-	catalogos     domain.Catalogos // opcional: ver ConCatalogos
+	catalogos     domain.Catalogos        // opcional: ver ConCatalogos
+	historial     domain.HistorialLaboral // ver ConHistorialLaboral
 	ahora         func() time.Time
 }
 
@@ -107,27 +108,41 @@ func personalDe(c domain.Ciudadano) domain.InformacionPersonal {
 // Guardar reemplaza el estado completo del formulario en una sola transacción:
 // actualiza la postulación y cada sección con filas, o no escribe nada. Solo se edita en
 // borrador (409 si está enviada o cerrada). Si la nacionalidad no es ecuatoriana, la
-// postulación queda cerrada y se responde 422.
+// postulación queda cerrada y se responde 422. Lo mismo ocurre si el cargo elegido no
+// cumple la calidad que informa el Historial Laboral (se valida en cada guardado).
 func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f domain.Formulario) (domain.Postulacion, error) {
 	f.Familiares = limpiarFamiliares(f.Familiares)
 	f.Referencias = limpiarReferencias(f.Referencias)
+	f.RespaldoOrganizacion = limpiarRespaldo(f.RespaldoOrganizacion)
 	actual, err := s.asegurar(ctx, postulanteID)
 	if err != nil {
 		return domain.Postulacion{}, err
 	}
-	// Quien no es ecuatoriano no puede continuar: se omite la validación del formulario
-	// para que un cuerpo inválido no oculte el cierre (422 en lugar de 400). La transacción
-	// de abajo cierra la postulación o responde 409 si ya no es un borrador.
+	// Quien no es ecuatoriano o no cumple la calidad del cargo no puede continuar: se omite
+	// la validación del formulario para que un cuerpo inválido no oculte el cierre (422 en
+	// lugar de 400). La transacción de abajo cierra la postulación o responde 409 si ya no
+	// es un borrador.
+	var motivoCierre string
 	if domain.EsNacionalidadEcuatoriana(actual.Personal.Nacionalidad) {
-		if err := validarFormulario(f); err != nil {
-			return domain.Postulacion{}, err
+		if domain.CargoValido(f.Cargo) {
+			res, err := s.evaluarCargo(ctx, actual.Personal.Cedula, f.Cargo)
+			if err != nil {
+				return domain.Postulacion{}, err
+			}
+			if !res.Elegible {
+				motivoCierre = res.Mensaje
+			}
 		}
-		if err := s.validarGeografia(ctx, f.Domicilio); err != nil {
-			return domain.Postulacion{}, err
+		if motivoCierre == "" {
+			if err := validarFormulario(f); err != nil {
+				return domain.Postulacion{}, err
+			}
+			if err := s.validarGeografia(ctx, f.Domicilio); err != nil {
+				return domain.Postulacion{}, err
+			}
 		}
 	}
 
-	var cerrada bool
 	err = s.tx.Ejecutar(ctx, func(ctx context.Context, tx domain.Tx) error {
 		// La fila queda bloqueada hasta el final: una edición concurrente o un envío
 		// simultáneo esperan en lugar de pisarse.
@@ -139,7 +154,9 @@ func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f
 			return domain.Conflict(MsgPostulacionNoEditable, nil)
 		}
 		if !domain.EsNacionalidadEcuatoriana(p.Personal.Nacionalidad) {
-			cerrada = true
+			motivoCierre = MsgNacionalidadNoEcuatoriana
+		}
+		if motivoCierre != "" {
 			return s.postulaciones.Cerrar(ctx, tx, p.ID)
 		}
 		if err := s.postulaciones.Actualizar(ctx, tx, p.ID, f); err != nil {
@@ -155,8 +172,8 @@ func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f
 	if err != nil {
 		return domain.Postulacion{}, err
 	}
-	if cerrada {
-		return domain.Postulacion{}, domain.Unprocessable(MsgNacionalidadNoEcuatoriana, nil)
+	if motivoCierre != "" {
+		return domain.Postulacion{}, domain.Unprocessable(motivoCierre, nil)
 	}
 	return s.Obtener(ctx, postulanteID)
 }
@@ -171,6 +188,7 @@ func validarFormulario(f domain.Formulario) error {
 	}
 	validarFamiliares(f, fields)
 	validarReferencias(f, fields)
+	validarRespaldo(f, fields)
 	if len(fields) > 0 {
 		return domain.Validation("Datos inválidos", fields)
 	}

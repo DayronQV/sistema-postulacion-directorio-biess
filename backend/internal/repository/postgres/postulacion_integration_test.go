@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/historiallaboral"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/registrocivil"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/postgres"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
@@ -79,7 +80,7 @@ func newService(pool *pgxpool.Pool, extra ...domain.SeccionPostulacion) *service
 		registrocivil.NewMock(),
 		postgres.NewTxManager(pool),
 		secciones...,
-	)
+	).ConHistorialLaboral(historiallaboral.NewMock())
 }
 
 // seccionRota escribe una fila inválida (viola el CHECK de institucion) dentro de la
@@ -170,14 +171,14 @@ func TestGuardar_COMMIT_PersisteTodoEnUnaTransaccion(t *testing.T) {
 	}
 
 	// Un segundo PUT reemplaza el estado completo, no lo acumula.
-	p, err = svc.Guardar(ctx, id, domain.Formulario{Cargo: domain.CargoJubilados, TieneFamiliares: true, Familiares: []domain.Familiar{familiar("Carla")}})
+	p, err = svc.Guardar(ctx, id, domain.Formulario{Cargo: "", TieneFamiliares: true, Familiares: []domain.Familiar{familiar("Carla")}})
 	if err != nil {
 		t.Fatalf("error inesperado: %v", err)
 	}
 	if got := nombresFamiliares(t, pool, id); len(got) != 1 || got[0] != "Carla" {
 		t.Fatalf("familiares en la base = %v, se esperaba [Carla]", got)
 	}
-	if p.Formulario.Cargo != domain.CargoJubilados || p.Formulario.Consentimiento {
+	if p.Formulario.Cargo != "" || p.Formulario.Consentimiento {
 		t.Fatalf("el segundo PUT no reemplazó el estado: %+v", p.Formulario)
 	}
 }
@@ -199,7 +200,7 @@ func TestGuardar_ROLLBACK_ErrorEnTablaHijaNoDejaNadaGuardado(t *testing.T) {
 	// tabla hija: todo debe deshacerse, incluido el borrado de los familiares anteriores.
 	roto := newService(pool, seccionRota{})
 	_, err := roto.Guardar(ctx, id, domain.Formulario{
-		Cargo:           domain.CargoJubilados,
+		Cargo:           domain.CargoAfiliados,
 		TieneFamiliares: true,
 		Familiares:      []domain.Familiar{familiar("Nuevo 1"), familiar("Nuevo 2")},
 		Consentimiento:  true,
@@ -235,7 +236,7 @@ func TestGuardar_ROLLBACK_ErrorDeGoTrasEscribirDeshaceLoEscrito(t *testing.T) {
 	}
 
 	_, err := newService(pool, seccionQueFallaTrasEscribir{}).Guardar(ctx, id, domain.Formulario{
-		Cargo:           domain.CargoJubilados,
+		Cargo:           domain.CargoAfiliados,
 		TieneFamiliares: true,
 		Familiares:      []domain.Familiar{familiar("Nuevo")},
 		Consentimiento:  true,
@@ -271,8 +272,8 @@ func TestGuardar_ROLLBACK_ErrorDeUnaSeccionConocida(t *testing.T) {
 	svc := service.NewPostulacionService(
 		postgres.NewPostulacionRepo(pool), registrocivil.NewMock(), postgres.NewTxManager(pool),
 		postgres.NewFamiliaresRepo(pool), errSeccion{boom},
-	)
-	_, err := svc.Guardar(ctx, id, domain.Formulario{Cargo: domain.CargoEmpleador, TieneFamiliares: true, Familiares: []domain.Familiar{familiar("X")}})
+	).ConHistorialLaboral(historiallaboral.NewMock())
+	_, err := svc.Guardar(ctx, id, domain.Formulario{Cargo: domain.CargoAfiliados, TieneFamiliares: true, Familiares: []domain.Familiar{familiar("X")}})
 	if !errors.Is(err, boom) {
 		t.Fatalf("se esperaba el error original sin envolver, llegó %v", err)
 	}

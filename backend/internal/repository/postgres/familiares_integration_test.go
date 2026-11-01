@@ -153,7 +153,7 @@ func TestGuardar_ReemplazaElEstadoCompleto(t *testing.T) {
 	paisID := 1
 	inicial := domain.Formulario{
 		Domicilio:      domain.Domicilio{PaisID: &paisID, TelefonoCelular: "0999999999", CallePrincipal: "Av. Amazonas"},
-		Cargo:          domain.CargoJubilados,
+		Cargo:          domain.CargoAfiliados,
 		Consentimiento: true,
 	}
 	if _, err := svc.Guardar(ctx, id, inicial); err != nil {
@@ -173,7 +173,7 @@ func TestGuardar_ReemplazaElEstadoCompleto(t *testing.T) {
 		t.Fatalf("error inesperado: %v", err)
 	}
 	f := p.Formulario
-	if f.Cargo != domain.CargoJubilados || !f.Consentimiento || f.Domicilio.CallePrincipal != "Av. Amazonas" ||
+	if f.Cargo != domain.CargoAfiliados || !f.Consentimiento || f.Domicilio.CallePrincipal != "Av. Amazonas" ||
 		f.Domicilio.PaisID == nil || *f.Domicilio.PaisID != paisID || len(f.Familiares) != 1 {
 		t.Fatalf("el formulario entero debía conservar lo demás: %+v", f)
 	}
