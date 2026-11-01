@@ -10,10 +10,10 @@ on:
 permissions:
   contents: read
 
-# Una ejecución nueva del mismo PR (o rama) cancela la anterior.
+# Una ejecución nueva del mismo PR cancela la anterior; en develop y main no se cancela.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
