@@ -54,5 +54,18 @@ Cualquier otra cédula responde "no existe" en el simulador.
 - Backend: `go test ./...` dentro de `backend/`.
 - Frontend: `npm test` dentro de `frontend/`.
 
+## Integración continua
+El workflow `.github/workflows/ci.yml` corre en cada Pull Request y en cada push a `develop` y `main`, con dos trabajos independientes:
+- **Backend** (con PostgreSQL 16 y Redis 7 reales, esquema y semilla cargados, para que las pruebas de integración no se salten): `go vet ./...`, `go build ./...`, `go test -count=1 ./...` y `go test -race -count=1 ./...`.
+- **Frontend** (Node 24): `npm ci`, `npm run lint`, `npm test` y `npm run build`.
+
+Para reproducirlo en local, con `.env` listo y `docker compose up -d` corriendo (el `DATABASE_URL` y el `REDIS_ADDR` del `.env` deben estar exportados en tu shell; sin ellos las pruebas de integración se saltan):
+```bash
+cd backend && go vet ./... && go build ./... && go test -count=1 ./... && go test -race -count=1 ./...
+```
+```bash
+cd frontend && npm ci && npm run lint && npm test && npm run build
+```
+
 ## Integrantes
 Dayron Quiñonez, Jose Ponce, Luis Anchundia, Estalin Jaen, Oscar Gonzabay.
