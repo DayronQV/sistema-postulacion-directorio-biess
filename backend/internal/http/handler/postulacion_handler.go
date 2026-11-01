@@ -88,6 +88,7 @@ type parejaDTO struct {
 }
 
 type personalDTO struct {
+	Cedula          string     `json:"cedula"`
 	Email           string     `json:"email"`
 	Nombres         string     `json:"nombres"`
 	Apellidos       string     `json:"apellidos"`
@@ -137,6 +138,7 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 		Codigo: p.Codigo,
 		Estado: p.Estado,
 		InformacionPersonal: personalDTO{
+			Cedula:          p.Personal.Cedula,
 			Email:           p.Personal.Email,
 			Nombres:         p.Personal.Nombres,
 			Apellidos:       p.Personal.Apellidos,

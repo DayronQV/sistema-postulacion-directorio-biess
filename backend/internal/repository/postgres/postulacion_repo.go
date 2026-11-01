@@ -44,7 +44,8 @@ SELECT id, codigo, postulante_id, estado, COALESCE(cargo, ''),
        tiene_familiares, tiene_publicaciones,
        COALESCE(respaldo_organizacion_nombre, ''), respaldo_organizacion_doc_id::text,
        consentimiento_at, created_at, updated_at, enviada_at,
-       (SELECT email FROM postulantes WHERE postulantes.id = postulante_id)
+       (SELECT email FROM postulantes WHERE postulantes.id = postulante_id),
+       (SELECT cedula FROM postulantes WHERE postulantes.id = postulante_id)
 FROM postulaciones`
 
 func scanPostulacion(row pgx.Row) (domain.Postulacion, error) {
@@ -69,7 +70,7 @@ func scanPostulacion(row pgx.Row) (domain.Postulacion, error) {
 		&f.TieneFamiliares, &f.TienePublicaciones,
 		&f.RespaldoOrganizacion.Nombre, &f.RespaldoOrganizacion.DocumentoID,
 		&p.ConsentimientoAt, &p.CreadaEn, &p.ActualizadaEn, &p.EnviadaEn,
-		&p.Personal.Email,
+		&p.Personal.Email, &p.Personal.Cedula,
 	)
 	if err != nil {
 		return domain.Postulacion{}, err
