@@ -15,6 +15,10 @@ build con caché de npm. Permisos mínimos, concurrency que cancele ejecuciones 
 trabajo y acciones fijadas a una versión mayor que exista de verdad. Sin despliegue ni cambios en el código
 de la aplicación. Una sección corta "Integración continua" en el README. Verificar el YAML y correr los
 mismos comandos en local con PostgreSQL y Redis reales.
+
+Ajuste posterior tras la revisión: cancel-in-progress también cancelaba la ejecución anterior en develop y
+main cuando entraban dos merges seguidos. Cambiarlo a `${{ github.event_name == 'pull_request' }}`, volver
+a pasar actionlint, subir la rama y abrir el PR hacia develop.
 ```
 
 ## Resultado
@@ -25,4 +29,4 @@ mismos comandos en local con PostgreSQL y Redis reales.
 
 ## Revisión humana
 - Qué se verificó y cómo (pruebas, ejecución): el YAML pasa `actionlint` sin avisos. Los mismos comandos se corrieron en local con PostgreSQL y Redis reales (`docker compose` con proyecto y puertos propios): backend con `go vet`, `go build`, `go test` y `go test -race` en verde, 261 pruebas ejecutadas y 0 saltadas (sin `DATABASE_URL` ni Redis eran 250 ejecutadas y 11 saltadas); frontend con `npm ci`, lint, `npm test` (46 pruebas) y build en verde. El workflow en sí solo se puede comprobar al subirlo a GitHub.
-- Qué se corrigió: nada pendiente tras la verificación.
+- Qué se corrigió: la concurrencia ahora cancela las ejecuciones antiguas solo en pull requests; en develop y main cada push termina su ejecución. `actionlint` volvió a pasar sin avisos.
