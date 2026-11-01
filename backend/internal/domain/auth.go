@@ -19,6 +19,8 @@ type Intentos interface {
 	Bloquear(ctx context.Context, cedula string, duracion time.Duration) error
 	// Reiniciar borra el contador de fallos de la cédula.
 	Reiniciar(ctx context.Context, cedula string) error
+	// Desbloquear borra el bloqueo y el contador de la cédula.
+	Desbloquear(ctx context.Context, cedula string) error
 }
 
 // TicketsRegistro es el puerto de los tickets de identidad validada: prueban que la
@@ -32,6 +34,16 @@ type TicketsRegistro interface {
 	Cedula(ctx context.Context, id string) (string, error)
 	// Eliminar borra el ticket para que no se pueda reutilizar.
 	Eliminar(ctx context.Context, id string) error
+}
+
+// TokensRestablecer es el puerto de los tokens del enlace para restablecer la
+// contraseña. Cada token sirve una sola vez.
+type TokensRestablecer interface {
+	// Emitir guarda un token nuevo para la cédula, válido durante ttl.
+	Emitir(ctx context.Context, cedula string, ttl time.Duration) (string, error)
+	// Consumir devuelve la cédula del token y lo borra en la misma operación, o un
+	// error que cumple errors.Is(err, ErrNotFound) si no existe, expiró o ya se usó.
+	Consumir(ctx context.Context, token string) (string, error)
 }
 
 // NuevoPostulante son los datos de una cuenta nueva. La contraseña llega ya
@@ -58,10 +70,12 @@ func ConflictoEmail() error {
 	return Conflict(MsgEmailRegistrado, map[string]string{"email": MsgEmailRegistrado})
 }
 
-// Cuenta es la cuenta de un postulante, tal como la necesita el inicio de sesión.
+// Cuenta es la cuenta de un postulante, tal como la necesitan el inicio de sesión y
+// la recuperación de contraseña.
 type Cuenta struct {
 	ID           string
 	Cedula       string
+	Email        string
 	PasswordHash string
 }
 
@@ -78,4 +92,7 @@ type Postulantes interface {
 	// TienePostulacion indica si el postulante ya creó su postulación. Si no, es su
 	// primer ingreso y debe ir obligatoriamente al formulario.
 	TienePostulacion(ctx context.Context, postulanteID string) (bool, error)
+	// ActualizarPassword cambia el hash de la contraseña. Devuelve un error que
+	// cumple errors.Is(err, ErrNotFound) si la cédula no tiene cuenta.
+	ActualizarPassword(ctx context.Context, cedula, passwordHash string) error
 }

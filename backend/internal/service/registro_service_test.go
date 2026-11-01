@@ -45,6 +45,12 @@ func (f *fakeIntentos) Reiniciar(_ context.Context, cedula string) error {
 	return f.err
 }
 
+func (f *fakeIntentos) Desbloquear(_ context.Context, cedula string) error {
+	delete(f.fallos, cedula)
+	delete(f.bloqueos, cedula)
+	return f.err
+}
+
 type fakeTickets struct {
 	emitidos map[string]string
 }
@@ -87,6 +93,16 @@ func (f *fakePostulantes) BuscarPorCedula(_ context.Context, cedula string) (dom
 
 func (f *fakePostulantes) TienePostulacion(_ context.Context, postulanteID string) (bool, error) {
 	return f.conPostulacion[postulanteID], nil
+}
+
+func (f *fakePostulantes) ActualizarPassword(_ context.Context, cedula, passwordHash string) error {
+	c, ok := f.cuentas[cedula]
+	if !ok {
+		return domain.NotFound("La cédula no tiene cuenta")
+	}
+	c.PasswordHash = passwordHash
+	f.cuentas[cedula] = c
+	return nil
 }
 
 func (f *fakePostulantes) ExisteCedula(_ context.Context, cedula string) (bool, error) {

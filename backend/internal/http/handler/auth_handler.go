@@ -22,15 +22,23 @@ type LoginUseCase interface {
 	Login(ctx context.Context, in service.LoginInput) (service.LoginResult, error)
 }
 
+// RecuperacionUseCase es lo que el handler necesita del servicio de recuperación de
+// contraseña.
+type RecuperacionUseCase interface {
+	Recuperar(ctx context.Context, in service.IdentidadInput) error
+	Restablecer(ctx context.Context, token, password string) error
+}
+
 // AuthHandler atiende las rutas /auth.
 type AuthHandler struct {
-	registro RegistroUseCase
-	login    LoginUseCase
+	registro     RegistroUseCase
+	login        LoginUseCase
+	recuperacion RecuperacionUseCase
 }
 
 // NewAuthHandler crea el handler de autenticación.
-func NewAuthHandler(registro RegistroUseCase, login LoginUseCase) *AuthHandler {
-	return &AuthHandler{registro: registro, login: login}
+func NewAuthHandler(registro RegistroUseCase, login LoginUseCase, recuperacion RecuperacionUseCase) *AuthHandler {
+	return &AuthHandler{registro: registro, login: login, recuperacion: recuperacion}
 }
 
 type identidadRequest struct {
@@ -119,4 +127,42 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		ExpiresIn:     int(res.ExpiraEn.Seconds()),
 		PrimerIngreso: res.PrimerIngreso,
 	})
+}
+
+// Recuperar atiende POST /auth/recuperar: valida la identidad y envía el enlace para
+// restablecer la contraseña. Responde 202 sin cuerpo tenga o no cuenta la cédula.
+func (h *AuthHandler) Recuperar(c *gin.Context) {
+	var req identidadRequest
+	if !middleware.BindJSON(c, &req) {
+		return
+	}
+	err := h.recuperacion.Recuperar(c.Request.Context(), service.IdentidadInput{
+		Cedula:          req.Cedula,
+		FechaExpedicion: req.FechaExpedicion,
+		CodigoDactilar:  req.CodigoDactilar,
+	})
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.Status(http.StatusAccepted)
+}
+
+type restablecerRequest struct {
+	Token    string `json:"token" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// Restablecer atiende POST /auth/restablecer: cambia la contraseña con el token del
+// enlace. Responde 204 sin cuerpo.
+func (h *AuthHandler) Restablecer(c *gin.Context) {
+	var req restablecerRequest
+	if !middleware.BindJSON(c, &req) {
+		return
+	}
+	if err := h.recuperacion.Restablecer(c.Request.Context(), req.Token, req.Password); err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

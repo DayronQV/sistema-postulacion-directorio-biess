@@ -97,14 +97,11 @@ func (s *RegistroService) ValidarIdentidad(ctx context.Context, in IdentidadInpu
 		return "", domain.Locked(MsgRegistroBloqueado, restante)
 	}
 
-	ciudadano, err := s.registroCivil.ConsultarCiudadano(ctx, cedula)
-	switch {
-	case errors.Is(err, domain.ErrNotFound):
-		return "", s.fallo(ctx, cedula)
-	case err != nil:
+	ok, err := comprobarIdentidad(ctx, s.registroCivil, cedula, fecha, codigo)
+	if err != nil {
 		return "", err
 	}
-	if !coincide(ciudadano, fecha, codigo) {
+	if !ok {
 		return "", s.fallo(ctx, cedula)
 	}
 
@@ -276,6 +273,20 @@ func parseDatoIdentidad(in IdentidadInput) (time.Time, string, error) {
 	return time.Time{}, "", domain.Validation("Datos inválidos", map[string]string{
 		"fecha_expedicion": "Fecha no válida (DD/MM/AAAA)",
 	})
+}
+
+// comprobarIdentidad consulta el Registro Civil y compara el dato enviado. Una cédula
+// que no existe devuelve false, igual que un dato incorrecto, para no revelar qué
+// cédulas existen. Solo devuelve error si falla la consulta.
+func comprobarIdentidad(ctx context.Context, rc domain.RegistroCivil, cedula string, fecha time.Time, codigo string) (bool, error) {
+	ciudadano, err := rc.ConsultarCiudadano(ctx, cedula)
+	switch {
+	case errors.Is(err, domain.ErrNotFound):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	return coincide(ciudadano, fecha, codigo), nil
 }
 
 // coincide compara el dato enviado con el del Registro Civil. Las fechas se comparan
