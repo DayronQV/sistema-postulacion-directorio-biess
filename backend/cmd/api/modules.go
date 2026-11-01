@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 )
 
@@ -19,6 +20,10 @@ type container struct {
 	logger *slog.Logger
 	db     *pgxpool.Pool
 	redis  *goredis.Client
+
+	// historial es el Historial Laboral del IESS (hoy el simulador); lo usa la
+	// selección del cargo de la postulación.
+	historial domain.HistorialLaboral
 }
 
 // modules devuelve el registro de rutas de cada módulo.
