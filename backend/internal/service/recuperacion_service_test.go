@@ -19,13 +19,15 @@ import (
 // fakeTokensRestablecer imita a Redis: Consumir borra el token.
 type fakeTokensRestablecer struct {
 	tokens map[string]string
+	ttls   map[string]time.Duration // ttl con el que se emitió cada token
 	n      int
 }
 
-func (f *fakeTokensRestablecer) Emitir(_ context.Context, cedula string, _ time.Duration) (string, error) {
+func (f *fakeTokensRestablecer) Emitir(_ context.Context, cedula string, ttl time.Duration) (string, error) {
 	f.n++
 	token := fmt.Sprintf("tok%d", f.n)
 	f.tokens[token] = cedula
+	f.ttls[token] = ttl
 	return token, nil
 }
 
@@ -71,7 +73,7 @@ func newRecuperacionFixture() recuperacionFixture {
 		}},
 		intentos:      newFakeIntentos(),
 		intentosLogin: newFakeIntentos(),
-		tokens:        &fakeTokensRestablecer{tokens: map[string]string{}},
+		tokens:        &fakeTokensRestablecer{tokens: map[string]string{}, ttls: map[string]time.Duration{}},
 		mailer:        &fakeMailer{},
 	}
 	f.svc = service.NewRecuperacionService(registrocivil.NewMock(), f.postulantes, f.intentos,
@@ -200,5 +202,55 @@ func TestRestablecer_PasswordInvalidaNoGastaElToken(t *testing.T) {
 	}
 	if _, ok := f.tokens.tokens["tok"]; !ok {
 		t.Fatalf("una contraseña inválida no debe gastar el enlace")
+	}
+}
+
+func TestRecuperar_EnlaceVence30Minutos(t *testing.T) {
+	f := newRecuperacionFixture()
+	if err := recuperar(f, service.IdentidadInput{Cedula: cedulaRecuperacion, CodigoDactilar: "V3141V5926"}); err != nil {
+		t.Fatal(err)
+	}
+	if ttl := f.tokens.ttls[tokenDelCorreo(t, f)]; ttl != 30*time.Minute {
+		t.Fatalf("el enlace se emitió con TTL %v, se esperaban 30 minutos", ttl)
+	}
+}
+
+func TestRecuperar_AciertoReiniciaElContador(t *testing.T) {
+	f := newRecuperacionFixture()
+	malo := service.IdentidadInput{Cedula: cedulaRecuperacion, CodigoDactilar: "AAAAAAAAAA"}
+	bueno := service.IdentidadInput{Cedula: cedulaRecuperacion, CodigoDactilar: "V3141V5926"}
+	for i := 1; i <= 2; i++ {
+		if err := recuperar(f, malo); !errors.Is(err, domain.ErrUnauthorized) {
+			t.Fatalf("fallo %d: se esperaba 401, llegó %v", i, err)
+		}
+	}
+	if err := recuperar(f, bueno); err != nil {
+		t.Fatalf("el acierto debe responder sin error: %v", err)
+	}
+	// Tras el acierto el contador vuelve a cero: un fallo más es el primero, no el tercero.
+	if err := recuperar(f, malo); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("se esperaba 401 y no un bloqueo, llegó %v", err)
+	}
+}
+
+// intentosQueFallanAlDesbloquear simula que Redis falla justo al borrar el bloqueo.
+type intentosQueFallanAlDesbloquear struct{ *fakeIntentos }
+
+func (intentosQueFallanAlDesbloquear) Desbloquear(context.Context, string) error {
+	return errors.New("redis caído")
+}
+
+func TestRestablecer_FalloAlDesbloquearNoAnulaElCambio(t *testing.T) {
+	f := newRecuperacionFixture()
+	f.svc = service.NewRecuperacionService(registrocivil.NewMock(), f.postulantes, f.intentos,
+		intentosQueFallanAlDesbloquear{newFakeIntentos()}, f.tokens, f.mailer, "http://localhost:5173/restablecer")
+	f.tokens.tokens["tok"] = cedulaRecuperacion
+
+	if err := f.svc.Restablecer(context.Background(), "tok", "nueva1234"); err != nil {
+		t.Fatalf("la contraseña ya cambió: no debe responder error, llegó %v", err)
+	}
+	hash := f.postulantes.cuentas[cedulaRecuperacion].PasswordHash
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte("nueva1234")) != nil {
+		t.Fatalf("la contraseña nueva no se guardó")
 	}
 }

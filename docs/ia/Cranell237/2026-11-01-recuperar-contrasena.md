@@ -21,4 +21,4 @@ entonces podemos continuar con la #15, correcto?
 
 ## Revisión humana
 - Qué se verificó y cómo (pruebas, ejecución): `go vet ./...` y `go test ./...` en verde. Las pruebas del servicio sacan el enlace del correo enviado y lo usan para cambiar la contraseña, comprueban que no sirva dos veces, que se borren los bloqueos de login, que una cédula sin cuenta no reciba correo y el bloqueo al tercer fallo. Las pruebas de Redis se saltan si Redis no está levantado.
-- Qué se corrigió:
+- Qué se corrigió: en la revisión del PR (DayronQV), que probó el flujo con PostgreSQL y Redis reales, se agregaron dos pruebas que faltaban (el acierto reinicia el contador de fallos y el enlace se emite con TTL de 30 minutos); el desbloqueo del login tras cambiar la contraseña pasó a ser de mejor esfuerzo, con su prueba, y `.env.example` explica que el primer origen de `CORS_ALLOWED_ORIGIN` es la URL de los enlaces.

@@ -255,7 +255,13 @@ func (s *RecuperacionService) Restablecer(ctx context.Context, token, password s
 	case err != nil:
 		return err
 	}
-	return s.intentosLogin.Desbloquear(ctx, cedula)
+
+	// Mejor esfuerzo: la contraseña ya cambió y el enlace ya se gastó, así que un
+	// error aquí no se informa. Si se informara, el postulante creería que no cambió
+	// y al reintentar vería "el enlace no es válido". En el peor caso, el bloqueo de
+	// login que tuviera vence solo en 10 minutos.
+	_ = s.intentosLogin.Desbloquear(ctx, cedula)
+	return nil
 }
 
 // enlace arma la URL del frontend con el token en la query.
