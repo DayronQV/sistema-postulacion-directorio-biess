@@ -49,6 +49,6 @@ func modules(c *container) []apihttp.RouteRegistrar {
 	return []apihttp.RouteRegistrar{
 		authRoutes(c),
 		catalogoRoutes(c),
-		// postulacionRoutes(c),
+		postulacionRoutes(c),
 	}
 }
