@@ -77,7 +77,9 @@ func newService(pool *pgxpool.Pool, extra ...domain.SeccionPostulacion) *service
 }
 
 // seccionRota escribe una fila inválida (viola el CHECK de institucion) dentro de la
-// transacción, después de que la postulación y los familiares ya se escribieron.
+// transacción, después de que la postulación y los familiares ya se escribieron. Como
+// PostgreSQL deja la transacción abortada, aquí hasta un COMMIT mal hecho se deshace: la
+// prueba de que el TxManager hace ROLLBACK es seccionQueFallaTrasEscribir.
 type seccionRota struct{}
 
 func (seccionRota) Cargar(context.Context, string, *domain.Formulario) error { return nil }
@@ -87,6 +89,28 @@ func (seccionRota) Reemplazar(ctx context.Context, tx domain.Tx, postulacionID s
 INSERT INTO postulacion_familiares (postulacion_id, nombres_apellidos, parentesco, institucion, area, cargo)
 VALUES ($1, 'Fila inválida', 'primo', 'ISSFA', 'x', 'x')`, postulacionID)
 	return err
+}
+
+// errTrasEscribir es el error de Go (sin error de SQL) de seccionQueFallaTrasEscribir.
+var errTrasEscribir = errors.New("la sección falla después de escribir")
+
+// seccionQueFallaTrasEscribir escribe una fila válida y luego devuelve un error de Go.
+// La transacción sigue sana en PostgreSQL: solo un ROLLBACK explícito del TxManager
+// deshace la fila. Si el TxManager confirmara pese al error, la fila quedaría guardada.
+type seccionQueFallaTrasEscribir struct{}
+
+func (seccionQueFallaTrasEscribir) Cargar(context.Context, string, *domain.Formulario) error {
+	return nil
+}
+
+func (seccionQueFallaTrasEscribir) Reemplazar(ctx context.Context, tx domain.Tx, postulacionID string, _ domain.Formulario) error {
+	_, err := tx.(pgx.Tx).Exec(ctx, `
+INSERT INTO postulacion_familiares (postulacion_id, nombres_apellidos, parentesco, institucion, area, cargo)
+VALUES ($1, 'Fila que debe deshacerse', 'primo', 'IESS', 'x', 'x')`, postulacionID)
+	if err != nil {
+		return err
+	}
+	return errTrasEscribir
 }
 
 func familiar(nombre string) domain.Familiar {
@@ -176,6 +200,42 @@ func TestGuardar_ROLLBACK_ErrorEnTablaHijaNoDejaNadaGuardado(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("se esperaba el error de la tabla hija")
+	}
+
+	var cargo string
+	var consentimiento bool
+	if err := pool.QueryRow(ctx,
+		`SELECT cargo, consentimiento_at IS NOT NULL FROM postulaciones WHERE postulante_id = $1`, id,
+	).Scan(&cargo, &consentimiento); err != nil {
+		t.Fatal(err)
+	}
+	if cargo != domain.CargoAfiliados || consentimiento {
+		t.Fatalf("la postulación quedó con escrituras parciales: cargo=%q consentimiento=%v", cargo, consentimiento)
+	}
+	if got := nombresFamiliares(t, pool, id); len(got) != 1 || got[0] != "Original" {
+		t.Fatalf("familiares tras el ROLLBACK = %v, se esperaba [Original]", got)
+	}
+}
+
+func TestGuardar_ROLLBACK_ErrorDeGoTrasEscribirDeshaceLoEscrito(t *testing.T) {
+	pool := newPool(t)
+	ctx := context.Background()
+	id := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
+
+	if _, err := newService(pool).Guardar(ctx, id, domain.Formulario{
+		Cargo: domain.CargoAfiliados, TieneFamiliares: true, Familiares: []domain.Familiar{familiar("Original")},
+	}); err != nil {
+		t.Fatalf("estado inicial: %v", err)
+	}
+
+	_, err := newService(pool, seccionQueFallaTrasEscribir{}).Guardar(ctx, id, domain.Formulario{
+		Cargo:           domain.CargoJubilados,
+		TieneFamiliares: true,
+		Familiares:      []domain.Familiar{familiar("Nuevo")},
+		Consentimiento:  true,
+	})
+	if !errors.Is(err, errTrasEscribir) {
+		t.Fatalf("se esperaba el error de la sección, llegó %v", err)
 	}
 
 	var cargo string
