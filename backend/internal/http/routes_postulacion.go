@@ -20,3 +20,16 @@ func PostulacionRoutes(h *handler.PostulacionHandler, tokens domain.TokenIssuer)
 		postulacion.PUT("", h.Guardar)
 	}
 }
+
+// DocumentoRoutes registra la gestión de respaldos bajo el mismo recurso protegido.
+func DocumentoRoutes(documentos *handler.DocumentoHandler, tokens domain.TokenIssuer) RouteRegistrar {
+	return func(api *gin.RouterGroup) {
+		postulacion := api.Group("/postulacion",
+			middleware.RequireAuth(tokens),
+			middleware.RequireRole(domain.RolPostulante),
+		)
+		postulacion.POST("/documentos", documentos.Subir)
+		postulacion.GET("/documentos/:id", documentos.Descargar)
+		postulacion.DELETE("/documentos/:id", documentos.Eliminar)
+	}
+}

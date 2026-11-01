@@ -15,9 +15,11 @@ interface FileUploadProps {
   archivo: ArchivoMostrado | null
   estado?: EstadoSubida
   mensajeError?: string
+  progreso?: number
   maxMb: number
   onSeleccionar: (archivo: File) => void
   onQuitar?: () => void
+  onDescargar?: () => void
 }
 
 function formatearTamano(bytes: number): string {
@@ -32,9 +34,11 @@ export default function FileUpload({
   archivo,
   estado = 'inactivo',
   mensajeError,
+  progreso,
   maxMb,
   onSeleccionar,
   onQuitar,
+  onDescargar,
 }: FileUploadProps) {
   const id = useId()
   const entrada = useRef<HTMLInputElement>(null)
@@ -89,6 +93,15 @@ export default function FileUpload({
             <Spinner className="h-4 w-4" /> Subiendo...
           </span>
         )}
+        {archivo && onDescargar && estado !== 'subiendo' && (
+          <button
+            type="button"
+            onClick={onDescargar}
+            className="inline-flex h-10 items-center gap-1 rounded-xl px-3 text-body-bold text-primary-container hover:bg-surface-container-low"
+          >
+            <Icon nombre="download" className="text-[18px]" /> Descargar
+          </button>
+        )}
         {estado === 'exito' && (
           <span className="flex items-center gap-1 text-label-sm text-success">
             <Icon nombre="check_circle" relleno className="text-[18px]" /> Subido
@@ -120,6 +133,17 @@ export default function FileUpload({
           </button>
         )}
       </div>
+      {estado === 'subiendo' && progreso !== undefined && (
+        <div className="flex items-center gap-2" aria-label={`Progreso de subida: ${progreso}%`}>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-container-high">
+            <div
+              className="h-full bg-primary-container"
+              style={{ width: `${Math.max(0, Math.min(100, progreso))}%` }}
+            />
+          </div>
+          <span className="text-label-sm text-on-surface-variant">{progreso}%</span>
+        </div>
+      )}
       {error && (
         <p role="alert" className="text-label-sm text-error">
           {error}

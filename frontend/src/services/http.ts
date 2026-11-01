@@ -20,18 +20,31 @@ http.interceptors.request.use((config) => {
   return config
 })
 
+// Con responseType 'blob' (descargas) el cuerpo del error también llega como Blob: se lee
+// como JSON para no perder el mensaje del servidor.
+async function leerCuerpo(data: unknown): Promise<CuerpoError | undefined> {
+  if (typeof Blob !== 'undefined' && data instanceof Blob) {
+    try {
+      return JSON.parse(await data.text()) as CuerpoError
+    } catch {
+      return undefined
+    }
+  }
+  return data as CuerpoError | undefined
+}
+
 // Convierte cualquier fallo en ApiError. Un 401 con sesión abierta significa token vencido
 // o inválido: se cierra la sesión y las rutas protegidas redirigen solas al login.
 http.interceptors.response.use(
   (respuesta) => respuesta,
-  (fallo: unknown) => {
+  async (fallo: unknown) => {
     if (axios.isCancel(fallo)) throw fallo
     if (!(fallo instanceof AxiosError) || !fallo.response) {
       throw new ApiError(0, 'NETWORK_ERROR', 'No se pudo conectar con el servidor.')
     }
     const { status, data } = fallo.response
     if (status === 401 && obtenerToken()) cerrarSesion()
-    const cuerpo = (data as CuerpoError | undefined)?.error
+    const cuerpo = (await leerCuerpo(data))?.error
     throw new ApiError(
       status,
       cuerpo?.code ?? 'INTERNAL_ERROR',
