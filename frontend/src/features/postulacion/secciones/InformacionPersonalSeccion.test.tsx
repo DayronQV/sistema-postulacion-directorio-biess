@@ -56,6 +56,8 @@ function postulacion(sobre: Partial<Postulacion> = {}): Postulacion {
       },
     ],
     formacion: [],
+    experiencia: [],
+    duracion_experiencia_total: { anios: 0, meses: 0, dias: 0 },
     publicaciones: [],
     cargo: 'jubilados',
     respaldo_organizacion: { nombre: 'Asociación', documento_id: null },

@@ -93,6 +93,8 @@ type Formulario struct {
 	Familiares           []Familiar
 	Referencias          []ReferenciaPersonal
 	Formacion            []FormacionAcademica
+	Experiencia          []ExperienciaProfesional
+	DuracionExperiencia  Duracion
 	Publicaciones        []PublicacionAcademica
 	Cargo                string // vacío mientras no lo haya elegido
 	RespaldoOrganizacion RespaldoOrganizacion
