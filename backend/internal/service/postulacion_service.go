@@ -58,6 +58,7 @@ func (s *PostulacionService) Obtener(ctx context.Context, postulanteID string) (
 			return domain.Postulacion{}, err
 		}
 	}
+	completarDuraciones(&p.Formulario)
 	return p, nil
 }
 
@@ -114,6 +115,9 @@ func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f
 	f.Familiares = limpiarFamiliares(f.Familiares)
 	f.Referencias = limpiarReferencias(f.Referencias)
 	f.Formacion = limpiarFormacion(f.Formacion)
+	f.Experiencia = limpiarExperiencia(f.Experiencia)
+	f.Publicaciones = limpiarPublicaciones(f.Publicaciones)
+	f.Capacitaciones = limpiarCapacitaciones(f.Capacitaciones)
 	f.RespaldoOrganizacion = limpiarRespaldo(f.RespaldoOrganizacion)
 	actual, err := s.asegurar(ctx, postulanteID)
 	if err != nil {
@@ -194,6 +198,9 @@ func validarFormularioEn(f domain.Formulario, ahora time.Time) error {
 	validarFamiliares(f, fields)
 	validarReferencias(f, fields)
 	validarFormacion(f.Formacion, ahora, fields)
+	validarExperiencia(f.Experiencia, ahora, fields)
+	validarPublicaciones(f, ahora, fields)
+	validarCapacitaciones(f.Capacitaciones, ahora, fields)
 	validarRespaldo(f, fields)
 	if len(fields) > 0 {
 		return domain.Validation("Datos inválidos", fields)

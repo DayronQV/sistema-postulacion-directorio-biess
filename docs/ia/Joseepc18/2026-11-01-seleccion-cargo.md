@@ -43,3 +43,7 @@ con Vitest y Testing Library.
 - El error del guardado muestra el nombre legible de cada campo en lugar de la clave técnica. Al responder "No", el PDF ya subido se borra con `DELETE /postulacion/documentos/:id` (y el que tenía guardada la postulación, tras guardar el "No"); un 409 se ignora. Con sus pruebas.
 - Verificado de nuevo con PostgreSQL y Redis reales: `go vet`, `go build`, `go test` y `go test -race` en verde (513 pruebas y subpruebas, 0 saltadas); `lint`, `build` y `npm test` (339) en verde.
 
+## Actualización: segunda sincronización con develop
+- Se integró `develop` otra vez (experiencia, publicaciones y capacitación). El conflicto estaba de nuevo en `Guardar` y `validarFormularioEn`: se conservaron los `limpiar*` y `validar*` de las cuatro secciones nuevas junto a `limpiarRespaldo` y `validarRespaldo`. Se agregaron `experiencia`, `duracion_experiencia_total`, `publicaciones` y `capacitaciones` al fixture de `CargoSeccion.test.tsx`.
+- Verificado de nuevo con PostgreSQL y Redis reales: `go vet`, `go build`, `go test` y `go test -race` en verde (540 pruebas y subpruebas, 0 saltadas); `lint`, `build` y `npm test` (357) en verde.
+

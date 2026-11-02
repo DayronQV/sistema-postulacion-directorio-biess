@@ -36,6 +36,8 @@ const postulacion = {
   familiares: [{ nombres_apellidos: 'Luis' }],
   referencias: [{ nombres_apellidos: 'Ana' }],
   formacion: [],
+  publicaciones: [],
+  capacitaciones: [],
   cargo: 'afiliados',
 } as unknown as Postulacion
 
