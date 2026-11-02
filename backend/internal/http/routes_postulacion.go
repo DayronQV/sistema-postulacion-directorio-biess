@@ -18,6 +18,7 @@ func PostulacionRoutes(h *handler.PostulacionHandler, tokens domain.TokenIssuer)
 		)
 		postulacion.GET("", h.Obtener)
 		postulacion.PUT("", h.Guardar)
+		postulacion.POST("/enviar", h.Enviar)
 	}
 }
 
