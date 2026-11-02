@@ -118,6 +118,18 @@ export interface InformacionPersonal {
   pareja?: { nombres_apellidos: string; cedula: string }
 }
 
+export interface RemovidoDetalle {
+  institucion: string
+  cargo: string
+  fecha_fin: string
+  motivo: string
+}
+
+// Claves "1" a "13" con la respuesta de cada pregunta, más el detalle de la 7.
+export type Inhabilidades = Record<string, boolean | RemovidoDetalle | undefined> & {
+  removido_detalle?: RemovidoDetalle
+}
+
 export type TipoCargo = 'afiliados' | 'jubilados' | 'empleador'
 
 // Resultado de validar el cargo con el Historial Laboral. Si el postulante no cumple la
@@ -147,11 +159,14 @@ export interface Postulacion {
   tiene_publicaciones: boolean
   consentimiento: boolean
   updated_at: string
+  // Lo calcula el servidor a partir de las respuestas de Inhabilidades.
+  inhabilidades?: Inhabilidades
+  elegible?: boolean
 }
 
 // Lo que se edita y se guarda con PUT /postulacion: todo salvo lo que fija el servidor.
 export type DatosPostulacion = Partial<
-  Omit<Postulacion, 'id' | 'codigo' | 'estado' | 'informacion_personal' | 'updated_at'>
+  Omit<Postulacion, 'id' | 'codigo' | 'estado' | 'informacion_personal' | 'updated_at' | 'elegible'>
 >
 
 export type EstadoPostulacion = Postulacion['estado']
