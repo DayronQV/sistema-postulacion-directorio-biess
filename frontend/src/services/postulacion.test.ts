@@ -1,6 +1,7 @@
 import type { InternalAxiosRequestConfig } from 'axios'
 import { http } from './http'
 import {
+  enviarPostulacion,
   guardarPostulacion,
   obtenerPostulacion,
   validarCargo,
@@ -52,5 +53,13 @@ describe('servicio de postulación', () => {
     expect(devuelto).toEqual(resultado)
     expect(peticiones[0]).toMatchObject({ method: 'post', url: '/postulacion/cargo/validar' })
     expect(JSON.parse(peticiones[0].data)).toEqual({ cargo: 'jubilados' })
+  })
+
+  it('enviarPostulacion envía POST /postulacion/enviar y devuelve la postulación enviada', async () => {
+    const peticiones = capturar({ id: 'p-1', estado: 'enviada' })
+    const enviada = await enviarPostulacion()
+
+    expect(enviada).toMatchObject({ estado: 'enviada' })
+    expect(peticiones[0]).toMatchObject({ method: 'post', url: '/postulacion/enviar' })
   })
 })

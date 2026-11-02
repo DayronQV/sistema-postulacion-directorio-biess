@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import {
+  enviarPostulacion,
   guardarPostulacion,
   obtenerPostulacion,
   suscribirGuardado,
@@ -88,6 +89,27 @@ export async function guardarSeccion(
   } catch (e) {
     poner({ guardando: false, errorGuardado: comoApiError(e) })
     return false
+  }
+}
+
+// Envía la postulación. Devuelve null si el servidor la aceptó (el estado queda "enviada") o el
+// error: 422 con las secciones incompletas en `fields`, 409 si ya se había enviado.
+export async function enviarFormulario(): Promise<ApiError | null> {
+  poner({ guardando: true, errorGuardado: null })
+  try {
+    const enviada = await enviarPostulacion()
+    poner({
+      postulacion: { ...estado.postulacion, ...enviada },
+      guardando: false,
+      seccionesConCambios: [],
+    })
+    return null
+  } catch (e) {
+    poner({ guardando: false })
+    const error = comoApiError(e)
+    // 409: ya estaba enviada (por ejemplo, desde otra pestaña). Se relee para mostrarlo.
+    if (error.code === 'CONFLICT') await refrescarPostulacion()
+    return error
   }
 }
 
