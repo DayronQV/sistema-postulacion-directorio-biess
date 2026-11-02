@@ -164,6 +164,17 @@ export async function obtenerPostulacion(signal?: AbortSignal): Promise<Postulac
   return data
 }
 
+// Avisos de guardado: cada sección guarda por su cuenta, y así el contenedor del formulario
+// se entera (actualiza el avance y quita la marca de cambios sin guardar).
+const alGuardar = new Set<(postulacion: Postulacion) => void>()
+
+export function suscribirGuardado(escucha: (postulacion: Postulacion) => void): () => void {
+  alGuardar.add(escucha)
+  return () => {
+    alGuardar.delete(escucha)
+  }
+}
+
 // PUT /postulacion: guarda el formulario completo en una transacción y devuelve la
 // postulación guardada. El servidor ignora los campos de solo lectura (id, código, estado...).
 export async function guardarPostulacion(
@@ -171,6 +182,7 @@ export async function guardarPostulacion(
   signal?: AbortSignal,
 ): Promise<Postulacion> {
   const { data } = await http.put<Postulacion>('/postulacion', formulario, { signal })
+  alGuardar.forEach((f) => f(data))
   return data
 }
 
