@@ -1,5 +1,7 @@
 package domain
 
+// Valores permitidos y límites de la sección de publicaciones (EF-12, sección 7). Los
+// tipos coinciden con el CHECK de publicaciones en db/schema.sql.
 const (
 	TipoPublicacion   = "publicacion"
 	TipoInvestigacion = "investigacion"
@@ -19,6 +21,7 @@ type PublicacionAcademica struct {
 	DocumentoID string
 }
 
+// TipoPublicacionValido indica si tipo es publicación o trabajo de investigación.
 func TipoPublicacionValido(tipo string) bool {
 	return tipo == TipoPublicacion || tipo == TipoInvestigacion
 }

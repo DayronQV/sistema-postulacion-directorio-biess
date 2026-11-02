@@ -10,12 +10,16 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
 
+// PublicacionesRepo implementa domain.SeccionPostulacion para la tabla publicaciones.
 type PublicacionesRepo struct{ db *pgxpool.Pool }
 
 var _ domain.SeccionPostulacion = (*PublicacionesRepo)(nil)
 
+// NewPublicacionesRepo crea el repositorio de publicaciones.
 func NewPublicacionesRepo(db *pgxpool.Pool) *PublicacionesRepo { return &PublicacionesRepo{db: db} }
 
+// Cargar completa f.Publicaciones con las filas de la postulación en el orden de captura
+// (ver idOrdenado).
 func (r *PublicacionesRepo) Cargar(ctx context.Context, postulacionID string, f *domain.Formulario) error {
 	rows, err := r.db.Query(ctx, `
 SELECT titulo, tipo, medio, to_char(fecha, 'YYYY-MM-DD'), relacionada, COALESCE(documento_id::text, '')
@@ -38,6 +42,8 @@ FROM publicaciones WHERE postulacion_id = $1 ORDER BY id`, postulacionID)
 	return nil
 }
 
+// Reemplazar borra las publicaciones de la postulación y, si la respuesta es Sí, escribe
+// las de f dentro de tx. Antes comprueba que cada respaldo sea propio y de tipo publicacion.
 func (r *PublicacionesRepo) Reemplazar(ctx context.Context, tx domain.Tx, postulacionID string, f domain.Formulario) error {
 	ptx, err := pgxTx(tx)
 	if err != nil {
