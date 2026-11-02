@@ -160,3 +160,69 @@ func TestEnviar_SiFallaElCorreoSeDeshaceYPuedeReintentarse(t *testing.T) {
 		t.Fatalf("reintento: %v, %s", err, p.Estado)
 	}
 }
+
+func TestEnviar_SiSinFilasEnFamiliaresOPublicacionesEstaIncompleta(t *testing.T) {
+	formulario := formularioCompleto()
+	formulario.TieneFamiliares = true
+	formulario.TienePublicaciones = true
+	f, mailer := fixtureEnvio(t, formulario)
+
+	_, err := f.svc.Enviar(context.Background(), postulanteID)
+	var de *domain.Error
+	if !errors.As(err, &de) || !errors.Is(err, domain.ErrUnprocessable) {
+		t.Fatalf("error = %#v; se esperaba 422", err)
+	}
+	if de.Fields["familiares"] == "" || de.Fields["publicaciones"] == "" {
+		t.Fatalf("fields = %v; se esperaban familiares y publicaciones", de.Fields)
+	}
+	if len(mailer.enviados) != 0 {
+		t.Fatal("no debe enviarse el correo")
+	}
+}
+
+func TestEnviar_ElCorreoLlevaElFormularioCompleto(t *testing.T) {
+	formulario := formularioCompleto()
+	provincia := 17
+	formulario.Domicilio.ProvinciaID = &provincia
+	formulario.Formacion = []domain.FormacionAcademica{{Titulo: "Economista", Nivel: "tercer_nivel", Tipo: "nacional", Area: "economia"}}
+	formulario.Capacitaciones = []domain.Capacitacion{{Nombre: "Riesgos", Tipo: "curso", Horas: 40}}
+	f, mailer := fixtureEnvio(t, formulario)
+	f.svc.ConCatalogos(&fakeCatalogos{
+		paises:     []domain.ItemCatalogo{{ID: 60, Nombre: "Ecuador"}},
+		provincias: map[int][]domain.ItemCatalogo{60: {{ID: 17, Nombre: "Pichincha"}}},
+		cantones:   map[int][]domain.ItemCatalogo{17: {{ID: 1701, Nombre: "Quito"}}},
+	})
+
+	if _, err := f.svc.Enviar(context.Background(), postulanteID); err != nil {
+		t.Fatalf("error inesperado: %v", err)
+	}
+	texto := mailer.enviados[0].Texto
+	for _, esperado := range []string{
+		"1. INFORMACIÓN PERSONAL", "2. INFORMACIÓN DOMICILIARIA", "3. INFORMACIÓN ADICIONAL",
+		"4. SELECCIÓN DEL CARGO", "5. FORMACIÓN ACADÉMICA", "6. EXPERIENCIA PROFESIONAL",
+		"7. PUBLICACIONES", "8. CAPACITACIÓN", "9. REFERENCIAS PERSONALES", "10. INHABILIDADES",
+		"País: Ecuador", "Provincia / Estado: Pichincha", "Ciudad: Quito",
+		"Sector de Afiliados ante el Directorio del BIESS",
+		"Economista (Tercer Nivel de Grado)", "Área: Economía", "Riesgos (Curso)", "40 horas",
+		"Pregunta 1: Sí", "Pregunta 13: No", "Tiempo total de experiencia",
+	} {
+		if !strings.Contains(texto, esperado) {
+			t.Errorf("el correo no incluye %q", esperado)
+		}
+	}
+	if strings.Contains(texto, "tercer_nivel") || strings.Contains(texto, "Cargo: afiliados") {
+		t.Error("el correo no debe mostrar valores internos de la API")
+	}
+}
+
+func TestEnviar_SiElCatalogoFallaElCorreoSaleIgual(t *testing.T) {
+	f, mailer := fixtureEnvio(t, formularioCompleto())
+	f.svc.ConCatalogos(&fakeCatalogos{err: errors.New("redis caído")})
+
+	if _, err := f.svc.Enviar(context.Background(), postulanteID); err != nil {
+		t.Fatalf("un catálogo caído no debe impedir el envío: %v", err)
+	}
+	if len(mailer.enviados) != 1 {
+		t.Fatalf("correos = %d", len(mailer.enviados))
+	}
+}
