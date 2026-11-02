@@ -32,10 +32,17 @@ export default function AccionMerito({
 }: AccionMeritoProps) {
   const esAdministrador = useSesion()?.rol === 'administrador'
   const [supero, setSupero] = useState(superoMerito)
+  // Si el padre recarga la fila y llega otro valor, el estado interno lo sigue.
+  const [superoPrevio, setSuperoPrevio] = useState(superoMerito)
+  if (superoMerito !== superoPrevio) {
+    setSuperoPrevio(superoMerito)
+    setSupero(superoMerito)
+  }
   const [confirmando, setConfirmando] = useState(false)
   const { ejecutar, cargando, error } = useApi(llamada)
 
   const nuevo = !supero
+  const laPostulacion = codigo ? `La postulación ${codigo}` : 'La postulación'
   const confirmar = async () => {
     const r = await ejecutar(postulacionId, nuevo)
     setConfirmando(false)
@@ -70,8 +77,8 @@ export default function AccionMerito({
         titulo={nuevo ? 'Marcar que superó la Fase de Méritos' : 'Quitar la marca de méritos'}
         mensaje={
           nuevo
-            ? `La postulación ${codigo ?? ''} pasará a "Evaluación Técnica" y el postulante quedará habilitado para la evaluación teórica.`
-            : `La postulación ${codigo ?? ''} volverá a "Enviada" y el postulante dejará de estar habilitado para la evaluación teórica.`
+            ? `${laPostulacion} pasará a "Evaluación Técnica" y el postulante quedará habilitado para la evaluación teórica.`
+            : `${laPostulacion} volverá a "Enviada" y el postulante dejará de estar habilitado para la evaluación teórica.`
         }
         textoConfirmar={nuevo ? 'Marcar' : 'Quitar la marca'}
         peligroso={!nuevo}

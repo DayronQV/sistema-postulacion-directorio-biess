@@ -110,3 +110,26 @@ describe('AccionMerito', () => {
     expect(screen.getByText('Fase de Méritos pendiente')).toBeInTheDocument()
   })
 })
+
+describe('AccionMerito, estado que llega del padre', () => {
+  it('si el padre recarga la fila con otro valor, la insignia lo sigue', () => {
+    iniciarSesion(jwt('administrador'), 600)
+    const props = { postulacionId: ID, codigo: 'BIESS-2026-000001', enviada: true }
+    const { rerender } = render(<AccionMerito {...props} superoMerito={false} />)
+    expect(screen.getByText('Fase de Méritos pendiente')).toBeInTheDocument()
+
+    rerender(<AccionMerito {...props} superoMerito />)
+    expect(screen.getByText('Superó la Fase de Méritos')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Quitar la marca/ })).toBeInTheDocument()
+  })
+
+  it('sin código, la confirmación no deja un espacio doble', async () => {
+    iniciarSesion(jwt('administrador'), 600)
+    const user = userEvent.setup()
+    montar({ codigo: undefined })
+    await user.click(screen.getByRole('button', { name: /Marcar que superó/ }))
+    // getByText colapsa los espacios repetidos: se lee el texto crudo del mensaje.
+    const mensaje = screen.getByText(/pasará a "Evaluación Técnica"/).textContent ?? ''
+    expect(mensaje.startsWith('La postulación pasará a')).toBe(true)
+  })
+})
