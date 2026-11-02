@@ -1,0 +1,125 @@
+# Entorno de producción completo: proxy, frontend, backend, PostgreSQL y Redis.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Lee el .env del servidor (ver la sección "Producción" de .env.example). Solo el proxy
+# publica puertos (80 y 443); PostgreSQL y Redis viven en la red interna y no se ven
+# desde internet. (Docker se salta el firewall ufw para los puertos que se publican,
+# por eso aquí no se publica ninguno de los dos.)
+name: biess
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER en el .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD en el .env}
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB en el .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Solo corren la primera vez, con el volumen vacío. No se monta db/seed_admin.sql:
+      # trae contraseñas públicas de desarrollo. Los usuarios de administración de
+      # producción se crean aparte, con contraseñas propias.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed_catalogos.sql:/docker-entrypoint-initdb.d/02-seed_catalogos.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    # Persistencia en disco para no perder los bloqueos por intentos fallidos al reiniciar.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      API_PORT: "8080"
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      REDIS_ADDR: redis:6379
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET en el .env (mínimo 32 caracteres)}
+      JWT_TTL_MINUTES: ${JWT_TTL_MINUTES:-60}
+      REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-10}
+      # La URL pública del frontend: también arma los enlaces de los correos.
+      CORS_ALLOWED_ORIGIN: https://${DOMINIO:-localhost}
+      MAILER: ${MAILER:-log}
+    # Sin healthcheck propio: la imagen es distroless (sin shell ni curl). El proxy
+    # comprueba GET /health del backend de forma activa (ver el Caddyfile de abajo).
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Misma URL pública que el sitio: el proxy envía /api al backend.
+        VITE_API_URL: /api/v1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+
+# Configuración mínima del proxy: / va al frontend; /api/* y /health, al backend. Con un
+# dominio real, Caddy pide solo el certificado HTTPS; con "localhost" usa uno interno.
+configs:
+  caddyfile:
+    content: |
+      ${DOMINIO:-localhost} {
+          encode zstd gzip
+
+          handle /api/* {
+              reverse_proxy backend:8080 {
+                  health_uri /health
+                  health_interval 10s
+              }
+          }
+          handle /health {
+              reverse_proxy backend:8080
+          }
+          handle {
+              reverse_proxy frontend:8080
+          }
+      }
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:
