@@ -17,10 +17,13 @@ type ExperienciaRepo struct {
 
 var _ domain.SeccionPostulacion = (*ExperienciaRepo)(nil)
 
+// NewExperienciaRepo crea el repositorio de experiencia profesional.
 func NewExperienciaRepo(db *pgxpool.Pool) *ExperienciaRepo {
 	return &ExperienciaRepo{db: db}
 }
 
+// Cargar completa f.Experiencia con las filas de la postulación en el orden de captura
+// (ver idOrdenado). Solo lee: la duración de cada experiencia la calcula el servicio.
 func (r *ExperienciaRepo) Cargar(ctx context.Context, postulacionID string, f *domain.Formulario) error {
 	rows, err := r.db.Query(ctx, `
 SELECT tipo, cargo, institucion, to_char(fecha_inicio, 'YYYY-MM-DD'),
@@ -34,28 +37,22 @@ ORDER BY id`, postulacionID)
 	defer rows.Close()
 
 	f.Experiencia = nil
-	duraciones := make([]domain.Duracion, 0)
 	for rows.Next() {
 		var fila domain.ExperienciaProfesional
 		if err := rows.Scan(&fila.Tipo, &fila.Cargo, &fila.Institucion, &fila.FechaInicio,
 			&fila.FechaFin, &fila.Actividades, &fila.Descripcion, &fila.DocumentoID); err != nil {
 			return fmt.Errorf("leyendo una experiencia profesional: %w", err)
 		}
-		inicio, errInicio := time.Parse(time.DateOnly, fila.FechaInicio)
-		fin, errFin := time.Parse(time.DateOnly, fila.FechaFin)
-		if errInicio != nil || errFin != nil {
-			return fmt.Errorf("leyendo las fechas de una experiencia profesional")
-		}
-		fila.Duracion.Anios, fila.Duracion.Meses, fila.Duracion.Dias = domain.CalcularDuracion(inicio, fin)
 		f.Experiencia = append(f.Experiencia, fila)
-		duraciones = append(duraciones, fila.Duracion)
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("leyendo la experiencia profesional: %w", err)
 	}
-	f.DuracionExperiencia = domain.SumarDuraciones(duraciones)
 	return nil
 }
+
+// Reemplazar borra la experiencia de la postulación y escribe la de f, dentro de tx. Antes
+// comprueba que cada respaldo sea de esta postulación y de tipo experiencia.
 
 func (r *ExperienciaRepo) Reemplazar(ctx context.Context, tx domain.Tx, postulacionID string, f domain.Formulario) error {
 	ptx, err := pgxTx(tx)

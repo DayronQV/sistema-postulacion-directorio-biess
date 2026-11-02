@@ -57,6 +57,7 @@ func (s *PostulacionService) Obtener(ctx context.Context, postulanteID string) (
 			return domain.Postulacion{}, err
 		}
 	}
+	completarDuraciones(&p.Formulario)
 	return p, nil
 }
 

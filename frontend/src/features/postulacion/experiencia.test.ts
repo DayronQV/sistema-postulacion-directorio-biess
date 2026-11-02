@@ -17,5 +17,7 @@ describe('calculadora de experiencia', () => {
     ])
     expect(total).toEqual({ anios: 2, meses: 2, dias: 5 })
     expect(textoDuracion(total)).toBe('2 años, 2 meses y 5 días')
+    expect(textoDuracion({ anios: 1, meses: 1, dias: 1 })).toBe('1 año, 1 mes y 1 día')
+    expect(textoDuracion({ anios: 0, meses: 0, dias: 0 })).toBe('0 años, 0 meses y 0 días')
   })
 })

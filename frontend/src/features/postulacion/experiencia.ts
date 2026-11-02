@@ -38,6 +38,9 @@ export function sumarDuraciones(duraciones: Duracion[]): Duracion {
   return total
 }
 
+// "1 año" pero "0 años" y "2 años".
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
+
 export function textoDuracion({ anios, meses, dias }: Duracion) {
-  return `${anios} años, ${meses} meses y ${dias} días`
+  return `${plural(anios, 'año', 'años')}, ${plural(meses, 'mes', 'meses')} y ${plural(dias, 'día', 'días')}`
 }

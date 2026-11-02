@@ -1,5 +1,7 @@
 package domain
 
+// Valores permitidos y límites de la sección de experiencia profesional (EF-12, sección 6).
+// Los valores coinciden con los CHECK de experiencia_profesional en db/schema.sql.
 const (
 	TipoExperienciaGeneral   = "general"
 	TipoExperienciaDireccion = "direccion"
@@ -27,13 +29,15 @@ type ExperienciaProfesional struct {
 	Actividades string
 	Descripcion string
 	DocumentoID string
-	Duracion    Duracion
+	Duracion    Duracion // calculada por el servicio al leer; se ignora al guardar
 }
 
+// TipoExperienciaValido indica si tipo es general o dirección.
 func TipoExperienciaValido(tipo string) bool {
 	return tipo == TipoExperienciaGeneral || tipo == TipoExperienciaDireccion
 }
 
+// ActividadExperienciaValida indica si actividad es una de las áreas permitidas.
 func ActividadExperienciaValida(actividad string) bool {
 	switch actividad {
 	case ActividadFinanzas, ActividadMercadoCapitales, ActividadAdministracionEmpresas,

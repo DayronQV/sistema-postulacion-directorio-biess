@@ -29,7 +29,9 @@ export async function guardarExperiencia(experiencia: ExperienciaProfesional[]):
 
 export function useExperiencia() {
   const { data, cargando, error, ejecutar } = useApi(cargar)
-  useEffect(() => { void ejecutar() }, [ejecutar])
+  useEffect(() => {
+    void ejecutar()
+  }, [ejecutar])
   const props = useMemo<ExperienciaProps | null>(
     () => data && { valor: data.experiencia ?? [], onGuardar: guardarExperiencia },
     [data],

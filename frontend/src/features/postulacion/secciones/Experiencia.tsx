@@ -9,7 +9,11 @@ import Select from '@/components/ui/Select'
 import TablaFilas from '@/components/ui/TablaFilas'
 import Textarea from '@/components/ui/Textarea'
 import { fechaLocalISO } from '@/features/auth/esquemas'
-import { calcularDuracion, sumarDuraciones, textoDuracion } from '@/features/postulacion/experiencia'
+import {
+  calcularDuracion,
+  sumarDuraciones,
+  textoDuracion,
+} from '@/features/postulacion/experiencia'
 import { eliminarDocumento, type DocumentoSubido } from '@/services/documentos'
 import { ApiError } from '@/services/errores'
 import type {
@@ -19,6 +23,8 @@ import type {
 } from '@/services/postulacion'
 
 export const MAX_DESCRIPCION = 1000
+// Igual que domain.MaxExperiencias en el servidor.
+export const MAX_EXPERIENCIAS = 50
 
 export interface ExperienciaProps {
   valor: ExperienciaProfesional[]
@@ -92,7 +98,8 @@ function erroresDe(fila: FilaEditor) {
   if (!fila.cargo.trim()) errores.cargo = 'Campo obligatorio'
   if (!fila.institucion.trim()) errores.institucion = 'Campo obligatorio'
   if (!fila.fecha_inicio) errores.fecha_inicio = 'Ingrese la fecha inicial'
-  else if (fila.fecha_inicio > fechaLocalISO()) errores.fecha_inicio = 'La fecha no puede ser futura'
+  else if (fila.fecha_inicio > fechaLocalISO())
+    errores.fecha_inicio = 'La fecha no puede ser futura'
   if (!fila.fecha_fin) errores.fecha_fin = 'Ingrese la fecha final'
   else if (fila.fecha_fin > fechaLocalISO()) errores.fecha_fin = 'La fecha no puede ser futura'
   else if (fila.fecha_inicio && fila.fecha_fin < fila.fecha_inicio)
@@ -196,7 +203,7 @@ export default function Experiencia({ valor, onGuardar }: ExperienciaProps) {
         ]}
         filas={filas}
         obtenerClave={(fila) => filas.indexOf(fila)}
-        onAgregar={() => abrir()}
+        onAgregar={filas.length >= MAX_EXPERIENCIAS ? undefined : () => abrir()}
         onEditar={abrir}
         onEliminar={(fila) => {
           setFilas((actuales) => actuales.filter((actual) => actual !== fila))
@@ -227,25 +234,88 @@ export default function Experiencia({ valor, onGuardar }: ExperienciaProps) {
             />
           </Campo>
           <Campo id="experiencia-cargo" etiqueta="Cargo o puesto" requerido error={errores.cargo}>
-            <Input id="experiencia-cargo" value={borrador.cargo} onChange={(e) => actualizar('cargo', e.target.value)} invalido={Boolean(errores.cargo)} />
+            <Input
+              id="experiencia-cargo"
+              value={borrador.cargo}
+              onChange={(e) => actualizar('cargo', e.target.value)}
+              invalido={Boolean(errores.cargo)}
+            />
           </Campo>
-          <Campo id="experiencia-institucion" etiqueta="Institución o empresa" requerido error={errores.institucion}>
-            <Input id="experiencia-institucion" value={borrador.institucion} onChange={(e) => actualizar('institucion', e.target.value)} invalido={Boolean(errores.institucion)} />
+          <Campo
+            id="experiencia-institucion"
+            etiqueta="Institución o empresa"
+            requerido
+            error={errores.institucion}
+          >
+            <Input
+              id="experiencia-institucion"
+              value={borrador.institucion}
+              onChange={(e) => actualizar('institucion', e.target.value)}
+              invalido={Boolean(errores.institucion)}
+            />
           </Campo>
-          <Campo id="experiencia-actividades" etiqueta="Actividades relacionadas a" requerido error={errores.actividades}>
-            <Select id="experiencia-actividades" opciones={[...actividades]} placeholder="Seleccione..." value={borrador.actividades} onChange={(e) => actualizar('actividades', e.target.value as ActividadExperiencia)} invalido={Boolean(errores.actividades)} />
+          <Campo
+            id="experiencia-actividades"
+            etiqueta="Actividades relacionadas a"
+            requerido
+            error={errores.actividades}
+          >
+            <Select
+              id="experiencia-actividades"
+              opciones={[...actividades]}
+              placeholder="Seleccione..."
+              value={borrador.actividades}
+              onChange={(e) => actualizar('actividades', e.target.value as ActividadExperiencia)}
+              invalido={Boolean(errores.actividades)}
+            />
           </Campo>
-          <Campo id="experiencia-inicio" etiqueta="Fecha de inicio" requerido error={errores.fecha_inicio}>
-            <DateInput id="experiencia-inicio" max={fechaLocalISO()} value={borrador.fecha_inicio} onChange={(e) => actualizar('fecha_inicio', e.target.value)} invalido={Boolean(errores.fecha_inicio)} />
+          <Campo
+            id="experiencia-inicio"
+            etiqueta="Fecha de inicio"
+            requerido
+            error={errores.fecha_inicio}
+          >
+            <DateInput
+              id="experiencia-inicio"
+              max={fechaLocalISO()}
+              value={borrador.fecha_inicio}
+              onChange={(e) => actualizar('fecha_inicio', e.target.value)}
+              invalido={Boolean(errores.fecha_inicio)}
+            />
           </Campo>
-          <Campo id="experiencia-fin" etiqueta="Fecha de finalización" requerido error={errores.fecha_fin}>
-            <DateInput id="experiencia-fin" min={borrador.fecha_inicio || undefined} max={fechaLocalISO()} value={borrador.fecha_fin} onChange={(e) => actualizar('fecha_fin', e.target.value)} invalido={Boolean(errores.fecha_fin)} />
+          <Campo
+            id="experiencia-fin"
+            etiqueta="Fecha de finalización"
+            requerido
+            error={errores.fecha_fin}
+          >
+            <DateInput
+              id="experiencia-fin"
+              min={borrador.fecha_inicio || undefined}
+              max={fechaLocalISO()}
+              value={borrador.fecha_fin}
+              onChange={(e) => actualizar('fecha_fin', e.target.value)}
+              invalido={Boolean(errores.fecha_fin)}
+            />
           </Campo>
           <div className="md:col-span-2">
-            <Campo id="experiencia-descripcion" etiqueta="Descripción de funciones" requerido error={errores.descripcion}>
-              <Textarea id="experiencia-descripcion" maxLength={MAX_DESCRIPCION} value={borrador.descripcion} onChange={(e) => actualizar('descripcion', e.target.value)} invalido={Boolean(errores.descripcion)} />
+            <Campo
+              id="experiencia-descripcion"
+              etiqueta="Descripción de funciones"
+              requerido
+              error={errores.descripcion}
+            >
+              <Textarea
+                id="experiencia-descripcion"
+                maxLength={MAX_DESCRIPCION}
+                value={borrador.descripcion}
+                onChange={(e) => actualizar('descripcion', e.target.value)}
+                invalido={Boolean(errores.descripcion)}
+              />
             </Campo>
-            <p className="text-right text-label-sm text-on-surface-variant">{[...borrador.descripcion].length}/{MAX_DESCRIPCION}</p>
+            <p className="text-right text-label-sm text-on-surface-variant">
+              {[...borrador.descripcion].length}/{MAX_DESCRIPCION}
+            </p>
           </div>
           <div className="md:col-span-2">
             <DocumentoUpload
@@ -259,10 +329,16 @@ export default function Experiencia({ valor, onGuardar }: ExperienciaProps) {
               etiqueta="Documento de respaldo (PDF, máximo 2 MB)"
               eliminarEnServidor={false}
             />
-            {errores.documento && <p className="mt-1 text-label-sm text-error">{errores.documento}</p>}
+            {errores.documento && (
+              <p role="alert" className="mt-1 text-label-sm text-error">
+                {errores.documento}
+              </p>
+            )}
           </div>
           <div className="flex justify-end gap-3 md:col-span-2">
-            <Button variante="secondary" onClick={() => setIndice(undefined)}>Cancelar</Button>
+            <Button variante="secondary" onClick={() => setIndice(undefined)}>
+              Cancelar
+            </Button>
             <Button onClick={aceptarFila}>{indice === null ? 'Agregar' : 'Actualizar'}</Button>
           </div>
         </div>
@@ -271,11 +347,21 @@ export default function Experiencia({ valor, onGuardar }: ExperienciaProps) {
       {guardado && <Alert tipo="success">La información se guardó correctamente.</Alert>}
       {errorGuardar && (
         <Alert tipo="error" titulo={errorGuardar.message}>
-          {erroresServidor.length > 0 && <ul className="list-disc pl-4">{erroresServidor.map(([campo, mensaje]) => <li key={campo}>{campo}: {mensaje}</li>)}</ul>}
+          {erroresServidor.length > 0 && (
+            <ul className="list-disc pl-4">
+              {erroresServidor.map(([campo, mensaje]) => (
+                <li key={campo}>
+                  {campo}: {mensaje}
+                </li>
+              ))}
+            </ul>
+          )}
         </Alert>
       )}
       <div className="flex justify-end">
-        <Button onClick={guardar} cargando={guardando} textoCargando="Guardando...">Guardar información</Button>
+        <Button onClick={guardar} cargando={guardando} textoCargando="Guardando...">
+          Guardar información
+        </Button>
       </div>
     </section>
   )
