@@ -63,6 +63,8 @@ CREATE TABLE postulaciones (
     respaldo_organizacion_nombre TEXT,
     respaldo_organizacion_doc_id UUID,
     supero_merito      BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Elegible si la pregunta 1 de inhabilidades es Sí y la 2 a la 13 son No (lo calcula el servidor)
+    elegible           BOOLEAN NOT NULL DEFAULT FALSE,
     consentimiento_at  TIMESTAMPTZ,
     created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
