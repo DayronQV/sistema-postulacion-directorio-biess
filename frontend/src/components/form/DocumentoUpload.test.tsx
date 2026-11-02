@@ -67,3 +67,42 @@ describe('DocumentoUpload', () => {
     expect(mockEliminar).not.toHaveBeenCalled()
   })
 })
+
+describe('DocumentoUpload con eliminarEnServidor={false}', () => {
+  it('Quitar solo limpia el valor, sin borrar en el servidor', async () => {
+    const alCambiar = vi.fn()
+    render(
+      <DocumentoUpload
+        tipo="formacion"
+        maxMb={2}
+        valor={anterior}
+        onChange={alCambiar}
+        eliminarEnServidor={false}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Quitar archivo' }))
+
+    expect(alCambiar).toHaveBeenCalledWith(null)
+    expect(mockEliminar).not.toHaveBeenCalled()
+  })
+
+  it('Reemplazar no borra el PDF anterior', async () => {
+    mockSubir.mockResolvedValue(nuevo)
+    const alCambiar = vi.fn()
+    render(
+      <DocumentoUpload
+        tipo="formacion"
+        maxMb={2}
+        valor={anterior}
+        onChange={alCambiar}
+        eliminarEnServidor={false}
+      />,
+    )
+
+    await elegirPdf()
+
+    await waitFor(() => expect(alCambiar).toHaveBeenCalledWith(nuevo))
+    expect(mockEliminar).not.toHaveBeenCalled()
+  })
+})

@@ -75,9 +75,12 @@ export default function FileUpload({
           {archivo ? (
             <>
               <span className="truncate text-body-bold text-on-surface">{archivo.nombre}</span>
-              <span className="text-label-sm text-on-surface-variant">
-                {formatearTamano(archivo.tamano)}
-              </span>
+              {/* Tamaño 0: documento ya guardado del que no se conoce el tamaño. */}
+              {archivo.tamano > 0 && (
+                <span className="text-label-sm text-on-surface-variant">
+                  {formatearTamano(archivo.tamano)}
+                </span>
+              )}
             </>
           ) : (
             <span className="text-body-md text-on-surface-variant">
