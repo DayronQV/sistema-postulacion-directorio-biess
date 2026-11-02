@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -125,6 +124,7 @@ type capacitacionDTO struct {
 type inhabilidadesDTO struct {
 	respuestas map[int]bool
 	removido   removidoDTO
+	invalidos  map[string]string // campos mal escritos al leer el JSON; los reporta Guardar
 }
 
 type removidoDTO struct {
@@ -149,17 +149,26 @@ func (d *inhabilidadesDTO) UnmarshalJSON(datos []byte) error {
 		}
 		var respuesta bool
 		if err := json.Unmarshal(valor, &respuesta); err != nil {
-			// Un UnmarshalTypeError llega al cliente como 400 con el campo en `fields`.
-			return &json.UnmarshalTypeError{Value: "valor", Type: reflect.TypeOf(true), Field: "inhabilidades." + strconv.Itoa(n)}
+			d.marcarInvalido("inhabilidades."+strconv.Itoa(n), "Debe ser true o false")
+			continue
 		}
 		d.respuestas[n] = respuesta
 	}
 	if valor, ok := crudo["removido_detalle"]; ok && string(valor) != "null" {
 		if err := json.Unmarshal(valor, &d.removido); err != nil {
-			return &json.UnmarshalTypeError{Value: "valor", Type: reflect.TypeOf(d.removido), Field: "inhabilidades.removido_detalle"}
+			d.marcarInvalido("inhabilidades.removido_detalle", "Tipo de dato no válido")
 		}
 	}
 	return nil
+}
+
+// marcarInvalido anota un campo mal escrito. No se devuelve como error del decodificador
+// porque la ruta del campo que arma encoding/json depende de la versión de Go.
+func (d *inhabilidadesDTO) marcarInvalido(campo, mensaje string) {
+	if d.invalidos == nil {
+		d.invalidos = map[string]string{}
+	}
+	d.invalidos[campo] = mensaje
 }
 
 // MarshalJSON escribe solo las preguntas respondidas y, si la 7 es Sí, su detalle.
@@ -369,6 +378,10 @@ func (h *PostulacionHandler) Guardar(c *gin.Context) {
 	}
 	var req formularioDTO
 	if !middleware.BindJSON(c, &req) {
+		return
+	}
+	if len(req.Inhabilidades.invalidos) > 0 {
+		middleware.Fail(c, domain.Validation("Datos inválidos", req.Inhabilidades.invalidos))
 		return
 	}
 	p, err := h.postulacion.Guardar(c.Request.Context(), id, req.dominio())
