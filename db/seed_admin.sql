@@ -1,5 +1,7 @@
 -- Usuarios del panel de administración (EF-13). No hay registro público: se siembran aquí.
 -- Contraseñas solo para desarrollo y pruebas (documentadas en el README); el hash es bcrypt.
+-- NO cargar este archivo en producción: son contraseñas públicas. En el servidor real los
+-- usuarios de administración se crean aparte, con contraseñas propias.
 --   analista       / Analista2026   (Talento Humano, solo lectura)
 --   administrador  / Admin2026      (Comisión de Selección)
 INSERT INTO usuarios_admin (usuario, password_hash, rol) VALUES
