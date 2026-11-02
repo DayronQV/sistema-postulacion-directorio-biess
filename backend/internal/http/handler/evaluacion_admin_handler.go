@@ -56,9 +56,18 @@ func (p preguntaRequest) entrada() service.PreguntaInput {
 }
 
 // crearPreguntasRequest admite una pregunta suelta o, con "preguntas", una carga en bloque.
+// Los campos de la pregunta suelta van declarados aquí y no como una estructura embebida:
+// con una embebida, el nombre del campo en un error de tipo cambia según la versión de Go
+// ("preguntaRequest.respuesta_correcta" en vez de "respuesta_correcta").
 type crearPreguntasRequest struct {
-	preguntaRequest
-	Preguntas *[]preguntaRequest `json:"preguntas"`
+	Enunciado         string             `json:"enunciado"`
+	Opciones          []string           `json:"opciones"`
+	RespuestaCorrecta *int               `json:"respuesta_correcta"`
+	Preguntas         *[]preguntaRequest `json:"preguntas"`
+}
+
+func (r crearPreguntasRequest) suelta() preguntaRequest {
+	return preguntaRequest{Enunciado: r.Enunciado, Opciones: r.Opciones, RespuestaCorrecta: r.RespuestaCorrecta}
 }
 
 type configRequest struct {
@@ -130,7 +139,7 @@ func (h *EvaluacionAdminHandler) crearDesdeJSON(c *gin.Context) {
 		c.JSON(http.StatusCreated, gin.H{"creadas": n})
 		return
 	}
-	p, err := h.evaluacion.CrearPregunta(c.Request.Context(), req.preguntaRequest.entrada())
+	p, err := h.evaluacion.CrearPregunta(c.Request.Context(), req.suelta().entrada())
 	if err != nil {
 		middleware.Fail(c, err)
 		return
