@@ -22,6 +22,7 @@ import (
 type fakePostulacion struct {
 	obtenerID string
 	guardarID string
+	enviarID  string
 	guardado  domain.Formulario
 	resultado domain.Postulacion
 	err       error
@@ -35,6 +36,11 @@ func (f *fakePostulacion) Obtener(_ context.Context, id string) (domain.Postulac
 func (f *fakePostulacion) Guardar(_ context.Context, id string, fm domain.Formulario) (domain.Postulacion, error) {
 	f.guardarID = id
 	f.guardado = fm
+	return f.resultado, f.err
+}
+
+func (f *fakePostulacion) Enviar(_ context.Context, id string) (domain.Postulacion, error) {
+	f.enviarID = id
 	return f.resultado, f.err
 }
 

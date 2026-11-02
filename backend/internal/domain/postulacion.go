@@ -97,6 +97,8 @@ type Formulario struct {
 	DuracionExperiencia  Duracion
 	Publicaciones        []PublicacionAcademica
 	Capacitaciones       []Capacitacion
+	Inhabilidades        Inhabilidades
+	Elegible             bool // lo calcula el servidor a partir de Inhabilidades
 	Cargo                string // vacío mientras no lo haya elegido
 	RespaldoOrganizacion RespaldoOrganizacion
 	TienePublicaciones   bool
@@ -146,6 +148,8 @@ type Postulaciones interface {
 	Actualizar(ctx context.Context, tx Tx, postulacionID string, f Formulario) error
 	// Cerrar pasa la postulación a estado "cerrada".
 	Cerrar(ctx context.Context, tx Tx, postulacionID string) error
+	// MarcarEnviada pasa la postulación a estado "enviada" y guarda enviada_at.
+	MarcarEnviada(ctx context.Context, tx Tx, postulacionID string) error
 }
 
 // SeccionPostulacion es el puerto de una sección con filas (familiares, formación,

@@ -2,7 +2,9 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +18,7 @@ import (
 type PostulacionUseCase interface {
 	Obtener(ctx context.Context, postulanteID string) (domain.Postulacion, error)
 	Guardar(ctx context.Context, postulanteID string, f domain.Formulario) (domain.Postulacion, error)
+	Enviar(ctx context.Context, postulanteID string) (domain.Postulacion, error)
 }
 
 // PostulacionHandler atiende las rutas /postulacion. Las rutas pasan por RequireAuth y
@@ -119,6 +122,68 @@ type capacitacionDTO struct {
 	DocumentoID string `json:"documento_id"`
 }
 
+type inhabilidadesDTO struct {
+	respuestas map[int]bool
+	removido   removidoDTO
+	invalidos  map[string]string // campos mal escritos al leer el JSON; los reporta Guardar
+}
+
+type removidoDTO struct {
+	Institucion string `json:"institucion"`
+	Cargo       string `json:"cargo"`
+	FechaFin    string `json:"fecha_fin"`
+	Motivo      string `json:"motivo"`
+}
+
+// UnmarshalJSON lee las claves "1" a "13" (respuesta Sí/No) y "removido_detalle". Una clave
+// sin respuesta (null) cuenta como pregunta sin responder y cualquier otra clave se ignora.
+func (d *inhabilidadesDTO) UnmarshalJSON(datos []byte) error {
+	var crudo map[string]json.RawMessage
+	if err := json.Unmarshal(datos, &crudo); err != nil {
+		return err
+	}
+	d.respuestas = map[int]bool{}
+	for n := 1; n <= domain.TotalPreguntasInhabilidades; n++ {
+		valor, ok := crudo[strconv.Itoa(n)]
+		if !ok || string(valor) == "null" {
+			continue
+		}
+		var respuesta bool
+		if err := json.Unmarshal(valor, &respuesta); err != nil {
+			d.marcarInvalido("inhabilidades."+strconv.Itoa(n), "Debe ser true o false")
+			continue
+		}
+		d.respuestas[n] = respuesta
+	}
+	if valor, ok := crudo["removido_detalle"]; ok && string(valor) != "null" {
+		if err := json.Unmarshal(valor, &d.removido); err != nil {
+			d.marcarInvalido("inhabilidades.removido_detalle", "Tipo de dato no válido")
+		}
+	}
+	return nil
+}
+
+// marcarInvalido anota un campo mal escrito. No se devuelve como error del decodificador
+// porque la ruta del campo que arma encoding/json depende de la versión de Go.
+func (d *inhabilidadesDTO) marcarInvalido(campo, mensaje string) {
+	if d.invalidos == nil {
+		d.invalidos = map[string]string{}
+	}
+	d.invalidos[campo] = mensaje
+}
+
+// MarshalJSON escribe solo las preguntas respondidas y, si la 7 es Sí, su detalle.
+func (d inhabilidadesDTO) MarshalJSON() ([]byte, error) {
+	salida := make(map[string]any, len(d.respuestas)+1)
+	for n, respuesta := range d.respuestas {
+		salida[strconv.Itoa(n)] = respuesta
+	}
+	if d.respuestas[domain.PreguntaRemovido] {
+		salida["removido_detalle"] = d.removido
+	}
+	return json.Marshal(salida)
+}
+
 type respaldoDTO struct {
 	Nombre      string  `json:"nombre"`
 	DocumentoID *string `json:"documento_id"`
@@ -137,6 +202,7 @@ type formularioDTO struct {
 	DuracionExperiencia  duracionDTO       `json:"duracion_experiencia_total"`
 	Publicaciones        []publicacionDTO  `json:"publicaciones"`
 	Capacitaciones       []capacitacionDTO `json:"capacitaciones"`
+	Inhabilidades        inhabilidadesDTO  `json:"inhabilidades"`
 	Cargo                string            `json:"cargo"`
 	RespaldoOrganizacion respaldoDTO       `json:"respaldo_organizacion"`
 	TienePublicaciones   bool              `json:"tiene_publicaciones"`
@@ -166,6 +232,7 @@ type postulacionResponse struct {
 	Estado              string      `json:"estado"`
 	InformacionPersonal personalDTO `json:"informacion_personal"`
 	formularioDTO
+	Elegible  bool      `json:"elegible"` // solo lectura: lo calcula el servidor
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -184,6 +251,10 @@ func (d formularioDTO) dominio() domain.Formulario {
 		RespaldoOrganizacion: domain.RespaldoOrganizacion{Nombre: d.RespaldoOrganizacion.Nombre, DocumentoID: d.RespaldoOrganizacion.DocumentoID},
 		TienePublicaciones:   d.TienePublicaciones,
 		Consentimiento:       d.Consentimiento,
+		Inhabilidades: domain.Inhabilidades{
+			Respuestas: d.Inhabilidades.respuestas,
+			Removido:   domain.RemovidoDetalle(d.Inhabilidades.removido),
+		},
 	}
 	for _, fam := range d.Familiares {
 		f.Familiares = append(f.Familiares, domain.Familiar(fam))
@@ -247,7 +318,12 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 			RespaldoOrganizacion: respaldoDTO{Nombre: f.RespaldoOrganizacion.Nombre, DocumentoID: f.RespaldoOrganizacion.DocumentoID},
 			TienePublicaciones:   f.TienePublicaciones,
 			Consentimiento:       f.Consentimiento,
+			Inhabilidades: inhabilidadesDTO{
+				respuestas: f.Inhabilidades.Respuestas,
+				removido:   removidoDTO(f.Inhabilidades.Removido),
+			},
 		},
+		Elegible:  f.Elegible,
 		UpdatedAt: p.ActualizadaEn,
 	}
 	if pareja := p.Personal.Pareja; pareja != nil {
@@ -305,7 +381,26 @@ func (h *PostulacionHandler) Guardar(c *gin.Context) {
 	if !middleware.BindJSON(c, &req) {
 		return
 	}
+	if len(req.Inhabilidades.invalidos) > 0 {
+		middleware.Fail(c, domain.Validation("Datos inválidos", req.Inhabilidades.invalidos))
+		return
+	}
 	p, err := h.postulacion.Guardar(c.Request.Context(), id, req.dominio())
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, respuesta(p))
+}
+
+// Enviar atiende POST /postulacion/enviar: valida que la postulación esté completa, la marca
+// como enviada y manda el formulario al correo del postulante. Devuelve la postulación.
+func (h *PostulacionHandler) Enviar(c *gin.Context) {
+	id, ok := postulanteID(c)
+	if !ok {
+		return
+	}
+	p, err := h.postulacion.Enviar(c.Request.Context(), id)
 	if err != nil {
 		middleware.Fail(c, err)
 		return

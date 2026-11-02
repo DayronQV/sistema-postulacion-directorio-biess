@@ -95,4 +95,53 @@ describe('DocumentoPostulacion', () => {
     expect(within(firma).getByText('C.I. 1712345675')).toBeInTheDocument()
     expect(screen.getByRole('article').lastElementChild).toBe(firma)
   })
+
+  it('muestra los datos de la pareja cuando el estado civil los exige', () => {
+    const casada = {
+      ...postulacion,
+      informacion_personal: {
+        ...postulacion.informacion_personal,
+        estado_civil: 'Casado/a',
+        pareja: { nombres_apellidos: 'Luis Párraga Mera', cedula: '0913579249' },
+      },
+    } as Postulacion
+    render(<DocumentoPostulacion postulacion={casada} />)
+    expect(screen.getByText('Luis Párraga Mera')).toBeInTheDocument()
+    expect(screen.getByText('0913579249')).toBeInTheDocument()
+  })
+
+  it('muestra los nombres de país, provincia y ciudad, no los ids del catálogo', () => {
+    render(
+      <DocumentoPostulacion
+        postulacion={postulacion}
+        ubicacion={{ pais: 'Ecuador', provincia: 'Pichincha', ciudad: 'Quito' }}
+      />,
+    )
+    expect(screen.getByText('Ecuador')).toBeInTheDocument()
+    expect(screen.getByText('Pichincha')).toBeInTheDocument()
+    expect(screen.getByText('Quito')).toBeInTheDocument()
+  })
+
+  it('usa las etiquetas del formulario y no los valores internos de la API', () => {
+    render(<DocumentoPostulacion postulacion={postulacion} />)
+    const experiencia = screen.getByRole('heading', { name: '6. Experiencia profesional' })
+      .parentElement as HTMLElement
+    expect(within(experiencia).getByText(/\(General\)/)).toBeInTheDocument()
+    expect(within(experiencia).getByText(/relacionadas a Finanzas/)).toBeInTheDocument()
+    expect(within(experiencia).queryByText(/\(general\)/)).toBeNull()
+  })
+
+  it('incluye el tiempo total de experiencia', () => {
+    render(
+      <DocumentoPostulacion
+        postulacion={{
+          ...postulacion,
+          duracion_experiencia_total: { anios: 2, meses: 2, dias: 14 },
+        }}
+      />,
+    )
+    expect(
+      screen.getByText('Tiempo total de experiencia: 2 años, 2 meses, 14 días.'),
+    ).toBeInTheDocument()
+  })
 })

@@ -3,6 +3,7 @@ import {
   enviarPostulacion,
   guardarPostulacion,
   obtenerPostulacion,
+  suscribirGuardado,
   type DatosPostulacion,
   type Postulacion,
 } from '@/services/postulacion'
@@ -135,6 +136,18 @@ function suscribir(escucha: () => void) {
     escuchas.delete(escucha)
   }
 }
+
+// Las secciones guardan con sus propios hooks: cada PUT exitoso actualiza la postulación del
+// contenedor (avance y marcas de completa al instante) y quita las marcas de cambios sin
+// guardar. Se queda con la respuesta solo si trae la postulación completa.
+suscribirGuardado((guardada) => {
+  if (!estado.postulacion) return
+  const completa = guardada && typeof guardada === 'object' && 'id' in guardada
+  poner({
+    postulacion: completa ? { ...estado.postulacion, ...guardada } : estado.postulacion,
+    seccionesConCambios: [],
+  })
+})
 
 export function useFormulario(): EstadoFormulario {
   return useSyncExternalStore(suscribir, () => estado)

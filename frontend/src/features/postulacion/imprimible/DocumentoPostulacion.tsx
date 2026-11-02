@@ -2,10 +2,13 @@ import type { ReactNode } from 'react'
 import type { Postulacion } from '@/services/postulacion'
 import { PREGUNTAS_INHABILIDADES, PREGUNTA_REMOVIDO } from '../inhabilidades'
 import { formatearDuracion, formatearFecha, formatearFechaHoy, siNo, texto } from './formato'
-import { CARGOS, CONSENTIMIENTO } from './textos'
+import { CARGOS, CONSENTIMIENTO, etiqueta } from './textos'
+import type { Ubicacion } from './useUbicacion'
 
 interface DocumentoProps {
   postulacion: Postulacion
+  // Nombres de país, provincia y ciudad (la API guarda ids de catálogo).
+  ubicacion?: Ubicacion
   fecha?: Date
 }
 
@@ -48,6 +51,7 @@ function Vacio() {
 // Formulario final en formato de documento, pensado para imprimirse en A4 y firmarse a mano.
 export default function DocumentoPostulacion({
   postulacion: p,
+  ubicacion,
   fecha = new Date(),
 }: DocumentoProps) {
   const personal = p.informacion_personal
@@ -89,6 +93,12 @@ export default function DocumentoPostulacion({
             ['Fecha de nacimiento', formatearFecha(personal?.fecha_nacimiento)],
             ['Nacionalidad', texto(personal?.nacionalidad)],
             ['Estado civil', texto(personal?.estado_civil)],
+            ...(personal?.pareja
+              ? ([
+                  ['Nombres y apellidos de la pareja', texto(personal.pareja.nombres_apellidos)],
+                  ['Cédula de la pareja', texto(personal.pareja.cedula)],
+                ] as Array<[string, string]>)
+              : []),
           ]}
         />
       </Bloque>
@@ -96,8 +106,9 @@ export default function DocumentoPostulacion({
       <Bloque titulo="2. Información domiciliaria y de contacto">
         <Datos
           filas={[
-            ['Provincia / Estado', texto(dom?.provincia_texto ?? dom?.provincia_id)],
-            ['Ciudad', texto(dom?.ciudad_texto ?? dom?.canton_id)],
+            ['País', texto(ubicacion?.pais)],
+            ['Provincia / Estado', texto(ubicacion?.provincia)],
+            ['Ciudad', texto(ubicacion?.ciudad)],
             ['Teléfono celular', texto(dom?.telefono_celular)],
             ['Correo electrónico 1', texto(personal?.email)],
             ['Correo electrónico 2', texto(dom?.email_secundario)],
@@ -142,8 +153,9 @@ export default function DocumentoPostulacion({
           <ol className="flex flex-col gap-1">
             {p.formacion?.map((f, i) => (
               <Fila key={i} n={i + 1}>
-                {f.titulo} ({f.nivel}) — {f.institucion}, {f.tipo}. Área: {texto(f.area)}. SENESCYT
-                N.º {texto(f.senescyt_numero)}, {formatearFecha(f.senescyt_fecha)}.
+                {f.titulo} ({etiqueta(f.nivel)}) — {f.institucion}, {etiqueta(f.tipo)}. Área:{' '}
+                {etiqueta(f.area)}. SENESCYT N.º {texto(f.senescyt_numero)},{' '}
+                {formatearFecha(f.senescyt_fecha)}.
               </Fila>
             ))}
           </ol>
@@ -157,12 +169,17 @@ export default function DocumentoPostulacion({
           <ol className="flex flex-col gap-2">
             {p.experiencia?.map((e, i) => (
               <Fila key={i} n={i + 1}>
-                {e.cargo} — {e.institucion} ({e.tipo}). Del {formatearFecha(e.fecha_inicio)} al{' '}
-                {formatearFecha(e.fecha_fin)}.{' '}
+                {e.cargo} — {e.institucion} ({etiqueta(e.tipo)}). Del{' '}
+                {formatearFecha(e.fecha_inicio)} al {formatearFecha(e.fecha_fin)}.{' '}
                 <strong>Tiempo: {formatearDuracion(e.duracion)}.</strong> Actividades relacionadas a{' '}
-                {texto(e.actividades)}. {e.descripcion}
+                {etiqueta(e.actividades)}. {e.descripcion}
               </Fila>
             ))}
+            <li className="text-body-md">
+              <strong>
+                Tiempo total de experiencia: {formatearDuracion(p.duracion_experiencia_total)}.
+              </strong>
+            </li>
           </ol>
         ) : (
           <Vacio />
@@ -178,8 +195,8 @@ export default function DocumentoPostulacion({
           <ol className="flex flex-col gap-1">
             {p.publicaciones?.map((pub, i) => (
               <Fila key={i} n={i + 1}>
-                {texto(pub.titulo as string)} ({texto(pub.tipo as string)}) —{' '}
-                {texto(pub.medio as string)}, {formatearFecha(pub.fecha as string)}
+                {texto(pub.titulo)} ({etiqueta(pub.tipo)}) — {texto(pub.medio)},{' '}
+                {formatearFecha(pub.fecha)}
               </Fila>
             ))}
           </ol>
@@ -191,8 +208,8 @@ export default function DocumentoPostulacion({
           <ol className="flex flex-col gap-1">
             {p.capacitaciones?.map((c, i) => (
               <Fila key={i} n={i + 1}>
-                {c.nombre} ({c.tipo}) — {c.institucion}. Del {formatearFecha(c.fecha_inicio)} al{' '}
-                {formatearFecha(c.fecha_fin)}, {c.horas} horas.
+                {c.nombre} ({etiqueta(c.tipo)}) — {c.institucion}. Del{' '}
+                {formatearFecha(c.fecha_inicio)} al {formatearFecha(c.fecha_fin)}, {c.horas} horas.
               </Fila>
             ))}
           </ol>

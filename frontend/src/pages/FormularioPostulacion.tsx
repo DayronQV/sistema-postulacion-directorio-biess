@@ -194,7 +194,19 @@ export default function FormularioPostulacion() {
           })}
         </nav>
 
-        <div className="min-w-0">
+        {/* Las secciones manejan su propio formulario: el contenedor detecta aquí lo que el
+            postulante edita (texto, listas, archivos, opciones Sí/No y casillas) para el aviso
+            de cambios sin guardar. La marca se quita cuando la sección guarda (store). */}
+        <div
+          className="min-w-0"
+          onInput={() => marcarCambios(actual.id, true)}
+          onChange={() => marcarCambios(actual.id, true)}
+          onClick={(e) => {
+            if ((e.target as Element).closest('[role="radio"], [role="checkbox"]')) {
+              marcarCambios(actual.id, true)
+            }
+          }}
+        >
           <Seccion
             key={actual.id}
             titulo={actual.titulo}

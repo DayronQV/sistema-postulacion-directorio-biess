@@ -36,7 +36,7 @@ Base: `/api/v1`. JSON en ambos sentidos. Cambiar este archivo requiere una issue
 | --- | --- |
 | `GET /postulacion` | Devuelve la postulación del usuario, incluida la información personal precargada. Si no existe, la crea en estado `borrador`. |
 | `PUT /postulacion` | Guarda el progreso. Persiste en **una transacción**. `422` si la nacionalidad no es ecuatoriana (cierra la postulación). |
-| `POST /postulacion/enviar` | Valida que esté completa y la marca `enviada`. `409` si ya fue enviada. |
+| `POST /postulacion/enviar` | Valida que esté completa, la marca `enviada` (guarda `enviada_at`) y manda el formulario al correo del postulante, en una transacción. Devuelve la postulación. `422` con `fields` por sección incompleta (`domicilio`, `familiares` y `publicaciones` si se respondió Sí sin agregar filas, `cargo`, `formacion`, `experiencia`, `capacitaciones`, `referencias`, `inhabilidades`, `consentimiento`); `409` si ya fue enviada o está cerrada. |
 
 Las secciones con filas (familiares, formación, experiencia, publicaciones, capacitación) se guardan en el mismo `PUT /postulacion` como arreglos; `PUT` reemplaza el estado completo en una transacción. Los PDF se suben aparte y se referencian por `documento_id`:
 
@@ -87,6 +87,8 @@ Forma de `PUT /postulacion`:
 }
 ```
 `cargo` ∈ `afiliados | jubilados | empleador`. En `GET /postulacion` cada experiencia incluye `duracion: { anios, meses, dias }` calculada en el servidor, y la postulación incluye `duracion_experiencia_total: { anios, meses, dias }` (suma de las experiencias; 30 días forman un mes). Ambos son de solo lectura: `PUT` los ignora. `422` con el mensaje del requerimiento si el cargo no es elegible o la nacionalidad no es ecuatoriana.
+
+**Inhabilidades.** `inhabilidades` lleva las claves `"1"` a `"13"` con `true` (Sí) o `false` (No); una pregunta sin responder no aparece, así el borrador puede guardarse a medias (las 13 son obligatorias al enviar). Si la `7` es `true`, `removido_detalle` exige `institucion` y `motivo` (`cargo` y `fecha_fin` son opcionales; `fecha_fin` en `AAAA-MM-DD`) y, si no, se descarta; con error `400` y `fields` como `inhabilidades.removido_detalle.motivo`. La respuesta incluye `elegible` (solo lectura, `PUT` lo ignora): `true` solo cuando las 13 están respondidas, la `1` es Sí y de la `2` a la `13` son No. Se guarda en la columna `postulaciones.elegible` y no descalifica automáticamente: la revisión la hace el analista (EF-13).
 
 ## Administración (requiere rol `analista` o `administrador`)
 | Método y ruta | Descripción |

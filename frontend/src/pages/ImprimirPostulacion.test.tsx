@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
-import { reiniciarFormulario } from '@/features/postulacion/store'
+import { cargarPostulacion, reiniciarFormulario } from '@/features/postulacion/store'
 import { ApiError } from '@/services/errores'
 import * as servicio from '@/services/postulacion'
 import ImprimirPostulacion from './ImprimirPostulacion'
@@ -40,6 +40,16 @@ describe('ImprimirPostulacion', () => {
     await screen.findByText('POST-9')
     const barra = screen.getByRole('link', { name: /Volver al formulario/ }).parentElement
     expect(barra).toHaveClass('print:hidden')
+  })
+
+  it('vuelve a leer la postulación al entrar aunque haya una copia en memoria', async () => {
+    obtener.mockResolvedValueOnce({ codigo: 'POST-VIEJA' } as servicio.Postulacion)
+    await cargarPostulacion() // copia anterior en el store (por ejemplo, de otra sesión)
+    obtener.mockResolvedValueOnce({ codigo: 'POST-NUEVA' } as servicio.Postulacion)
+    montar()
+
+    expect(await screen.findByText('POST-NUEVA')).toBeInTheDocument()
+    expect(screen.queryByText('POST-VIEJA')).toBeNull()
   })
 
   it('muestra el error de carga y deja reintentar', async () => {

@@ -26,11 +26,12 @@ func postulacionRoutes(c *container) apihttp.RouteRegistrar {
 		postgres.NewExperienciaRepo(c.db),
 		postgres.NewPublicacionesRepo(c.db),
 		postgres.NewCapacitacionesRepo(c.db),
+		postgres.NewInhabilidadesRepo(c.db),
 	).ConCatalogos(service.NewCatalogoService(
 		postgres.NewCatalogoRepo(c.db),
 		redisrepo.NewCacheCatalogos(c.redis),
 		c.logger,
-	)).ConHistorialLaboral(c.historial)
+	)).ConHistorialLaboral(c.historial).ConMailer(c.mailer)
 	documentos := service.NewDocumentoService(postgres.NewDocumentoRepo(c.db))
 	postulacion := apihttp.PostulacionRoutes(handler.NewPostulacionHandler(svc), c.tokens)
 	cargo := apihttp.CargoRoutes(handler.NewCargoHandler(svc), c.tokens)
