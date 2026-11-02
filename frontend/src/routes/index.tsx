@@ -3,6 +3,7 @@ import LayoutPrivado from '@/components/layout/LayoutPrivado'
 import LayoutPublico from '@/components/layout/LayoutPublico'
 import Componentes from '@/pages/Componentes'
 import FormularioPostulacion from '@/pages/FormularioPostulacion'
+import ImprimirPostulacion from '@/pages/ImprimirPostulacion'
 import Inicio from '@/pages/Inicio'
 import Login from '@/pages/Login'
 import Recuperar from '@/pages/Recuperar'
@@ -31,6 +32,8 @@ export default function AppRoutes() {
 
       {/* Rutas privadas del postulante: todas dentro de RutaProtegida */}
       <Route element={<RutaProtegida />}>
+        {/* Vista imprimible: sin menús, solo el documento */}
+        <Route path="/postulacion/imprimir" element={<ImprimirPostulacion />} />
         <Route element={<LayoutPrivado />}>
           <Route path={RUTA_FORMULARIO} element={<FormularioPostulacion />} />
         </Route>
