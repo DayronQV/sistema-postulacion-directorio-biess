@@ -99,4 +99,16 @@ describe('store de la postulación', () => {
     expect(estado().postulacion?.estado).toBe('borrador')
     expect(estado().guardando).toBe(false)
   })
+
+  it('si ya estaba enviada (409) vuelve a leer la postulación para mostrarlo', async () => {
+    obtener.mockResolvedValueOnce(post())
+    await cargarPostulacion()
+    enviar.mockRejectedValue(new ApiError(409, 'CONFLICT', 'La postulación ya fue enviada'))
+    obtener.mockResolvedValueOnce(post({ estado: 'enviada' }))
+
+    const error = await enviarFormulario()
+
+    expect(error?.code).toBe('CONFLICT')
+    expect(estado().postulacion?.estado).toBe('enviada')
+  })
 })

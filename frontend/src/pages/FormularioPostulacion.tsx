@@ -85,6 +85,24 @@ export default function FormularioPostulacion() {
     )
   }
 
+  // Una postulación enviada ya no se edita (PUT /postulacion responde 409): en lugar de las
+  // secciones editables se muestra solo la confirmación del Cierre, con el enlace para imprimir.
+  if (postulacion.estado === 'enviada') {
+    const Confirmacion = (SECCIONES.find((s) => s.id === 'cierre') ?? SECCIONES[0]).Componente
+    return (
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
+        <h1 className="text-headline-lg text-primary">Formulario de postulación</h1>
+        <Confirmacion
+          titulo="Cierre"
+          datos={postulacion}
+          guardando={false}
+          onGuardar={async () => false}
+          onCambios={() => undefined}
+        />
+      </main>
+    )
+  }
+
   const completas = SECCIONES.filter((s) => s.estaCompleta(postulacion)).length
   const porcentaje = Math.round((completas / SECCIONES.length) * 100)
   const actual = SECCIONES.find((s) => s.id === actualId) ?? SECCIONES[0]
@@ -105,9 +123,8 @@ export default function FormularioPostulacion() {
               </p>
             )}
           </div>
-          <Badge tono={postulacion.estado === 'enviada' ? 'success' : 'warning'}>
-            {postulacion.estado === 'enviada' ? 'Enviada' : 'Borrador'}
-          </Badge>
+          {/* Aquí siempre es borrador: la enviada y la cerrada tienen su propia pantalla. */}
+          <Badge tono="warning">Borrador</Badge>
         </div>
         <div className="flex flex-col gap-1.5">
           <div className="flex justify-between text-label-md text-on-surface-variant">

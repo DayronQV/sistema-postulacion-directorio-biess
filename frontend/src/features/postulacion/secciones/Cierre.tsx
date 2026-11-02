@@ -129,7 +129,7 @@ export default function Cierre({
             etiqueta="He leído y acepto el consentimiento y la declaración"
           />
           {falta && (
-            <p role="alert" className="text-body-sm text-error">
+            <p role="alert" className="text-label-sm text-error">
               Debe aceptar para guardar la postulación
             </p>
           )}

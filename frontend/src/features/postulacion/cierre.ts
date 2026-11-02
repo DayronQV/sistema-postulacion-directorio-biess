@@ -2,9 +2,11 @@
 // POST /postulacion/enviar con 422 (docs/api.md).
 export const SECCION_DEL_ENVIO: Record<string, { id: string; titulo: string }> = {
   domicilio: { id: 'domicilio', titulo: 'Domicilio y contacto' },
+  familiares: { id: 'adicional', titulo: 'Información adicional' },
   cargo: { id: 'cargo', titulo: 'Selección del cargo' },
   formacion: { id: 'formacion', titulo: 'Formación académica' },
   experiencia: { id: 'experiencia', titulo: 'Experiencia profesional' },
+  publicaciones: { id: 'publicaciones', titulo: 'Publicaciones' },
   capacitaciones: { id: 'capacitacion', titulo: 'Capacitación' },
   referencias: { id: 'referencias', titulo: 'Referencias personales' },
   inhabilidades: { id: 'inhabilidades', titulo: 'Inhabilidades' },

@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import { reiniciarFormulario } from '@/features/postulacion/store'
 import { ApiError } from '@/services/errores'
@@ -89,6 +90,19 @@ describe('FormularioPostulacion', () => {
       'step',
     )
     expect(screen.queryByLabelText('Cambios sin guardar')).toBeNull()
+  })
+
+  it('con la postulación enviada no muestra secciones editables, solo la confirmación', async () => {
+    obtener.mockResolvedValue({ ...base, estado: 'enviada', consentimiento: true })
+    render(
+      <MemoryRouter>
+        <FormularioPostulacion />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Postulación enviada')).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Secciones del formulario' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Guardar Postulación' })).toBeNull()
   })
 
   it('navega entre secciones desde el menú', async () => {

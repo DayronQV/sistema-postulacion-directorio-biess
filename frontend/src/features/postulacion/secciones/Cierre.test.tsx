@@ -36,7 +36,10 @@ function montar(
   return { onGuardar, onCambios, onIrA }
 }
 
-beforeEach(() => enviarFormulario.mockReset())
+// Con llaves: si el callback devolviera el mock, Vitest lo ejecutaría como limpieza al final.
+beforeEach(() => {
+  enviarFormulario.mockReset()
+})
 
 describe('Cierre', () => {
   it('muestra los cinco numerales del consentimiento', () => {
@@ -111,6 +114,23 @@ describe('Cierre', () => {
     expect(await screen.findByText('La postulación está incompleta')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Capacitación' }))
     expect(onIrA).toHaveBeenCalledWith('capacitacion')
+  })
+
+  it('enlaza también Información adicional y Publicaciones cuando faltan sus filas', async () => {
+    enviarFormulario.mockResolvedValue(
+      new ApiError(422, 'VALIDATION_ERROR', 'La postulación está incompleta', {
+        familiares: 'Agregue al menos un familiar o responda que no tiene',
+        publicaciones: 'Agregue al menos una publicación o responda que no tiene',
+      }),
+    )
+    const { onIrA } = montar({ consentimiento: true })
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar Postulación' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar postulación' }))
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Información adicional' }))
+    expect(onIrA).toHaveBeenCalledWith('adicional')
+    await userEvent.click(screen.getByRole('button', { name: 'Publicaciones' }))
+    expect(onIrA).toHaveBeenCalledWith('publicaciones')
   })
 
   it('si ya fue enviada muestra el éxito con el código y el enlace a imprimir', () => {

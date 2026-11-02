@@ -106,7 +106,10 @@ export async function enviarFormulario(): Promise<ApiError | null> {
     return null
   } catch (e) {
     poner({ guardando: false })
-    return comoApiError(e)
+    const error = comoApiError(e)
+    // 409: ya estaba enviada (por ejemplo, desde otra pestaña). Se relee para mostrarlo.
+    if (error.code === 'CONFLICT') await refrescarPostulacion()
+    return error
   }
 }
 
