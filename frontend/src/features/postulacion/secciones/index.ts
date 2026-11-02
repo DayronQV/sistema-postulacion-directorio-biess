@@ -1,9 +1,11 @@
+import { inhabilidadesCompletas } from '../inhabilidades'
 import CapacitacionSeccion from './CapacitacionSeccion'
 import CargoSeccion from './CargoSeccion'
 import DomicilioSeccion from './DomicilioSeccion'
 import ExperienciaSeccion from './ExperienciaSeccion'
 import FamiliaresSeccion from './FamiliaresSeccion'
 import FormacionSeccion from './FormacionSeccion'
+import Inhabilidades from './Inhabilidades'
 import InformacionPersonalSeccion from './InformacionPersonalSeccion'
 import PublicacionesSeccion from './PublicacionesSeccion'
 import ReferenciasSeccion from './ReferenciasSeccion'
@@ -80,8 +82,8 @@ export const SECCIONES: DefSeccion[] = [
     id: 'inhabilidades',
     titulo: 'Inhabilidades',
     icono: 'gavel',
-    Componente: SeccionPendiente,
-    estaCompleta: () => false,
+    Componente: Inhabilidades,
+    estaCompleta: (p) => inhabilidadesCompletas(p.inhabilidades),
   },
   {
     id: 'cierre',
