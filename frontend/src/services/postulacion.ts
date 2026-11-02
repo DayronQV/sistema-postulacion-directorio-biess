@@ -149,18 +149,28 @@ export interface Postulacion {
   updated_at: string
 }
 
+// Lo que se edita y se guarda con PUT /postulacion: todo salvo lo que fija el servidor.
+export type DatosPostulacion = Partial<
+  Omit<Postulacion, 'id' | 'codigo' | 'estado' | 'informacion_personal' | 'updated_at'>
+>
+
+export type EstadoPostulacion = Postulacion['estado']
+
 // GET /postulacion: la postulación del usuario (el servidor la crea en borrador la primera vez).
 // Con la postulación ya creada se levanta la restricción del primer ingreso (EF-11).
-export async function obtenerPostulacion(): Promise<Postulacion> {
-  const { data } = await http.get<Postulacion>('/postulacion')
+export async function obtenerPostulacion(signal?: AbortSignal): Promise<Postulacion> {
+  const { data } = await http.get<Postulacion>('/postulacion', { signal })
   marcarPostulacionCreada()
   return data
 }
 
 // PUT /postulacion: guarda el formulario completo en una transacción y devuelve la
 // postulación guardada. El servidor ignora los campos de solo lectura (id, código, estado...).
-export async function guardarPostulacion(formulario: Postulacion): Promise<Postulacion> {
-  const { data } = await http.put<Postulacion>('/postulacion', formulario)
+export async function guardarPostulacion(
+  formulario: Postulacion,
+  signal?: AbortSignal,
+): Promise<Postulacion> {
+  const { data } = await http.put<Postulacion>('/postulacion', formulario, { signal })
   return data
 }
 
