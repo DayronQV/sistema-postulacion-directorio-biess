@@ -23,9 +23,8 @@ type container struct {
 	tokens domain.TokenIssuer // emite y valida los JWT de sesión
 	mailer domain.Mailer      // envía los correos (hoy, el simulador que escribe en el log)
 
-	// historial es el Historial Laboral del IESS (hoy el simulador). Todavía no
-	// tiene lector: lo consumirá la selección del cargo (#26). No borrar por
-	// "código sin uso".
+	// historial es el Historial Laboral del IESS (hoy el simulador). Lo consume la
+	// validación del cargo de la postulación.
 	historial domain.HistorialLaboral
 }
 

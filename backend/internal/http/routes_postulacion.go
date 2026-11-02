@@ -21,6 +21,17 @@ func PostulacionRoutes(h *handler.PostulacionHandler, tokens domain.TokenIssuer)
 	}
 }
 
+// CargoRoutes registra la validación del cargo bajo el mismo recurso protegido.
+func CargoRoutes(h *handler.CargoHandler, tokens domain.TokenIssuer) RouteRegistrar {
+	return func(api *gin.RouterGroup) {
+		postulacion := api.Group("/postulacion",
+			middleware.RequireAuth(tokens),
+			middleware.RequireRole(domain.RolPostulante),
+		)
+		postulacion.POST("/cargo/validar", h.Validar)
+	}
+}
+
 // DocumentoRoutes registra la gestión de respaldos bajo el mismo recurso protegido.
 func DocumentoRoutes(documentos *handler.DocumentoHandler, tokens domain.TokenIssuer) RouteRegistrar {
 	return func(api *gin.RouterGroup) {

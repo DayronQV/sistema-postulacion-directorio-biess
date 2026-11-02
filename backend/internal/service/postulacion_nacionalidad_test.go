@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/historiallaboral"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/registrocivil"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
 )
@@ -24,7 +25,7 @@ func newPostFixtureConRegistro(registro domain.RegistroCivil) postFixture {
 	store := &fakePostulaciones{cedula: registrocivil.CedulaFlujoFeliz}
 	tx := &fakeTx{store: store}
 	llamadas := &[]string{}
-	svc := service.NewPostulacionService(store, registro, tx, fakeSeccion{nombre: "familiares", llamadas: llamadas})
+	svc := service.NewPostulacionService(store, registro, tx, fakeSeccion{nombre: "familiares", llamadas: llamadas}).ConHistorialLaboral(historiallaboral.NewMock())
 	return postFixture{svc: svc, store: store, tx: tx, llamadas: llamadas}
 }
 
