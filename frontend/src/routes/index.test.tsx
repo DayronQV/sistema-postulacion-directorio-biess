@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import AppRoutes from '@/routes'
+import * as servicio from '@/services/postulacion'
 import { cerrarSesion, expirarSesion, iniciarSesion } from '@/store/sesion'
 
 const tituloFormulario = () =>
@@ -36,10 +37,26 @@ describe('AppRoutes', () => {
     expect(screen.getByRole('heading', { level: 1, name: /^Iniciar sesión$/ })).toBeInTheDocument()
   })
 
-  it('muestra /postulacion con sesión abierta', () => {
+  it('muestra /postulacion con sesión abierta', async () => {
+    vi.spyOn(servicio, 'obtenerPostulacion').mockResolvedValue({
+      codigo: 'POST-1',
+      estado: 'borrador',
+      informacion_personal: {
+        nombres: 'Ana',
+        apellidos: 'Pérez',
+        cedula: '1712345675',
+        genero: 'Femenino',
+        fecha_nacimiento: '1990-01-01',
+        nacionalidad: 'Ecuatoriana',
+        estado_civil: 'Soltero/a',
+        email: 'ana@correo.com',
+      },
+    } as servicio.Postulacion)
     iniciarSesion('token', 600)
     renderEn('/postulacion')
-    expect(tituloFormulario()).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /^Formulario de postulación$/ }),
+    ).toBeInTheDocument()
   })
 
   it.each(['/login', '/registro'])('con sesión abierta, %s lleva al formulario', (ruta) => {

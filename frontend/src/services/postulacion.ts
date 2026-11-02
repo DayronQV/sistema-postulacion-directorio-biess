@@ -149,18 +149,40 @@ export interface Postulacion {
   updated_at: string
 }
 
+// Lo que se edita y se guarda con PUT /postulacion: todo salvo lo que fija el servidor.
+export type DatosPostulacion = Partial<
+  Omit<Postulacion, 'id' | 'codigo' | 'estado' | 'informacion_personal' | 'updated_at'>
+>
+
+export type EstadoPostulacion = Postulacion['estado']
+
 // GET /postulacion: la postulación del usuario (el servidor la crea en borrador la primera vez).
 // Con la postulación ya creada se levanta la restricción del primer ingreso (EF-11).
-export async function obtenerPostulacion(): Promise<Postulacion> {
-  const { data } = await http.get<Postulacion>('/postulacion')
+export async function obtenerPostulacion(signal?: AbortSignal): Promise<Postulacion> {
+  const { data } = await http.get<Postulacion>('/postulacion', { signal })
   marcarPostulacionCreada()
   return data
 }
 
+// Avisos de guardado: cada sección guarda por su cuenta, y así el contenedor del formulario
+// se entera (actualiza el avance y quita la marca de cambios sin guardar).
+const alGuardar = new Set<(postulacion: Postulacion) => void>()
+
+export function suscribirGuardado(escucha: (postulacion: Postulacion) => void): () => void {
+  alGuardar.add(escucha)
+  return () => {
+    alGuardar.delete(escucha)
+  }
+}
+
 // PUT /postulacion: guarda el formulario completo en una transacción y devuelve la
 // postulación guardada. El servidor ignora los campos de solo lectura (id, código, estado...).
-export async function guardarPostulacion(formulario: Postulacion): Promise<Postulacion> {
-  const { data } = await http.put<Postulacion>('/postulacion', formulario)
+export async function guardarPostulacion(
+  formulario: Postulacion,
+  signal?: AbortSignal,
+): Promise<Postulacion> {
+  const { data } = await http.put<Postulacion>('/postulacion', formulario, { signal })
+  alGuardar.forEach((f) => f(data))
   return data
 }
 
