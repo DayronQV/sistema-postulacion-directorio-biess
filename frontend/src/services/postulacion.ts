@@ -78,6 +78,18 @@ export interface PublicacionAcademica {
   documento_id: string
 }
 
+export type TipoCapacitacion = 'curso' | 'seminario' | 'taller'
+
+export interface Capacitacion {
+  tipo: TipoCapacitacion
+  nombre: string
+  institucion: string
+  fecha_inicio: string
+  fecha_fin: string
+  horas: number
+  documento_id: string
+}
+
 export interface Domicilio {
   pais_id: number | null
   provincia_id: number | null
@@ -119,6 +131,7 @@ export interface Postulacion {
   experiencia: ExperienciaProfesional[]
   duracion_experiencia_total: Duracion
   publicaciones: PublicacionAcademica[]
+  capacitaciones: Capacitacion[]
   cargo: string
   respaldo_organizacion: { nombre: string; documento_id: string | null }
   tiene_publicaciones: boolean

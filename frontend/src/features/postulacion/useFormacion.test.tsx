@@ -37,6 +37,7 @@ const postulacion = {
   referencias: [{ nombres_apellidos: 'Ana' }],
   formacion: [],
   publicaciones: [],
+  capacitaciones: [],
   cargo: 'afiliados',
 } as unknown as Postulacion
 
