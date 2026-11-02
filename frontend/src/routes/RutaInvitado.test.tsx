@@ -9,6 +9,7 @@ function renderEn(ruta: string) {
       <Routes>
         <Route path="/" element={<p>inicio</p>} />
         <Route path="/postulacion" element={<p>formulario</p>} />
+        <Route path="/admin" element={<p>panel de administración</p>} />
         <Route element={<RutaInvitado />}>
           <Route path="/login" element={<p>pantalla de login</p>} />
           <Route path="/registro" element={<p>pantalla de registro</p>} />
@@ -37,9 +38,12 @@ describe('RutaInvitado', () => {
     },
   )
 
-  it('un analista con sesión va al inicio mientras no existan las pantallas de EF-13', () => {
-    iniciarSesion(jwt({ rol: 'analista' }), 600)
-    renderEn('/login')
-    expect(screen.getByText('inicio')).toBeInTheDocument()
-  })
+  it.each(['analista', 'administrador'])(
+    'un %s con sesión va al panel de administración',
+    (rol) => {
+      iniciarSesion(jwt({ rol }), 600)
+      renderEn('/login')
+      expect(screen.getByText('panel de administración')).toBeInTheDocument()
+    },
+  )
 })

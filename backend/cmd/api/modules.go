@@ -49,5 +49,6 @@ func modules(c *container) []apihttp.RouteRegistrar {
 		authRoutes(c),
 		catalogoRoutes(c),
 		postulacionRoutes(c),
+		adminRoutes(c),
 	}
 }

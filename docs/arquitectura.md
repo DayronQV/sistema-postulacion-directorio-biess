@@ -64,6 +64,8 @@ docker-compose.yml
 | `auth:fail:recuperar:{cedula}` | contador de fallos de la validación de identidad al recuperar la contraseña | 10 min |
 | `auth:lock:recuperar:{cedula}` | bloqueo activo de la recuperación de contraseña | 10 min |
 | `auth:reset:{token}` | cédula del enlace para restablecer la contraseña; se borra al usarlo (`GETDEL`) | 30 min |
+| `auth:fail:admin:{usuario}` | contador de fallos del login de administración | 10 min |
+| `auth:lock:admin:{usuario}` | bloqueo activo del login de administración | 10 min |
 | `cache:catalogo:paises` | lista de países | 1 h |
 | `cache:catalogo:provincias:{paisId}` | provincias | 1 h |
 | `cache:catalogo:cantones:{provinciaId}` | cantones | 1 h |

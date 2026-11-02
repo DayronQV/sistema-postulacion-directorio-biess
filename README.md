@@ -50,6 +50,16 @@ El Registro Civil real no es accesible para este proyecto, así que se simula co
 
 Cualquier otra cédula responde "no existe" en el simulador.
 
+## Usuarios de administración
+El panel (`/admin/login`) no tiene registro público: `db/seed_admin.sql` siembra estos usuarios al crear la base. Las contraseñas son solo para desarrollo y pruebas.
+
+| Usuario | Contraseña | Rol |
+| --- | --- | --- |
+| `analista` | `Analista2026` | Analista (Talento Humano): solo lectura |
+| `administrador` | `Admin2026` | Administrador (Comisión de Selección) |
+
+Si la base ya existía antes de esta semilla, recréela con `docker compose down -v` y `docker compose up -d`.
+
 ## Pruebas
 - Backend: `go test ./...` dentro de `backend/`.
 - Frontend: `npm test` dentro de `frontend/`.

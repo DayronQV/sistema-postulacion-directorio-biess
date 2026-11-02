@@ -10,6 +10,9 @@ const tituloFormulario = () =>
   screen.getByRole('heading', { level: 1, name: /^Formulario de postulación$/ })
 const tituloLogin = () => screen.getByRole('heading', { level: 1, name: /^Iniciar sesión$/ })
 
+// Token con el claim rol del backend: las rutas del postulante exigen ese rol.
+const tokenPostulante = `x.${btoa(JSON.stringify({ rol: 'postulante' }))}.y`
+
 function renderEn(ruta: string) {
   return render(
     <MemoryRouter initialEntries={[ruta]}>
@@ -52,7 +55,7 @@ describe('AppRoutes', () => {
         email: 'ana@correo.com',
       },
     } as servicio.Postulacion)
-    iniciarSesion('token', 600)
+    iniciarSesion(tokenPostulante, 600)
     renderEn('/postulacion')
     expect(
       await screen.findByRole('heading', { level: 1, name: /^Formulario de postulación$/ }),
@@ -60,7 +63,7 @@ describe('AppRoutes', () => {
   })
 
   it.each(['/login', '/registro'])('con sesión abierta, %s lleva al formulario', (ruta) => {
-    iniciarSesion('token', 600)
+    iniciarSesion(tokenPostulante, 600)
     renderEn(ruta)
     expect(tituloFormulario()).toBeInTheDocument()
   })
@@ -78,7 +81,7 @@ describe('AppRoutes: fin de la sesión', () => {
 
   it('al vencer el token avisa "Su sesión expiró" en el login', () => {
     vi.useFakeTimers()
-    iniciarSesion('token', 60)
+    iniciarSesion(tokenPostulante, 60)
     renderEn('/postulacion')
     expect(tituloFormulario()).toBeInTheDocument()
 
@@ -90,7 +93,7 @@ describe('AppRoutes: fin de la sesión', () => {
   })
 
   it('un 401 del servidor (sesión expirada) también muestra el aviso', () => {
-    iniciarSesion('token', 600)
+    iniciarSesion(tokenPostulante, 600)
     renderEn('/postulacion')
     act(() => expirarSesion())
     expect(tituloLogin()).toBeInTheDocument()
@@ -98,7 +101,7 @@ describe('AppRoutes: fin de la sesión', () => {
   })
 
   it('Cerrar sesión lleva al login sin el aviso de expiración', async () => {
-    iniciarSesion('token', 600)
+    iniciarSesion(tokenPostulante, 600)
     renderEn('/postulacion')
     await userEvent.click(screen.getByRole('button', { name: /Cerrar sesión/ }))
     expect(tituloLogin()).toBeInTheDocument()

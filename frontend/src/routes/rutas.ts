@@ -3,10 +3,12 @@ import type { Rol } from '@/store/sesion'
 export const RUTA_LOGIN = '/login'
 // Única pantalla privada del postulante por ahora; el primer ingreso va aquí siempre.
 export const RUTA_FORMULARIO = '/postulacion'
+// Panel de administración (EF-13) y su login.
+export const RUTA_ADMIN = '/admin'
+export const RUTA_LOGIN_ADMIN = '/admin/login'
 
-// Página principal de cada rol, a la que se manda a quien ya tiene sesión y abre el login
-// o el registro. Las pantallas de administración llegan con EF-13; hasta entonces analistas
-// y administradores van al inicio.
+// Página principal de cada rol, a la que se manda a quien ya tiene sesión y abre un login
+// o el registro: el panel para analistas y administradores, el formulario para postulantes.
 export function paginaPrincipal(rol?: Rol): string {
-  return rol === 'analista' || rol === 'administrador' ? '/' : RUTA_FORMULARIO
+  return rol === 'analista' || rol === 'administrador' ? RUTA_ADMIN : RUTA_FORMULARIO
 }
