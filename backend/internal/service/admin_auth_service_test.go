@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +49,8 @@ func newAdminFixture(t *testing.T) adminFixture {
 	usuarios := &fakeUsuariosAdmin{usuarios: map[string]domain.UsuarioAdmin{
 		"analista":      {ID: "a-1", Usuario: "analista", PasswordHash: hash("Analista2026"), Rol: domain.RolAnalista},
 		"administrador": {ID: "a-2", Usuario: "administrador", PasswordHash: hash("Admin2026"), Rol: domain.RolAdministrador},
+		// Fila con un rol que no es del panel: no debe poder iniciar sesión.
+		"intruso": {ID: "a-3", Usuario: "intruso", PasswordHash: hash("Intruso2026"), Rol: domain.RolPostulante},
 	}}
 	f.svc = service.NewAdminAuthService(usuarios, f.intentos, tokens)
 	return f
@@ -137,5 +140,39 @@ func TestAdminLogin_CamposVacios(t *testing.T) {
 	}
 	if len(f.intentos.fallos) != 0 {
 		t.Fatal("un error de formato no cuenta como intento")
+	}
+}
+
+func TestAdminLogin_RolQueNoEsDelPanelNoEmiteToken(t *testing.T) {
+	f := newAdminFixture(t)
+	s, err := loginAdmin(f, "intruso", "Intruso2026")
+	if err == nil || s.Token != "" {
+		t.Fatalf("no se debe emitir token para un rol fuera del panel: %+v, %v", s, err)
+	}
+	// Es un dato inconsistente de la base, no un error del usuario: no debe verse como un
+	// 401 de credenciales ni contar como intento fallido.
+	if errors.Is(err, domain.ErrUnauthorized) || errors.Is(err, domain.ErrLocked) {
+		t.Fatalf("se esperaba un error interno, llegó %v", err)
+	}
+	if f.intentos.fallos["intruso"] != 0 {
+		t.Fatal("un rol inválido no cuenta como intento fallido")
+	}
+}
+
+func TestAdminLogin_UsuarioDemasiadoLargo(t *testing.T) {
+	f := newAdminFixture(t)
+	largo := strings.Repeat("a", service.MaxLargoUsuarioAdmin+1)
+	_, err := loginAdmin(f, largo, "x")
+	var de *domain.Error
+	if !errors.As(err, &de) || !errors.Is(err, domain.ErrValidation) || de.Fields["usuario"] == "" {
+		t.Fatalf("se esperaba 400 con fields.usuario, llegó %v", err)
+	}
+	if len(f.intentos.fallos) != 0 {
+		t.Fatal("un usuario demasiado largo no cuenta como intento ni crea claves")
+	}
+	// En el límite exacto sí se procesa (credenciales incorrectas, no validación).
+	exacto := strings.Repeat("a", service.MaxLargoUsuarioAdmin)
+	if _, err := loginAdmin(f, exacto, "x"); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("en el límite se esperaba 401, llegó %v", err)
 	}
 }

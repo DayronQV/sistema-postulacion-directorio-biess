@@ -12,6 +12,10 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
 
+// MaxLargoUsuarioAdmin es el largo máximo del usuario: evita claves de Redis de tamaño
+// arbitrario en el contador de intentos.
+const MaxLargoUsuarioAdmin = 50
+
 // AdminLoginInput son las credenciales de un analista o administrador.
 type AdminLoginInput struct {
 	Usuario  string
@@ -55,6 +59,8 @@ func (s *AdminAuthService) Login(ctx context.Context, in AdminLoginInput) (Admin
 	fields := map[string]string{}
 	if usuario == "" {
 		fields["usuario"] = "Campo obligatorio"
+	} else if len([]rune(usuario)) > MaxLargoUsuarioAdmin {
+		fields["usuario"] = fmt.Sprintf("Máximo %d caracteres", MaxLargoUsuarioAdmin)
 	}
 	if in.Password == "" {
 		fields["password"] = "Campo obligatorio"
