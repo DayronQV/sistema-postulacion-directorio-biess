@@ -69,6 +69,28 @@ describe('FormularioPostulacion', () => {
     expect(screen.queryByRole('navigation', { name: 'Secciones del formulario' })).toBeNull()
   })
 
+  it('marca los cambios sin guardar de una sección y avisa antes de salir', async () => {
+    obtener.mockResolvedValue({ ...base, familiares: [] })
+    const user = userEvent.setup()
+    render(<FormularioPostulacion />)
+    await screen.findByText('POST-2026-0001')
+
+    await user.click(screen.getByRole('button', { name: /3\. Información adicional/ }))
+    // La sección carga por su cuenta; al responder "Sí" queda con cambios sin guardar.
+    await user.click(await screen.findByRole('radio', { name: /Sí/ }))
+    expect(screen.getByLabelText('Cambios sin guardar')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /5\. Formación académica/ }))
+    expect(screen.getByText(/Tiene cambios sin guardar en esta sección/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Descartar y continuar' }))
+    expect(screen.getByRole('button', { name: /5\. Formación académica/ })).toHaveAttribute(
+      'aria-current',
+      'step',
+    )
+    expect(screen.queryByLabelText('Cambios sin guardar')).toBeNull()
+  })
+
   it('navega entre secciones desde el menú', async () => {
     obtener.mockResolvedValue(base)
     render(<FormularioPostulacion />)

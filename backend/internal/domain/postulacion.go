@@ -97,6 +97,8 @@ type Formulario struct {
 	DuracionExperiencia  Duracion
 	Publicaciones        []PublicacionAcademica
 	Capacitaciones       []Capacitacion
+	Inhabilidades        Inhabilidades
+	Elegible             bool // lo calcula el servidor a partir de Inhabilidades
 	Cargo                string // vacío mientras no lo haya elegido
 	RespaldoOrganizacion RespaldoOrganizacion
 	TienePublicaciones   bool

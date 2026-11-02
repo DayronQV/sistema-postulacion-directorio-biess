@@ -62,7 +62,8 @@ export const SECCIONES: DefSeccion[] = [
     titulo: 'Publicaciones',
     icono: 'menu_book',
     Componente: PublicacionesSeccion,
-    estaCompleta: (p) => p.tiene_publicaciones != null,
+    // Como en Información adicional: "No" basta; "Sí" exige al menos una publicación.
+    estaCompleta: (p) => p.tiene_publicaciones === false || (p.publicaciones?.length ?? 0) > 0,
   },
   {
     id: 'capacitacion',
