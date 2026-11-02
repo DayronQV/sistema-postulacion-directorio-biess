@@ -108,14 +108,31 @@ Forma de `PUT /postulacion`:
 ## Evaluación teórica
 | Método y ruta | Rol | Descripción |
 | --- | --- | --- |
-| `POST /admin/evaluacion/preguntas` | admin | Carga el banco (opción múltiple y respuesta correcta) |
-| `PUT /admin/evaluacion/config` | admin | Fecha y hora, duración y número de preguntas |
+| `POST /admin/evaluacion/preguntas` | admin | Carga el banco (opción múltiple y respuesta correcta): una pregunta, o en bloque con JSON o CSV |
+| `GET /admin/evaluacion/preguntas?buscar=&pagina=&por_pagina=` | admin | Lista el banco, con la respuesta correcta |
+| `PUT /admin/evaluacion/preguntas/{id}` · `DELETE /admin/evaluacion/preguntas/{id}` | admin | Edita o elimina una pregunta |
+| `GET /admin/evaluacion/config` · `PUT /admin/evaluacion/config` | admin | Fecha y hora, duración y número de preguntas |
 | `POST /evaluacion/iniciar` | postulante | Sortea las preguntas únicas del postulante y fija la hora de cierre |
 | `GET /evaluacion/pregunta/{n}` · `PUT /evaluacion/respuesta/{n}` | postulante | Mostrar y guardar respuesta, una por una |
 | `POST /evaluacion/finalizar` | postulante | Califica, guarda la nota, genera el PDF y notifica |
 | `GET /admin/evaluacion/resultados` | admin | Notas y reportes PDF |
 
 El servidor es la autoridad del tiempo: al llegar a la hora de cierre, `finalizar` se ejecuta con las respuestas guardadas.
+
+### Banco de preguntas y configuración (solo `administrador`)
+Todas las rutas `/admin/evaluacion/*` son solo para el administrador (`403` para el analista, también al leer: el listado trae la respuesta correcta). Las respuestas correctas **nunca** se envían al postulante.
+
+Una pregunta es `{ enunciado, opciones: [texto, ...], respuesta_correcta }`, con `respuesta_correcta` el **índice desde 0** de la opción correcta. Reglas: enunciado hasta 1000 caracteres; de 2 a 8 opciones, no vacías, sin repetir y de hasta 500 caracteres; índice dentro de las opciones.
+
+- `POST /admin/evaluacion/preguntas`, según el `Content-Type`:
+  - `application/json` con una pregunta → `201` con la pregunta creada (`{ id, enunciado, opciones, respuesta_correcta }`).
+  - `application/json` con `{ "preguntas": [ ... ] }` → carga en bloque, `201 { creadas }`. Máximo 500 por carga.
+  - `text/csv`, o `multipart/form-data` con el campo `archivo` → carga en bloque desde un CSV de hasta 1 MB, `201 { creadas }`. Columnas `enunciado,opciones,respuesta_correcta` (en cualquier orden, con cabecera); las opciones van en una sola celda separadas por una barra vertical. Acepta `;` como separador (Excel en español) y BOM de UTF-8. El archivo debe estar en UTF-8 (en Excel, "CSV UTF-8"); otra codificación es `400` en `fields.archivo`. Ejemplo de una fila: `"¿Capital de Ecuador?",Guayaquil|Quito|Cuenca,1`.
+  - Una carga en bloque guarda **todas las preguntas o ninguna**. Si hay errores, `400` con un error por posición en `fields`: `preguntas[3].opciones[1]` (JSON) o `filas[4].respuesta_correcta` (CSV, con el número de línea del archivo; la cabecera es la línea 1). Se listan hasta 50 errores. Otro `Content-Type` es `400`; un archivo de más de 1 MB, `422`.
+- `GET /admin/evaluacion/preguntas?buscar=&pagina=1&por_pagina=20` → `{ items: [ { id, enunciado, opciones, respuesta_correcta } ], total, pagina, por_pagina }`, ordenado por id. `buscar` filtra por texto del enunciado sin distinguir mayúsculas; `por_pagina` va de 1 a 100.
+- `PUT /admin/evaluacion/preguntas/{id}` (una pregunta completa) → `200` con la pregunta; `404` si no existe. `DELETE /admin/evaluacion/preguntas/{id}` → `204`; `404` si no existe. Ninguna de las dos se puede una vez que algún postulante inició la evaluación (`409`), y no se puede eliminar una pregunta si el banco quedaría con menos de las que pide la configuración (`409`).
+- `GET /admin/evaluacion/config` → `{ inicia_en, duracion_minutos, num_preguntas, total_banco, configurada }`. Mientras no se configure: `inicia_en: null`, 30 minutos, 10 preguntas y `configurada: false`.
+- `PUT /admin/evaluacion/config` con `{ inicia_en, duracion_minutos, num_preguntas }` → `200` con la misma forma. `inicia_en` en RFC 3339 con zona horaria (por ejemplo `2026-11-20T09:00:00-05:00`) y siempre se responde en UTC; la duración va de 1 a 480 minutos. `422` si `num_preguntas` supera las preguntas del banco (`fields.num_preguntas` dice cuántas hay).
 
 ## Utilidad
 `GET /health` → `200 { "status": "ok" }` (sin prefijo `/api/v1`).
