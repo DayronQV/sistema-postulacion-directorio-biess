@@ -40,6 +40,17 @@ export interface FormacionAcademica {
   documento_id: string
 }
 
+export type TipoPublicacion = 'publicacion' | 'investigacion'
+
+export interface PublicacionAcademica {
+  titulo: string
+  tipo: TipoPublicacion
+  medio: string
+  fecha: string
+  relacionada: boolean
+  documento_id: string
+}
+
 export interface Domicilio {
   pais_id: number | null
   provincia_id: number | null
@@ -78,6 +89,7 @@ export interface Postulacion {
   familiares: Familiar[]
   referencias: ReferenciaPersonal[]
   formacion: FormacionAcademica[]
+  publicaciones: PublicacionAcademica[]
   cargo: string
   respaldo_organizacion: { nombre: string; documento_id: string | null }
   tiene_publicaciones: boolean

@@ -50,6 +50,7 @@ function postulacion(sobre: Partial<Postulacion> = {}): Postulacion {
     familiares: [],
     referencias: [],
     formacion: [],
+    publicaciones: [],
     cargo: '',
     respaldo_organizacion: { nombre: '', documento_id: null },
     tiene_publicaciones: false,
