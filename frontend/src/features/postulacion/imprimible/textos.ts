@@ -16,3 +16,35 @@ export const CARGOS: Record<string, string> = {
   empleador:
     'Miembro Principal y Alterno en Representación del Sector Empleador ante el Directorio del BIESS',
 }
+
+// Etiquetas de los valores que guarda la API, como las muestran las secciones del formulario.
+export const ETIQUETAS: Record<string, string> = {
+  // Formación académica
+  tercer_nivel: 'Tercer Nivel de Grado',
+  especialidad: 'Cuarto Nivel - Especialidad Académica',
+  maestria: 'Cuarto Nivel - Maestría Académica',
+  phd: 'Cuarto Nivel PhD - Doctorado',
+  nacional: 'Nacional',
+  extranjera: 'Extranjera',
+  // Áreas de estudio y actividades relacionadas
+  finanzas: 'Finanzas',
+  mercado_capitales: 'Mercado de Capitales',
+  administracion_empresas: 'Administración de Empresas',
+  economia: 'Economía',
+  derecho: 'Derecho',
+  afines: 'Materias afines',
+  // Experiencia, publicaciones y capacitación
+  general: 'General',
+  direccion: 'Dirección',
+  publicacion: 'Publicación',
+  investigacion: 'Trabajo de investigación',
+  curso: 'Curso',
+  seminario: 'Seminario',
+  taller: 'Taller',
+}
+
+// Etiqueta legible de un valor de la API; si no se conoce, el valor tal cual.
+export function etiqueta(valor: string | null | undefined): string {
+  if (!valor) return '—'
+  return ETIQUETAS[valor] ?? valor
+}
