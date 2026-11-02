@@ -100,6 +100,15 @@ type experienciaDTO struct {
 	Duracion    duracionDTO `json:"duracion"`
 }
 
+type publicacionDTO struct {
+	Titulo      string `json:"titulo"`
+	Tipo        string `json:"tipo"`
+	Medio       string `json:"medio"`
+	Fecha       string `json:"fecha"`
+	Relacionada bool   `json:"relacionada"`
+	DocumentoID string `json:"documento_id"`
+}
+
 type respaldoDTO struct {
 	Nombre      string  `json:"nombre"`
 	DocumentoID *string `json:"documento_id"`
@@ -116,6 +125,7 @@ type formularioDTO struct {
 	Formacion            []formacionDTO   `json:"formacion"`
 	Experiencia          []experienciaDTO `json:"experiencia"`
 	DuracionExperiencia  duracionDTO      `json:"duracion_experiencia_total"`
+	Publicaciones        []publicacionDTO `json:"publicaciones"`
 	Cargo                string           `json:"cargo"`
 	RespaldoOrganizacion respaldoDTO      `json:"respaldo_organizacion"`
 	TienePublicaciones   bool             `json:"tiene_publicaciones"`
@@ -180,6 +190,9 @@ func (d formularioDTO) dominio() domain.Formulario {
 			Descripcion: fila.Descripcion, DocumentoID: fila.DocumentoID,
 		})
 	}
+	for _, fila := range d.Publicaciones {
+		f.Publicaciones = append(f.Publicaciones, domain.PublicacionAcademica(fila))
+	}
 	return f
 }
 
@@ -214,6 +227,7 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 			Formacion:            []formacionDTO{},
 			Experiencia:          []experienciaDTO{},
 			DuracionExperiencia:  duracionDTO{Anios: f.DuracionExperiencia.Anios, Meses: f.DuracionExperiencia.Meses, Dias: f.DuracionExperiencia.Dias},
+			Publicaciones:        []publicacionDTO{},
 			Cargo:                f.Cargo,
 			RespaldoOrganizacion: respaldoDTO{Nombre: f.RespaldoOrganizacion.Nombre, DocumentoID: f.RespaldoOrganizacion.DocumentoID},
 			TienePublicaciones:   f.TienePublicaciones,
@@ -240,6 +254,9 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 			Descripcion: fila.Descripcion, DocumentoID: fila.DocumentoID,
 			Duracion: duracionDTO{Anios: fila.Duracion.Anios, Meses: fila.Duracion.Meses, Dias: fila.Duracion.Dias},
 		})
+	}
+	for _, fila := range f.Publicaciones {
+		r.Publicaciones = append(r.Publicaciones, publicacionDTO(fila))
 	}
 	return r
 }
