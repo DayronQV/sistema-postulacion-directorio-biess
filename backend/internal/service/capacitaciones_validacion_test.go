@@ -32,3 +32,30 @@ func TestValidarCapacitacionesRechazaFechasYHoras(t *testing.T) {
 		}
 	}
 }
+
+func TestValidarCapacitacionesLimitaLasHoras(t *testing.T) {
+	fila := capacitacionValida()
+	fila.Horas = domain.MaxHorasCapacitacion + 1
+	campos := map[string]string{}
+	validarCapacitaciones([]domain.Capacitacion{fila}, time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), campos)
+	if campos["capacitaciones[0].horas"] == "" {
+		t.Fatalf("se esperaba el tope de horas: %v", campos)
+	}
+
+	fila.Horas = domain.MaxHorasCapacitacion
+	campos = map[string]string{}
+	validarCapacitaciones([]domain.Capacitacion{fila}, time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), campos)
+	if len(campos) != 0 {
+		t.Fatalf("el tope exacto debe ser válido: %v", campos)
+	}
+}
+
+func TestValidarCapacitacionesRechazaDocumentoRepetido(t *testing.T) {
+	a, b := capacitacionValida(), capacitacionValida()
+	a.DocumentoID, b.DocumentoID = "doc-1", "doc-1"
+	campos := map[string]string{}
+	validarCapacitaciones([]domain.Capacitacion{a, b}, time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), campos)
+	if campos["capacitaciones[1].documento_id"] == "" || campos["capacitaciones[0].documento_id"] != "" {
+		t.Fatalf("se esperaba el error solo en la segunda fila: %v", campos)
+	}
+}

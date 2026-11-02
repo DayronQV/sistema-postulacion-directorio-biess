@@ -9,6 +9,7 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
 
+// limpiarCapacitaciones devuelve una copia de las filas sin espacios sobrantes en los textos.
 func limpiarCapacitaciones(filas []domain.Capacitacion) []domain.Capacitacion {
 	if filas == nil {
 		return nil
@@ -26,6 +27,9 @@ func limpiarCapacitaciones(filas []domain.Capacitacion) []domain.Capacitacion {
 	return limpias
 }
 
+// validarCapacitaciones agrega a fields los errores de la sección de capacitación. Los
+// campos de una fila se nombran capacitaciones[i].campo (i desde 0), como en docs/api.md.
+// El respaldo es opcional, pero un mismo PDF no puede respaldar dos eventos.
 func validarCapacitaciones(filas []domain.Capacitacion, hoy time.Time, fields map[string]string) {
 	if len(filas) > domain.MaxCapacitaciones {
 		fields["capacitaciones"] = fmt.Sprintf("Máximo %d capacitaciones", domain.MaxCapacitaciones)
@@ -55,8 +59,11 @@ func validarCapacitaciones(filas []domain.Capacitacion, hoy time.Time, fields ma
 		if errInicio == nil && errFin == nil && fin.Before(inicio) {
 			fields[campo("fecha_fin")] = "La fecha final no puede ser anterior a la inicial"
 		}
-		if fila.Horas <= 0 {
+		switch {
+		case fila.Horas <= 0:
 			fields[campo("horas")] = "Las horas deben ser mayores a cero"
+		case fila.Horas > domain.MaxHorasCapacitacion:
+			fields[campo("horas")] = fmt.Sprintf("Máximo %d horas", domain.MaxHorasCapacitacion)
 		}
 		if fila.DocumentoID != "" {
 			if primera, repetido := documentos[fila.DocumentoID]; repetido {
