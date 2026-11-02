@@ -27,3 +27,9 @@
   direction: ltr;
   user-select: none;
 }
+
+/* Impresión del formulario final: hoja A4 con márgenes */
+@page {
+  size: A4;
+  margin: 15mm;
+}
