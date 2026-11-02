@@ -86,7 +86,7 @@ Forma de `PUT /postulacion`:
   "consentimiento": true
 }
 ```
-`cargo` ∈ `afiliados | jubilados | empleador`. En `GET /postulacion` cada experiencia incluye `duracion: { anios, meses, dias }` calculada en el servidor. `422` con el mensaje del requerimiento si el cargo no es elegible o la nacionalidad no es ecuatoriana.
+`cargo` ∈ `afiliados | jubilados | empleador`. En `GET /postulacion` cada experiencia incluye `duracion: { anios, meses, dias }` calculada en el servidor, y la postulación incluye `duracion_experiencia_total: { anios, meses, dias }` (suma de las experiencias; 30 días forman un mes). Ambos son de solo lectura: `PUT` los ignora. `422` con el mensaje del requerimiento si el cargo no es elegible o la nacionalidad no es ecuatoriana.
 
 ## Administración (requiere rol `analista` o `administrador`)
 | Método y ruta | Descripción |

@@ -82,6 +82,24 @@ type formacionDTO struct {
 	DocumentoID    string `json:"documento_id"`
 }
 
+type duracionDTO struct {
+	Anios int `json:"anios"`
+	Meses int `json:"meses"`
+	Dias  int `json:"dias"`
+}
+
+type experienciaDTO struct {
+	Tipo        string      `json:"tipo"`
+	Cargo       string      `json:"cargo"`
+	Institucion string      `json:"institucion"`
+	FechaInicio string      `json:"fecha_inicio"`
+	FechaFin    string      `json:"fecha_fin"`
+	Actividades string      `json:"actividades"`
+	Descripcion string      `json:"descripcion"`
+	DocumentoID string      `json:"documento_id"`
+	Duracion    duracionDTO `json:"duracion"`
+}
+
 type respaldoDTO struct {
 	Nombre      string  `json:"nombre"`
 	DocumentoID *string `json:"documento_id"`
@@ -91,15 +109,17 @@ type respaldoDTO struct {
 // Cada issue de sección agrega aquí su campo. Los campos que todavía no existen en este
 // DTO (formacion, experiencia, ...) se ignoran.
 type formularioDTO struct {
-	Domicilio            domicilioDTO    `json:"domicilio"`
-	TieneFamiliares      bool            `json:"tiene_familiares"`
-	Familiares           []familiarDTO   `json:"familiares"`
-	Referencias          []referenciaDTO `json:"referencias"`
-	Formacion            []formacionDTO  `json:"formacion"`
-	Cargo                string          `json:"cargo"`
-	RespaldoOrganizacion respaldoDTO     `json:"respaldo_organizacion"`
-	TienePublicaciones   bool            `json:"tiene_publicaciones"`
-	Consentimiento       bool            `json:"consentimiento"`
+	Domicilio            domicilioDTO     `json:"domicilio"`
+	TieneFamiliares      bool             `json:"tiene_familiares"`
+	Familiares           []familiarDTO    `json:"familiares"`
+	Referencias          []referenciaDTO  `json:"referencias"`
+	Formacion            []formacionDTO   `json:"formacion"`
+	Experiencia          []experienciaDTO `json:"experiencia"`
+	DuracionExperiencia  duracionDTO      `json:"duracion_experiencia_total"`
+	Cargo                string           `json:"cargo"`
+	RespaldoOrganizacion respaldoDTO      `json:"respaldo_organizacion"`
+	TienePublicaciones   bool             `json:"tiene_publicaciones"`
+	Consentimiento       bool             `json:"consentimiento"`
 }
 
 type parejaDTO struct {
@@ -153,6 +173,13 @@ func (d formularioDTO) dominio() domain.Formulario {
 	for _, fila := range d.Formacion {
 		f.Formacion = append(f.Formacion, domain.FormacionAcademica(fila))
 	}
+	for _, fila := range d.Experiencia {
+		f.Experiencia = append(f.Experiencia, domain.ExperienciaProfesional{
+			Tipo: fila.Tipo, Cargo: fila.Cargo, Institucion: fila.Institucion,
+			FechaInicio: fila.FechaInicio, FechaFin: fila.FechaFin, Actividades: fila.Actividades,
+			Descripcion: fila.Descripcion, DocumentoID: fila.DocumentoID,
+		})
+	}
 	return f
 }
 
@@ -185,6 +212,8 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 			Familiares:           []familiarDTO{},
 			Referencias:          []referenciaDTO{},
 			Formacion:            []formacionDTO{},
+			Experiencia:          []experienciaDTO{},
+			DuracionExperiencia:  duracionDTO{Anios: f.DuracionExperiencia.Anios, Meses: f.DuracionExperiencia.Meses, Dias: f.DuracionExperiencia.Dias},
 			Cargo:                f.Cargo,
 			RespaldoOrganizacion: respaldoDTO{Nombre: f.RespaldoOrganizacion.Nombre, DocumentoID: f.RespaldoOrganizacion.DocumentoID},
 			TienePublicaciones:   f.TienePublicaciones,
@@ -203,6 +232,14 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 	}
 	for _, fila := range f.Formacion {
 		r.Formacion = append(r.Formacion, formacionDTO(fila))
+	}
+	for _, fila := range f.Experiencia {
+		r.Experiencia = append(r.Experiencia, experienciaDTO{
+			Tipo: fila.Tipo, Cargo: fila.Cargo, Institucion: fila.Institucion,
+			FechaInicio: fila.FechaInicio, FechaFin: fila.FechaFin, Actividades: fila.Actividades,
+			Descripcion: fila.Descripcion, DocumentoID: fila.DocumentoID,
+			Duracion: duracionDTO{Anios: fila.Duracion.Anios, Meses: fila.Duracion.Meses, Dias: fila.Duracion.Dias},
+		})
 	}
 	return r
 }
