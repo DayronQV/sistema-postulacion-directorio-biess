@@ -22,7 +22,9 @@ func adminRoutes(c *container) apihttp.RouteRegistrar {
 	meritos := handler.NewAdminPostulacionHandler(
 		service.NewAdminPostulacionService(postgres.NewPostulacionRepo(c.db)),
 	)
+	fases := handler.NewAdminFasesHandler(service.NewFaseService(postgres.NewFasesRepo(c.db)))
 	return apihttp.AdminRoutes(handler.NewAdminAuthHandler(login), c.tokens,
 		meritos.Rutas,
+		fases.Rutas,
 	)
 }
