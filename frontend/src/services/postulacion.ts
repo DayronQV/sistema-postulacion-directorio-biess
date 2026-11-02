@@ -40,6 +40,33 @@ export interface FormacionAcademica {
   documento_id: string
 }
 
+export type TipoExperiencia = 'general' | 'direccion'
+export type ActividadExperiencia =
+  | 'finanzas'
+  | 'mercado_capitales'
+  | 'administracion_empresas'
+  | 'economia'
+  | 'derecho'
+  | 'afines'
+
+export interface Duracion {
+  anios: number
+  meses: number
+  dias: number
+}
+
+export interface ExperienciaProfesional {
+  tipo: TipoExperiencia
+  cargo: string
+  institucion: string
+  fecha_inicio: string
+  fecha_fin: string
+  actividades: ActividadExperiencia
+  descripcion: string
+  documento_id: string
+  duracion: Duracion
+}
+
 export interface Domicilio {
   pais_id: number | null
   provincia_id: number | null
@@ -78,6 +105,8 @@ export interface Postulacion {
   familiares: Familiar[]
   referencias: ReferenciaPersonal[]
   formacion: FormacionAcademica[]
+  experiencia: ExperienciaProfesional[]
+  duracion_experiencia_total: Duracion
   cargo: string
   respaldo_organizacion: { nombre: string; documento_id: string | null }
   tiene_publicaciones: boolean
