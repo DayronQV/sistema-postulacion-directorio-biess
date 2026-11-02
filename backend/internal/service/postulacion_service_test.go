@@ -22,6 +22,7 @@ type fakePostulaciones struct {
 	creadas      int
 	anioUsado    int
 	actualizadas int
+	enviadas     int
 }
 
 func (f *fakePostulaciones) CedulaDePostulante(context.Context, string) (string, error) {
@@ -54,6 +55,12 @@ func (f *fakePostulaciones) Actualizar(_ context.Context, _ domain.Tx, _ string,
 
 func (f *fakePostulaciones) Cerrar(context.Context, domain.Tx, string) error {
 	f.p.Estado = domain.EstadoCerrada
+	return nil
+}
+
+func (f *fakePostulaciones) MarcarEnviada(context.Context, domain.Tx, string) error {
+	f.enviadas++
+	f.p.Estado = domain.EstadoEnviada
 	return nil
 }
 

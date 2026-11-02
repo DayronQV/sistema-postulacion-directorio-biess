@@ -24,6 +24,7 @@ type PostulacionService struct {
 	secciones     []domain.SeccionPostulacion
 	catalogos     domain.Catalogos        // opcional: ver ConCatalogos
 	historial     domain.HistorialLaboral // ver ConHistorialLaboral
+	mailer        domain.Mailer           // opcional: ver ConMailer
 	ahora         func() time.Time
 }
 

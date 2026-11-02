@@ -36,7 +36,7 @@ Base: `/api/v1`. JSON en ambos sentidos. Cambiar este archivo requiere una issue
 | --- | --- |
 | `GET /postulacion` | Devuelve la postulación del usuario, incluida la información personal precargada. Si no existe, la crea en estado `borrador`. |
 | `PUT /postulacion` | Guarda el progreso. Persiste en **una transacción**. `422` si la nacionalidad no es ecuatoriana (cierra la postulación). |
-| `POST /postulacion/enviar` | Valida que esté completa y la marca `enviada`. `409` si ya fue enviada. |
+| `POST /postulacion/enviar` | Valida que esté completa, la marca `enviada` (guarda `enviada_at`) y manda el formulario al correo del postulante, en una transacción. Devuelve la postulación. `422` con `fields` por sección incompleta (`domicilio`, `familiares` y `publicaciones` si se respondió Sí sin agregar filas, `cargo`, `formacion`, `experiencia`, `capacitaciones`, `referencias`, `inhabilidades`, `consentimiento`); `409` si ya fue enviada o está cerrada. |
 
 Las secciones con filas (familiares, formación, experiencia, publicaciones, capacitación) se guardan en el mismo `PUT /postulacion` como arreglos; `PUT` reemplaza el estado completo en una transacción. Los PDF se suben aparte y se referencian por `documento_id`:
 

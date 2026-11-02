@@ -18,6 +18,7 @@ import (
 type PostulacionUseCase interface {
 	Obtener(ctx context.Context, postulanteID string) (domain.Postulacion, error)
 	Guardar(ctx context.Context, postulanteID string, f domain.Formulario) (domain.Postulacion, error)
+	Enviar(ctx context.Context, postulanteID string) (domain.Postulacion, error)
 }
 
 // PostulacionHandler atiende las rutas /postulacion. Las rutas pasan por RequireAuth y
@@ -385,6 +386,21 @@ func (h *PostulacionHandler) Guardar(c *gin.Context) {
 		return
 	}
 	p, err := h.postulacion.Guardar(c.Request.Context(), id, req.dominio())
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, respuesta(p))
+}
+
+// Enviar atiende POST /postulacion/enviar: valida que la postulación esté completa, la marca
+// como enviada y manda el formulario al correo del postulante. Devuelve la postulación.
+func (h *PostulacionHandler) Enviar(c *gin.Context) {
+	id, ok := postulanteID(c)
+	if !ok {
+		return
+	}
+	p, err := h.postulacion.Enviar(c.Request.Context(), id)
 	if err != nil {
 		middleware.Fail(c, err)
 		return

@@ -240,3 +240,17 @@ func (r *PostulacionRepo) Cerrar(ctx context.Context, tx domain.Tx, postulacionI
 	}
 	return nil
 }
+
+// MarcarEnviada pasa la postulación a estado "enviada" y guarda la fecha de envío.
+func (r *PostulacionRepo) MarcarEnviada(ctx context.Context, tx domain.Tx, postulacionID string) error {
+	ptx, err := pgxTx(tx)
+	if err != nil {
+		return err
+	}
+	if _, err := ptx.Exec(ctx,
+		`UPDATE postulaciones SET estado = 'enviada', enviada_at = now(), updated_at = now() WHERE id = $1`, postulacionID,
+	); err != nil {
+		return fmt.Errorf("marcando la postulación como enviada: %w", err)
+	}
+	return nil
+}
