@@ -166,6 +166,9 @@ export interface Postulacion {
   // es el estado para el postulante: "Evaluación Técnica" si superó la Fase de Méritos.
   supero_merito?: boolean
   estado_visible?: string
+  // Solo lectura: si hoy se puede guardar y enviar (fase Postulación, EF-13). Fuera del
+  // periodo, PUT y enviar responden 403.
+  periodo_abierto?: boolean
 }
 
 // Lo que se edita y se guarda con PUT /postulacion: todo salvo lo que fija el servidor.

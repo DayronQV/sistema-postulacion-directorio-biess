@@ -160,6 +160,13 @@ export default function FormularioPostulacion() {
         </div>
       </header>
 
+      {postulacion.periodo_abierto === false && (
+        <Alert tipo="warning" titulo="El periodo de postulación no está habilitado">
+          Puede revisar su postulación, pero no guardar cambios ni enviarla hasta que el BIESS
+          habilite el periodo.
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 gap-space-lg lg:grid-cols-[17rem_1fr]">
         {/* Móvil: menú desplegable */}
         <div className="lg:hidden">

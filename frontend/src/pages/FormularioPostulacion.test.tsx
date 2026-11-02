@@ -123,6 +123,24 @@ describe('FormularioPostulacion', () => {
     expect(screen.getByText('Superó la Fase de Méritos')).toBeInTheDocument()
   })
 
+  it('avisa en el borrador cuando el periodo de postulación está cerrado', async () => {
+    obtener.mockResolvedValue({ ...base, periodo_abierto: false })
+    render(<FormularioPostulacion />)
+
+    expect(
+      await screen.findByText('El periodo de postulación no está habilitado'),
+    ).toBeInTheDocument()
+    // Las secciones siguen visibles para revisar la postulación.
+    expect(screen.getByRole('navigation', { name: 'Secciones del formulario' })).toBeInTheDocument()
+  })
+
+  it('con el periodo abierto no muestra el aviso', async () => {
+    obtener.mockResolvedValue({ ...base, periodo_abierto: true })
+    render(<FormularioPostulacion />)
+    await screen.findByText('POST-2026-0001')
+    expect(screen.queryByText('El periodo de postulación no está habilitado')).toBeNull()
+  })
+
   it('navega entre secciones desde el menú', async () => {
     obtener.mockResolvedValue(base)
     render(<FormularioPostulacion />)
