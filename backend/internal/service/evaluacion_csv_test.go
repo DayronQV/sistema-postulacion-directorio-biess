@@ -134,3 +134,31 @@ func TestCrearPreguntasCSV_ArchivosInvalidos(t *testing.T) {
 		})
 	}
 }
+
+func TestCrearPreguntasCSV_ArchivoNoUTF8_400SinGuardar(t *testing.T) {
+	svc, f := nuevoBanco(0)
+	// "¿Capital de Ecuador?" guardado por Excel como CSV en Windows-1252: 0xBF es "¿" y no
+	// es UTF-8 válido. Sin la validación, PostgreSQL rechazaría el INSERT con un 500.
+	archivo := cabeceraCSV + "\xBFCapital de Ecuador?,Guayaquil|Quito|Cuenca,1\n"
+
+	_, err := svc.CrearPreguntasCSV(context.Background(), strings.NewReader(archivo))
+
+	var de *domain.Error
+	if !errors.As(err, &de) || !errors.Is(err, domain.ErrValidation) || !strings.Contains(de.Fields["archivo"], "UTF-8") {
+		t.Fatalf("err = %#v; se esperaba 400 con el campo archivo pidiendo UTF-8", err)
+	}
+	if f.llamadas != 0 {
+		t.Fatal("un archivo que no es UTF-8 no debe llegar al repositorio")
+	}
+}
+
+func TestCrearPreguntasCSV_UTF8ConTildesSeAcepta(t *testing.T) {
+	svc, f := nuevoBanco(0)
+	archivo := "\xEF\xBB\xBF" + cabeceraCSV + "¿Capital de Ecuador?,Guayaquil|Quito|Cuenca,1\n"
+
+	n, err := svc.CrearPreguntasCSV(context.Background(), strings.NewReader(archivo))
+
+	if err != nil || n != 1 || f.preguntas[0].Enunciado != "¿Capital de Ecuador?" {
+		t.Fatalf("creadas = %d, err = %v, preguntas = %+v", n, err, f.preguntas)
+	}
+}

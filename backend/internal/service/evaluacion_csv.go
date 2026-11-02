@@ -8,6 +8,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
@@ -44,6 +45,13 @@ func leerPreguntasCSV(r io.Reader, rep *reporte) []filaPregunta {
 	contenido = bytes.TrimPrefix(contenido, []byte("\xEF\xBB\xBF"))
 	if len(bytes.TrimSpace(contenido)) == 0 {
 		rep.agregar("archivo", "El archivo está vacío")
+		return nil
+	}
+	// Excel guarda "CSV (delimitado por comas)" en Windows-1252: los caracteres del español
+	// (¿, á, ñ) no son UTF-8 válido, PostgreSQL rechaza el INSERT y la carga terminaría en 500.
+	// Se responde 400 con la indicación de cómo guardarlo.
+	if !utf8.Valid(contenido) {
+		rep.agregar("archivo", "El archivo debe estar en UTF-8. En Excel use Guardar como → CSV UTF-8 (delimitado por comas)")
 		return nil
 	}
 
