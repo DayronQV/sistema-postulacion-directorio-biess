@@ -118,6 +118,8 @@ type Postulacion struct {
 	ActualizadaEn    time.Time
 	EnviadaEn        *time.Time
 	SuperoMerito     bool // lo marca el administrador (EF-13); habilita la evaluación (EF-14)
+	// PeriodoAbierto no se guarda: lo calcula el servicio con la fase Postulación (EF-13).
+	PeriodoAbierto bool
 }
 
 // Tx representa una transacción abierta. Es opaca para el dominio y el servicio: solo
