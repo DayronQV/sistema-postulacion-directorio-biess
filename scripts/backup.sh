@@ -15,6 +15,11 @@
 #   gunzip -c biess-AAAAmmdd-HHMMSS.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 set -euo pipefail
 
+# Los respaldos tienen datos personales (cédulas, correos y los PDF de los postulantes):
+# la carpeta y cada archivo se crean solo para el dueño desde el principio, no recién al
+# terminar. Sin esto, el archivo parcial y la carpeta nacen legibles por otros usuarios.
+umask 077
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/backups/biess}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-7}"
