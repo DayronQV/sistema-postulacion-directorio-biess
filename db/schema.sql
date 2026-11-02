@@ -177,8 +177,21 @@ CREATE TABLE fases (
     nombre      TEXT NOT NULL UNIQUE,
     orden       SMALLINT NOT NULL UNIQUE,
     publicada   BOOLEAN NOT NULL DEFAULT FALSE,
-    habilita_formulario BOOLEAN NOT NULL DEFAULT FALSE
+    habilita_formulario BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Periodo de la fase (opcional: sin fecha no hay límite por ese lado). Para la fase
+    -- Postulación es el periodo en que se puede crear, guardar y enviar la postulación.
+    fecha_inicio TIMESTAMPTZ,
+    fecha_fin    TIMESTAMPTZ,
+    CHECK (fecha_inicio IS NULL OR fecha_fin IS NULL OR fecha_fin >= fecha_inicio)
 );
+
+-- Fases del concurso. Postulación arranca publicada y con el formulario habilitado, sin
+-- fechas, para que el sistema funcione al levantarlo; el administrador fija el periodo real
+-- desde el panel (/admin/fases).
+INSERT INTO fases (nombre, orden, publicada, habilita_formulario) VALUES
+    ('Postulación', 1, TRUE, TRUE),
+    ('Méritos', 2, FALSE, FALSE),
+    ('Evaluación', 3, FALSE, FALSE);
 
 CREATE TABLE eval_config (
     id                SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
