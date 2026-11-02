@@ -196,3 +196,10 @@ export async function validarCargo(cargo: TipoCargo): Promise<ResultadoCargo> {
   const { data } = await http.post<ResultadoCargo>('/postulacion/cargo/validar', { cargo })
   return data
 }
+
+// POST /postulacion/enviar: valida que esté completa, la marca "enviada" y manda el formulario
+// al correo del postulante. 422 con `fields` por sección incompleta; 409 si ya fue enviada.
+export async function enviarPostulacion(): Promise<Postulacion> {
+  const { data } = await http.post<Postulacion>('/postulacion/enviar')
+  return data
+}

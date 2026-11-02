@@ -202,6 +202,10 @@ export default function FormularioPostulacion() {
             guardando={guardando}
             onGuardar={(cambios) => guardarSeccion(actual.id, cambios)}
             onCambios={(c) => marcarCambios(actual.id, c)}
+            incompletas={SECCIONES.filter(
+              (s) => s.id !== 'cierre' && !s.estaCompleta(postulacion),
+            ).map(({ id, titulo }) => ({ id, titulo }))}
+            onIrA={irA}
           />
         </div>
       </div>

@@ -11,6 +11,9 @@ export interface PropsSeccion {
   onGuardar: (cambios: Partial<DatosPostulacion>) => Promise<boolean>
   // Avisa al contenedor si la sección tiene cambios sin guardar.
   onCambios: (conCambios: boolean) => void
+  // Solo las usa el cierre: las demás secciones que siguen incompletas y cómo ir a una.
+  incompletas?: { id: string; titulo: string }[]
+  onIrA?: (id: string) => void
 }
 
 export interface DefSeccion {

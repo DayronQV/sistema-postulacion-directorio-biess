@@ -1,6 +1,7 @@
 import { inhabilidadesCompletas } from '../inhabilidades'
 import CapacitacionSeccion from './CapacitacionSeccion'
 import CargoSeccion from './CargoSeccion'
+import Cierre from './Cierre'
 import DomicilioSeccion from './DomicilioSeccion'
 import ExperienciaSeccion from './ExperienciaSeccion'
 import FamiliaresSeccion from './FamiliaresSeccion'
@@ -9,7 +10,6 @@ import Inhabilidades from './Inhabilidades'
 import InformacionPersonalSeccion from './InformacionPersonalSeccion'
 import PublicacionesSeccion from './PublicacionesSeccion'
 import ReferenciasSeccion from './ReferenciasSeccion'
-import SeccionPendiente from './SeccionPendiente'
 import type { DefSeccion } from './tipos'
 
 // Registro de secciones en el orden del requerimiento (docs/especificacion.md, EF-12).
@@ -89,7 +89,7 @@ export const SECCIONES: DefSeccion[] = [
     id: 'cierre',
     titulo: 'Cierre',
     icono: 'draw',
-    Componente: SeccionPendiente,
+    Componente: Cierre,
     estaCompleta: (p) => p.consentimiento === true,
   },
 ]

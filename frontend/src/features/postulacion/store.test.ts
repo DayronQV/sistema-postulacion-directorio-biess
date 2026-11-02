@@ -3,6 +3,7 @@ import { ApiError } from '@/services/errores'
 import * as servicio from '@/services/postulacion'
 import {
   cargarPostulacion,
+  enviarFormulario,
   guardarSeccion,
   marcarCambios,
   reiniciarFormulario,
@@ -13,6 +14,7 @@ import { renderHook } from '@testing-library/react'
 vi.mock('@/services/postulacion')
 const obtener = vi.mocked(servicio.obtenerPostulacion)
 const guardar = vi.mocked(servicio.guardarPostulacion)
+const enviar = vi.mocked(servicio.enviarPostulacion)
 
 // Postulación mínima válida para los tipos; cada prueba cambia lo que le interesa.
 function post(parcial: Partial<servicio.Postulacion> = {}): servicio.Postulacion {
@@ -27,6 +29,7 @@ beforeEach(() => {
   reiniciarFormulario()
   obtener.mockReset()
   guardar.mockReset()
+  enviar.mockReset()
 })
 
 describe('store de la postulación', () => {
@@ -65,5 +68,35 @@ describe('store de la postulación', () => {
     expect(estado().errorGuardado?.message).toBe('Cargo no elegible')
     expect(estado().seccionesConCambios).toEqual(['cargo'])
     expect(estado().postulacion).not.toHaveProperty('cargo')
+  })
+
+  it('enviar deja la postulación en estado enviada y limpia los cambios pendientes', async () => {
+    obtener.mockResolvedValue(post({ cargo: 'afiliados' }))
+    await cargarPostulacion()
+    enviar.mockResolvedValue(post({ cargo: 'afiliados', estado: 'enviada' }))
+    marcarCambios('cierre', true)
+
+    const error = await enviarFormulario()
+
+    expect(error).toBeNull()
+    expect(estado().postulacion).toMatchObject({ estado: 'enviada', cargo: 'afiliados' })
+    expect(estado().seccionesConCambios).toEqual([])
+    expect(estado().guardando).toBe(false)
+  })
+
+  it('si el envío falla devuelve el error y la postulación sigue en borrador', async () => {
+    obtener.mockResolvedValue(post())
+    await cargarPostulacion()
+    enviar.mockRejectedValue(
+      new ApiError(422, 'VALIDATION_ERROR', 'La postulación está incompleta', {
+        cargo: 'Seleccione el cargo',
+      }),
+    )
+
+    const error = await enviarFormulario()
+
+    expect(error?.fields).toEqual({ cargo: 'Seleccione el cargo' })
+    expect(estado().postulacion?.estado).toBe('borrador')
+    expect(estado().guardando).toBe(false)
   })
 })
