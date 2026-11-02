@@ -75,3 +75,14 @@ export function erroresDeCargo(e: EntradaCargo): ErroresCargo {
   }
   return errores
 }
+
+// Nombre legible de un campo del error 400 del servidor (docs/api.md, `fields`).
+const ETIQUETA_CAMPO: Record<string, string> = {
+  cargo: 'Cargo',
+  'respaldo_organizacion.nombre': 'Nombre de la organización',
+  'respaldo_organizacion.documento_id': 'Documento de respaldo',
+}
+
+export function etiquetaCampoCargo(campo: string): string {
+  return ETIQUETA_CAMPO[campo] ?? campo
+}

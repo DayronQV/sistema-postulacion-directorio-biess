@@ -37,3 +37,9 @@ con Vitest y Testing Library.
 ## Revisión humana
 - Qué se verificó y cómo (pruebas, ejecución): `go vet`, `go build`, `go test` y `go test -race` en verde con PostgreSQL 16 y Redis 7 reales (504 pruebas y subpruebas, 0 saltadas). En el frontend, `npm run lint`, `npm test` y `npm run build`. Recorrido real contra la API con las cédulas de prueba: cada una pasa en su cargo, se bloquea en uno que no le corresponde (422 con el mensaje literal y estado cerrada) y 1709876542 se bloquea en los tres cargos por el `PUT` y por la validación.
 - Qué se corrigió: varias pruebas de integración existentes guardaban `jubilados` o `empleador` con la cédula afiliada; ahora usan un cargo elegible para esa cédula, porque el servidor ya valida el cargo.
+
+## Actualización: sincronización con develop y ajustes de la revisión
+- Se integró `develop` (se habían mergeado la formación académica y la sesión del frontend). El conflicto estaba en `Guardar` y `validarFormularioEn` de `postulacion_service.go`: se conservaron `limpiarFormacion` y `validarFormacion` junto a `limpiarRespaldo` y `validarRespaldo`, y el bloque del cargo ahora valida con `validarFormularioEn(f, s.ahora())`. Se agregó `formacion: []` al fixture de `CargoSeccion.test.tsx`, que rompía `tsc -b`.
+- El error del guardado muestra el nombre legible de cada campo en lugar de la clave técnica. Al responder "No", el PDF ya subido se borra con `DELETE /postulacion/documentos/:id` (y el que tenía guardada la postulación, tras guardar el "No"); un 409 se ignora. Con sus pruebas.
+- Verificado de nuevo con PostgreSQL y Redis reales: `go vet`, `go build`, `go test` y `go test -race` en verde (513 pruebas y subpruebas, 0 saltadas); `lint`, `build` y `npm test` (339) en verde.
+

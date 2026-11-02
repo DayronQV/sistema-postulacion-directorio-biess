@@ -1,3 +1,4 @@
+import { marcarPostulacionCreada } from '@/store/sesion'
 import { http } from './http'
 
 // Llamadas de la postulación (docs/api.md, sección Postulación).
@@ -21,6 +22,22 @@ export interface ReferenciaPersonal {
   relacion: string
   telefono: string
   correo: string
+}
+
+export type NivelFormacion = 'tercer_nivel' | 'especialidad' | 'maestria' | 'phd'
+export type TipoInstitucion = 'nacional' | 'extranjera'
+export type AreaFormacion =
+  'finanzas' | 'mercado_capitales' | 'administracion_empresas' | 'economia' | 'derecho' | 'afines'
+
+export interface FormacionAcademica {
+  nivel: NivelFormacion
+  institucion: string
+  tipo: TipoInstitucion
+  titulo: string
+  area: AreaFormacion
+  senescyt_numero: string
+  senescyt_fecha: string
+  documento_id: string
 }
 
 export interface Domicilio {
@@ -70,6 +87,7 @@ export interface Postulacion {
   tiene_familiares: boolean
   familiares: Familiar[]
   referencias: ReferenciaPersonal[]
+  formacion: FormacionAcademica[]
   cargo: string
   respaldo_organizacion: { nombre: string; documento_id: string | null }
   tiene_publicaciones: boolean
@@ -78,8 +96,10 @@ export interface Postulacion {
 }
 
 // GET /postulacion: la postulación del usuario (el servidor la crea en borrador la primera vez).
+// Con la postulación ya creada se levanta la restricción del primer ingreso (EF-11).
 export async function obtenerPostulacion(): Promise<Postulacion> {
   const { data } = await http.get<Postulacion>('/postulacion')
+  marcarPostulacionCreada()
   return data
 }
 

@@ -63,6 +63,7 @@ function postulacion(sobre: Partial<Postulacion> = {}): Postulacion {
     referencias: [
       { nombres_apellidos: 'Rosa', relacion: 'Colega', telefono: '0988888888', correo: 'r@c.com' },
     ],
+    formacion: [],
     cargo: '',
     respaldo_organizacion: { nombre: '', documento_id: null },
     tiene_publicaciones: false,

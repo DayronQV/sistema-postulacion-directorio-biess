@@ -15,6 +15,11 @@ interface DocumentoUploadProps {
   valor: DocumentoSubido | null
   onChange: (documento: DocumentoSubido | null) => void
   etiqueta?: string
+  // true (por defecto): Quitar borra el PDF en el servidor y Reemplazar borra el anterior.
+  // false: solo cambia el valor; lo usan las secciones con filas, cuyo PDF puede seguir
+  // referenciado por la versión guardada (el servidor respondería 409) y que limpian los
+  // huérfanos después de guardar.
+  eliminarEnServidor?: boolean
 }
 
 // Une el selector visual con la API. Las secciones solo conservan documento_id y
@@ -25,6 +30,7 @@ export default function DocumentoUpload({
   valor,
   onChange,
   etiqueta,
+  eliminarEnServidor = true,
 }: DocumentoUploadProps) {
   // Subida/eliminación y descarga se cancelan por separado: descargar no debe perder la
   // referencia a una subida en curso.
@@ -57,7 +63,7 @@ export default function DocumentoUpload({
       setEstado('exito')
       // Al reemplazar, el PDF anterior quedaría huérfano y seguiría sumando a los 50 MB.
       // Si una sección guardada todavía lo usa, el servidor responde 409 y se conserva.
-      if (anterior && anterior.documento_id !== documento.documento_id) {
+      if (eliminarEnServidor && anterior && anterior.documento_id !== documento.documento_id) {
         eliminarDocumento(actual.signal, anterior.documento_id).catch(() => undefined)
       }
     } catch (fallo) {
@@ -97,6 +103,12 @@ export default function DocumentoUpload({
 
   async function quitar() {
     if (!valor) return
+    if (!eliminarEnServidor) {
+      setError(undefined)
+      onChange(null)
+      setEstado('inactivo')
+      return
+    }
     control.current?.abort()
     const actual = new AbortController()
     control.current = actual

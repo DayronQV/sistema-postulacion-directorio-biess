@@ -5,6 +5,7 @@ import {
   MSG_CARGO_VALIDO,
   PREGUNTA_RESPALDO,
   erroresDeCargo,
+  etiquetaCampoCargo,
   esCargo,
 } from './reglasCargo'
 
@@ -84,5 +85,14 @@ describe('erroresDeCargo', () => {
     expect(
       erroresDeCargo({ ...base, tieneRespaldo: true, nombre: largo, tieneDocumento: true }).nombre,
     ).toMatch(/Máximo/)
+  })
+})
+
+describe('etiquetaCampoCargo', () => {
+  it('traduce las claves del servidor a un texto legible', () => {
+    expect(etiquetaCampoCargo('respaldo_organizacion.nombre')).toBe('Nombre de la organización')
+    expect(etiquetaCampoCargo('respaldo_organizacion.documento_id')).toBe('Documento de respaldo')
+    expect(etiquetaCampoCargo('cargo')).toBe('Cargo')
+    expect(etiquetaCampoCargo('otro.campo')).toBe('otro.campo')
   })
 })

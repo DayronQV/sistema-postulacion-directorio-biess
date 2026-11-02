@@ -113,6 +113,7 @@ func personalDe(c domain.Ciudadano) domain.InformacionPersonal {
 func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f domain.Formulario) (domain.Postulacion, error) {
 	f.Familiares = limpiarFamiliares(f.Familiares)
 	f.Referencias = limpiarReferencias(f.Referencias)
+	f.Formacion = limpiarFormacion(f.Formacion)
 	f.RespaldoOrganizacion = limpiarRespaldo(f.RespaldoOrganizacion)
 	actual, err := s.asegurar(ctx, postulanteID)
 	if err != nil {
@@ -134,7 +135,7 @@ func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f
 			}
 		}
 		if motivoCierre == "" {
-			if err := validarFormulario(f); err != nil {
+			if err := validarFormularioEn(f, s.ahora()); err != nil {
 				return domain.Postulacion{}, err
 			}
 			if err := s.validarGeografia(ctx, f.Domicilio); err != nil {
@@ -181,6 +182,10 @@ func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f
 // validarFormulario aplica las reglas del servidor sobre los campos de la propia
 // postulación. La validación de cada sección con filas la hace su propio código.
 func validarFormulario(f domain.Formulario) error {
+	return validarFormularioEn(f, time.Now())
+}
+
+func validarFormularioEn(f domain.Formulario, ahora time.Time) error {
 	fields := map[string]string{}
 	validarDomicilioFormato(f.Domicilio, fields)
 	if f.Cargo != "" && !domain.CargoValido(f.Cargo) {
@@ -188,6 +193,7 @@ func validarFormulario(f domain.Formulario) error {
 	}
 	validarFamiliares(f, fields)
 	validarReferencias(f, fields)
+	validarFormacion(f.Formacion, ahora, fields)
 	validarRespaldo(f, fields)
 	if len(fields) > 0 {
 		return domain.Validation("Datos inválidos", fields)

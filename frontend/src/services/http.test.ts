@@ -1,5 +1,5 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
-import { cerrarSesion, iniciarSesion, obtenerToken } from '@/store/sesion'
+import { cerrarSesion, iniciarSesion, obtenerToken, sesionExpirada } from '@/store/sesion'
 import { ApiError } from './errores'
 import { http } from './http'
 
@@ -67,13 +67,14 @@ describe('cliente http', () => {
     expect(error.fields).toEqual({ email: 'inválido' })
   })
 
-  it('cierra la sesión ante un 401 con token', async () => {
+  it('cierra la sesión como expirada ante un 401 con token', async () => {
     iniciarSesion('vencido', 600)
     http.defaults.adapter = simular(401, {
       error: { code: 'UNAUTHORIZED', message: 'Sesión vencida' },
     })
     await http.get('/postulacion').catch(() => undefined)
     expect(obtenerToken()).toBeNull()
+    expect(sesionExpirada()).toBe(true)
   })
 
   it('un 401 sin sesión (credenciales malas) no hace nada más', async () => {

@@ -7,7 +7,7 @@ import Input from '@/components/ui/Input'
 import RadioSiNo from '@/components/ui/RadioSiNo'
 import Spinner from '@/components/ui/Spinner'
 import { ApiError } from '@/services/errores'
-import type { DocumentoSubido } from '@/services/documentos'
+import { eliminarDocumento, type DocumentoSubido } from '@/services/documentos'
 import type { ResultadoCargo, TipoCargo } from '@/services/postulacion'
 import {
   CARGOS,
@@ -17,6 +17,7 @@ import {
   MSG_CARGO_VALIDO,
   PREGUNTA_RESPALDO,
   erroresDeCargo,
+  etiquetaCampoCargo,
   type ErroresCargo,
 } from '../reglasCargo'
 
@@ -141,6 +142,9 @@ export default function Cargo({ valoresIniciales, onValidar, onGuardar }: CargoP
             : { nombre: '', documento_id: null },
       })
       setGuardado(true)
+      // Ya guardado el "No", el PDF que tenía la postulación deja de estar referenciado.
+      const guardadoAntes = inicial.respaldo_organizacion.documento_id
+      if (!tieneRespaldo && guardadoAntes) borrarDocumento(guardadoAntes)
     } catch (e) {
       setErrorGuardar(
         e instanceof ApiError
@@ -150,6 +154,13 @@ export default function Cargo({ valoresIniciales, onValidar, onGuardar }: CargoP
     } finally {
       setGuardando(false)
     }
+  }
+
+  // Al responder "No" el PDF ya subido deja de hacer falta: se borra para que no cuente en el
+  // límite de 50 MB. Si el servidor todavía lo usa (el respaldo guardado), responde 409 y se
+  // conserva hasta que se guarde el "No".
+  function borrarDocumento(documentoId: string) {
+    eliminarDocumento(new AbortController().signal, documentoId).catch(() => undefined)
   }
 
   const camposServidor = errorGuardar?.fields ? Object.entries(errorGuardar.fields) : []
@@ -228,6 +239,10 @@ export default function Cargo({ valoresIniciales, onValidar, onGuardar }: CargoP
               valor={tieneRespaldo}
               onChange={(valor) => {
                 setTieneRespaldo(valor)
+                if (!valor && documento) {
+                  borrarDocumento(documento.documento_id)
+                  setDocumento(null)
+                }
                 setErrores((actual) => ({ ...actual, respaldo: undefined }))
                 setGuardado(false)
               }}
@@ -293,7 +308,7 @@ export default function Cargo({ valoresIniciales, onValidar, onGuardar }: CargoP
             <ul className="list-disc pl-4">
               {camposServidor.map(([campo, mensaje]) => (
                 <li key={campo}>
-                  {campo}: {mensaje}
+                  {etiquetaCampoCargo(campo)}: {mensaje}
                 </li>
               ))}
             </ul>

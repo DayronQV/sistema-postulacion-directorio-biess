@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, type Mock } from 'vitest'
-import { subirDocumento } from '@/services/documentos'
+import { eliminarDocumento, subirDocumento } from '@/services/documentos'
 import { ApiError } from '@/services/errores'
 import type { ResultadoCargo, TipoCargo } from '@/services/postulacion'
 import { ETIQUETA_CARGO, MSG_CARGO_VALIDO, PREGUNTA_RESPALDO } from '../reglasCargo'
@@ -14,6 +14,7 @@ vi.mock('@/services/documentos', () => ({
 }))
 
 const mockSubir = subirDocumento as Mock
+const mockEliminar = eliminarDocumento as Mock
 
 const sinNada: CargoInicial = {
   cargo: '',
@@ -43,6 +44,8 @@ function elegirPdf() {
 
 beforeEach(() => {
   mockSubir.mockReset()
+  mockEliminar.mockReset()
+  mockEliminar.mockResolvedValue(undefined)
 })
 
 describe('<Cargo />', () => {
@@ -273,11 +276,56 @@ describe('<Cargo />', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Guardar Postulación' }))
 
     expect(await screen.findByText('Datos inválidos')).toBeInTheDocument()
-    expect(
-      screen.getByText('respaldo_organizacion.documento_id: Referencia no válida'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Documento de respaldo: Referencia no válida')).toBeInTheDocument()
     expect(screen.queryByText('La postulación se guardó correctamente.')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Guardar Postulación' })).toBeEnabled()
+  })
+
+  it('al cambiar a No borra el PDF recién subido para que no quede huérfano', async () => {
+    mockSubir.mockResolvedValue({ documento_id: 'doc-1', nombre: 'respaldo.pdf', tamano_bytes: 4 })
+    montar()
+    await userEvent.click(opcion('afiliados'))
+    await screen.findByText('Postulante afiliado al IESS')
+    await userEvent.click(screen.getByRole('radio', { name: 'Sí' }))
+    await elegirPdf()
+    await screen.findByText('respaldo.pdf')
+
+    await userEvent.click(screen.getByRole('radio', { name: 'No' }))
+
+    expect(mockEliminar).toHaveBeenCalledWith(expect.any(AbortSignal), 'doc-1')
+    await userEvent.click(screen.getByRole('radio', { name: 'Sí' }))
+    expect(screen.queryByText('respaldo.pdf')).not.toBeInTheDocument()
+  })
+
+  it('si el servidor aún usa el PDF (409) el cambio a No no muestra error', async () => {
+    mockEliminar.mockRejectedValue(new ApiError(409, 'CONFLICT', 'En uso'))
+    montar({
+      valoresIniciales: {
+        cargo: 'afiliados',
+        respaldo_organizacion: { nombre: 'Federación', documento_id: 'doc-7' },
+      },
+    })
+
+    await userEvent.click(screen.getByRole('radio', { name: 'No' }))
+
+    await waitFor(() => expect(mockEliminar).toHaveBeenCalledWith(expect.any(AbortSignal), 'doc-7'))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('al guardar el No borra el PDF que tenía guardada la postulación', async () => {
+    const { onGuardar } = montar({
+      valoresIniciales: {
+        cargo: 'afiliados',
+        respaldo_organizacion: { nombre: 'Federación', documento_id: 'doc-7' },
+      },
+    })
+    await userEvent.click(screen.getByRole('radio', { name: 'No' }))
+    mockEliminar.mockClear()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar Postulación' }))
+
+    await waitFor(() => expect(onGuardar).toHaveBeenCalled())
+    await waitFor(() => expect(mockEliminar).toHaveBeenCalledWith(expect.any(AbortSignal), 'doc-7'))
   })
 
   it('muestra un mensaje genérico si el guardado falla sin respuesta del servidor', async () => {

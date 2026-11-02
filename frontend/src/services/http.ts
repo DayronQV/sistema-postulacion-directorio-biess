@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios'
 import { env } from '@/config/env'
-import { cerrarSesion, obtenerToken } from '@/store/sesion'
+import { expirarSesion, obtenerToken } from '@/store/sesion'
 import { ApiError } from './errores'
 
 interface CuerpoError {
@@ -43,7 +43,7 @@ http.interceptors.response.use(
       throw new ApiError(0, 'NETWORK_ERROR', 'No se pudo conectar con el servidor.')
     }
     const { status, data } = fallo.response
-    if (status === 401 && obtenerToken()) cerrarSesion()
+    if (status === 401 && obtenerToken()) expirarSesion()
     const cuerpo = (await leerCuerpo(data))?.error
     throw new ApiError(
       status,
