@@ -1,3 +1,4 @@
+import { marcarPostulacionCreada } from '@/store/sesion'
 import { http } from './http'
 
 // Llamadas de la postulación (docs/api.md, sección Postulación).
@@ -85,8 +86,10 @@ export interface Postulacion {
 }
 
 // GET /postulacion: la postulación del usuario (el servidor la crea en borrador la primera vez).
+// Con la postulación ya creada se levanta la restricción del primer ingreso (EF-11).
 export async function obtenerPostulacion(): Promise<Postulacion> {
   const { data } = await http.get<Postulacion>('/postulacion')
+  marcarPostulacionCreada()
   return data
 }
 

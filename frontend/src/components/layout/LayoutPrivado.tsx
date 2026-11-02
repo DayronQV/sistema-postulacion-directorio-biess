@@ -43,7 +43,7 @@ export default function LayoutPrivado({
             {rol && <Badge>{nombreRol[rol]}</Badge>}
             <button
               type="button"
-              onClick={onCerrarSesion}
+              onClick={() => onCerrarSesion()}
               className="inline-flex items-center gap-1.5 rounded-lg px-space-md py-space-xs text-label-md text-error hover:bg-error-container hover:text-on-error-container focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
             >
               <Icon nombre="logout" className="text-[18px]" />
