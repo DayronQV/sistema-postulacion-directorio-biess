@@ -55,6 +55,18 @@ describe('Login del panel de administración', () => {
     expect(screen.getByText('Acceso de administrador')).toBeInTheDocument()
   })
 
+  it('no envía un usuario de más de 50 caracteres', async () => {
+    const user = userEvent.setup()
+    renderEn('/admin/login')
+    await user.click(screen.getByLabelText(/^Usuario/))
+    await user.paste('a'.repeat(51))
+    await user.type(screen.getByLabelText(/^Contraseña/), 'Admin2026')
+    await user.click(screen.getByRole('button', { name: /Ingresar al panel/ }))
+
+    expect(await screen.findByText('Máximo 50 caracteres')).toBeInTheDocument()
+    expect(mockLogin).not.toHaveBeenCalled()
+  })
+
   it('muestra el mensaje de credenciales incorrectas', async () => {
     mockLogin.mockRejectedValue(
       new ApiError(401, 'UNAUTHORIZED', 'sus credenciales de ingreso son incorrectas'),

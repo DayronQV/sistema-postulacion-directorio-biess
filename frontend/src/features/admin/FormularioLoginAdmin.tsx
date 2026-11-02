@@ -22,7 +22,7 @@ import { ApiError } from '@/services/errores'
 const MSG_BLOQUEO = 'Cuenta bloqueada por intentos fallidos, inténtelo nuevamente en 10 minutos'
 
 const esquema = z.object({
-  usuario: z.string().trim().min(1, 'Ingrese su usuario'),
+  usuario: z.string().trim().min(1, 'Ingrese su usuario').max(50, 'Máximo 50 caracteres'),
   password: z.string().min(1, 'Ingrese su contraseña'),
 })
 type Valores = z.infer<typeof esquema>
