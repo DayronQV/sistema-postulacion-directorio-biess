@@ -105,6 +105,24 @@ describe('FormularioPostulacion', () => {
     expect(screen.queryByRole('button', { name: 'Guardar Postulación' })).toBeNull()
   })
 
+  it('si superó la Fase de Méritos muestra el estado Evaluación Técnica', async () => {
+    obtener.mockResolvedValue({
+      ...base,
+      estado: 'enviada',
+      consentimiento: true,
+      supero_merito: true,
+      estado_visible: 'Evaluación Técnica',
+    })
+    render(
+      <MemoryRouter>
+        <FormularioPostulacion />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Evaluación Técnica')).toBeInTheDocument()
+    expect(screen.getByText('Superó la Fase de Méritos')).toBeInTheDocument()
+  })
+
   it('navega entre secciones desde el menú', async () => {
     obtener.mockResolvedValue(base)
     render(<FormularioPostulacion />)

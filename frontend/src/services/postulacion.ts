@@ -162,6 +162,10 @@ export interface Postulacion {
   // Lo calcula el servidor a partir de las respuestas de Inhabilidades.
   inhabilidades?: Inhabilidades
   elegible?: boolean
+  // Solo lectura: los marca el administrador en la Fase de Méritos (EF-13). estado_visible
+  // es el estado para el postulante: "Evaluación Técnica" si superó la Fase de Méritos.
+  supero_merito?: boolean
+  estado_visible?: string
 }
 
 // Lo que se edita y se guarda con PUT /postulacion: todo salvo lo que fija el servidor.
