@@ -99,8 +99,8 @@ export default function FormularioPostulacion() {
         </div>
         {postulacion.supero_merito && (
           <Alert tipo="success" titulo="Superó la Fase de Méritos">
-            Su postulación pasó a Evaluación Técnica. Recibirá la fecha y hora de la evaluación
-            teórica.
+            Su postulación pasó a Evaluación Técnica. Se le comunicará cómo continuar con la
+            evaluación teórica.
           </Alert>
         )}
         <Confirmacion
