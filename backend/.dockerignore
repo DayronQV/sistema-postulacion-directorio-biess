@@ -1,0 +1,19 @@
+# Secretos y entorno
+.env
+.env.*
+!.env.example
+
+# Compilados y pruebas
+bin/
+*.exe
+*.test
+*.out
+coverage/
+
+# Repositorio y editor
+.git
+.gitignore
+.vscode/
+.idea/
+Dockerfile
+.dockerignore
