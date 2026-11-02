@@ -19,5 +19,10 @@ func adminRoutes(c *container) apihttp.RouteRegistrar {
 		redisrepo.NewIntentos(c.redis, "admin"),
 		c.tokens,
 	)
-	return apihttp.AdminRoutes(handler.NewAdminAuthHandler(login), c.tokens)
+	meritos := handler.NewAdminPostulacionHandler(
+		service.NewAdminPostulacionService(postgres.NewPostulacionRepo(c.db)),
+	)
+	return apihttp.AdminRoutes(handler.NewAdminAuthHandler(login), c.tokens,
+		meritos.Rutas,
+	)
 }

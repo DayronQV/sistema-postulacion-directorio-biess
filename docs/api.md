@@ -90,6 +90,8 @@ Forma de `PUT /postulacion`:
 
 **Inhabilidades.** `inhabilidades` lleva las claves `"1"` a `"13"` con `true` (Sí) o `false` (No); una pregunta sin responder no aparece, así el borrador puede guardarse a medias (las 13 son obligatorias al enviar). Si la `7` es `true`, `removido_detalle` exige `institucion` y `motivo` (`cargo` y `fecha_fin` son opcionales; `fecha_fin` en `AAAA-MM-DD`) y, si no, se descarta; con error `400` y `fields` como `inhabilidades.removido_detalle.motivo`. La respuesta incluye `elegible` (solo lectura, `PUT` lo ignora): `true` solo cuando las 13 están respondidas, la `1` es Sí y de la `2` a la `13` son No. Se guarda en la columna `postulaciones.elegible` y no descalifica automáticamente: la revisión la hace el analista (EF-13).
 
+**Fase de Méritos.** La respuesta incluye `supero_merito` (lo marca el administrador con `PUT /admin/postulaciones/{id}/merito`) y `estado_visible`, el estado que ve el postulante: `Borrador`, `Enviada`, `Cerrada` o `Evaluación Técnica` (enviada y con la Fase de Méritos superada). Ambos son de solo lectura: `PUT` los ignora.
+
 ## Administración (requiere rol `analista` o `administrador`)
 | Método y ruta | Descripción |
 | --- | --- |
@@ -101,7 +103,7 @@ Forma de `PUT /postulacion`:
 | `GET /admin/postulaciones/{id}` | Formulario íntegro, con duración de experiencias |
 | `GET /admin/postulaciones/{id}/documentos/{docId}` | Descarga de certificados |
 | `GET /admin/matriz?formato=xlsx\|pdf` | Cuadro comparativo de postulantes |
-| `PUT /admin/postulaciones/{id}/merito` | Marca si superó la Fase de Méritos |
+| `PUT /admin/postulaciones/{id}/merito` | `{ supero: bool }` → `{ id, supero_merito, estado_visible }`. Marca si superó la Fase de Méritos. Solo `administrador` (`403` para el analista) y solo postulaciones `enviada` (`409` si no; `404` si no existe). |
 
 ## Evaluación teórica
 | Método y ruta | Rol | Descripción |

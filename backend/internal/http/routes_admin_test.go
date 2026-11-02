@@ -124,3 +124,88 @@ func TestAdminSesion_DevuelveUsuarioYRol(t *testing.T) {
 		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
 	}
 }
+
+type fakeMerito struct {
+	id     string
+	supero bool
+	err    error
+}
+
+func (f *fakeMerito) MarcarMerito(_ context.Context, id string, supero bool) (service.ResultadoMerito, error) {
+	f.id, f.supero = id, supero
+	if f.err != nil {
+		return service.ResultadoMerito{}, f.err
+	}
+	return service.ResultadoMerito{ID: id, SuperoMerito: supero, EstadoVisible: domain.EstadoVisible(domain.EstadoEnviada, supero)}, nil
+}
+
+func newMeritoRouter(m *fakeMerito) *gin.Engine {
+	h := handler.NewAdminPostulacionHandler(m)
+	return apihttp.NewRouter(apihttp.Deps{
+		Config: config.Config{RequestTimeout: time.Second},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Health: handler.NewHealthHandler(),
+		Modules: []apihttp.RouteRegistrar{
+			apihttp.AdminRoutes(handler.NewAdminAuthHandler(&fakeAdminLogin{}), emisorPrueba, h.Rutas),
+		},
+	})
+}
+
+const rutaMerito = "/api/v1/admin/postulaciones/11111111-2222-3333-4444-555555555555/merito"
+
+// Criterio de la issue #38: solo el administrador puede marcar el mérito.
+func TestMerito_SoloElAdministrador(t *testing.T) {
+	casos := []struct {
+		nombre string
+		rol    domain.Rol
+		want   int
+	}{
+		{"sin token", "", 401},
+		{"postulante", domain.RolPostulante, 403},
+		{"analista (solo lectura)", domain.RolAnalista, 403},
+		{"administrador", domain.RolAdministrador, 200},
+	}
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			m := &fakeMerito{}
+			token := ""
+			if c.rol != "" {
+				token = tokenParaRol(t, c.rol)
+			}
+			w := pedirAdmin(newMeritoRouter(m), "PUT", rutaMerito, token, `{"supero":true}`)
+			if w.Code != c.want {
+				t.Fatalf("respuesta = %d, se esperaba %d: %s", w.Code, c.want, w.Body.String())
+			}
+			if c.want == 200 && (m.id != "11111111-2222-3333-4444-555555555555" || !m.supero ||
+				!strings.Contains(w.Body.String(), `"estado_visible":"Evaluación Técnica"`)) {
+				t.Fatalf("id = %q, supero = %v, cuerpo = %s", m.id, m.supero, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestMerito_ExigeElCampoSupero(t *testing.T) {
+	w := pedirAdmin(newMeritoRouter(&fakeMerito{}), "PUT", rutaMerito,
+		tokenParaRol(t, domain.RolAdministrador), `{}`)
+	if w.Code != 400 || decodeError(t, w).Fields["supero"] == "" {
+		t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestMerito_ErroresConElFormatoDeLaApi(t *testing.T) {
+	casos := []struct {
+		err  error
+		code int
+		tipo string
+	}{
+		{domain.NotFound("La postulación no existe"), 404, "NOT_FOUND"},
+		{domain.Conflict(service.MsgMeritoSoloEnviada, nil), 409, "CONFLICT"},
+	}
+	for _, c := range casos {
+		w := pedirAdmin(newMeritoRouter(&fakeMerito{err: c.err}), "PUT", rutaMerito,
+			tokenParaRol(t, domain.RolAdministrador), `{"supero":false}`)
+		if w.Code != c.code || decodeError(t, w).Code != c.tipo {
+			t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+		}
+	}
+}

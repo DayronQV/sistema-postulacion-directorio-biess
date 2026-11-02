@@ -91,7 +91,18 @@ export default function FormularioPostulacion() {
     const Confirmacion = (SECCIONES.find((s) => s.id === 'cierre') ?? SECCIONES[0]).Componente
     return (
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
-        <h1 className="text-headline-lg text-primary">Formulario de postulación</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-headline-lg text-primary">Formulario de postulación</h1>
+          <Badge tono={postulacion.supero_merito ? 'primary' : 'success'}>
+            {postulacion.estado_visible ?? 'Enviada'}
+          </Badge>
+        </div>
+        {postulacion.supero_merito && (
+          <Alert tipo="success" titulo="Superó la Fase de Méritos">
+            Su postulación pasó a Evaluación Técnica. Recibirá la fecha y hora de la evaluación
+            teórica.
+          </Alert>
+        )}
         <Confirmacion
           titulo="Cierre"
           datos={postulacion}
