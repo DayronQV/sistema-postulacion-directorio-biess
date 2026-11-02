@@ -18,9 +18,12 @@ type fakeMeritos struct {
 	// cambiaAntesDeEscribir simula que la postulación dejó de estar enviada entre la
 	// lectura y la escritura.
 	cambiaAntesDeEscribir bool
+	// consultas cuenta las llamadas al repositorio: un id que no es UUID no debe llegar a él.
+	consultas int
 }
 
 func (f *fakeMeritos) EstadoPorID(_ context.Context, id string) (string, error) {
+	f.consultas++
 	e, ok := f.estados[id]
 	if !ok {
 		return "", domain.NotFound("La postulación no existe")
@@ -29,6 +32,7 @@ func (f *fakeMeritos) EstadoPorID(_ context.Context, id string) (string, error) 
 }
 
 func (f *fakeMeritos) ActualizarMerito(_ context.Context, id string, supero bool) (bool, error) {
+	f.consultas++
 	if f.cambiaAntesDeEscribir || f.estados[id] != domain.EstadoEnviada {
 		return false, nil
 	}
@@ -82,11 +86,26 @@ func TestMarcarMerito_CambioDeEstadoConcurrenteEs409(t *testing.T) {
 	}
 }
 
-func TestMarcarMerito_PostulacionInexistenteOIdInvalidoEs404(t *testing.T) {
+func TestMarcarMerito_PostulacionInexistenteEs404(t *testing.T) {
 	svc, _ := nuevoMeritos(domain.EstadoEnviada)
-	for _, id := range []string{"99999999-2222-3333-4444-555555555555", "no-es-un-uuid", ""} {
+	id := "99999999-2222-3333-4444-555555555555"
+	if _, err := svc.MarcarMerito(context.Background(), id, true); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("id %q: se esperaba 404, llegó %v", id, err)
+	}
+}
+
+// Con PostgreSQL real, un id que no es UUID haría fallar la consulta (500): el servicio lo
+// responde como 404 sin llegar al repositorio. El fake lo registraría como enviada, así
+// que sin la validación esta prueba falla.
+func TestMarcarMerito_IdQueNoEsUUIDEs404SinConsultarElRepositorio(t *testing.T) {
+	for _, id := range []string{"no-es-un-uuid", "", "   ", "11111111-2222-3333-4444-55555555555", "11111111-2222-3333-4444-5555555555555"} {
+		svc, f := nuevoMeritos(domain.EstadoEnviada)
+		f.estados[id] = domain.EstadoEnviada
 		if _, err := svc.MarcarMerito(context.Background(), id, true); !errors.Is(err, domain.ErrNotFound) {
 			t.Fatalf("id %q: se esperaba 404, llegó %v", id, err)
+		}
+		if f.consultas != 0 || f.meritos[id] {
+			t.Fatalf("id %q: no debía llegar al repositorio (consultas = %d)", id, f.consultas)
 		}
 	}
 }
