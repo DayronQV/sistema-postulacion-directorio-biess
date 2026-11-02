@@ -64,6 +64,39 @@ func TestCatalogos_ListasConElFormatoDeLaApi(t *testing.T) {
 	}
 }
 
+func TestCatalogos_200LlevaCacheControl(t *testing.T) {
+	uc := &fakeCatalogoUseCase{items: []domain.ItemCatalogo{{ID: 1, Nombre: "Ecuador"}}}
+
+	for _, path := range []string{
+		"/api/v1/catalogos/paises",
+		"/api/v1/catalogos/paises/60/provincias",
+		"/api/v1/catalogos/provincias/17/cantones",
+	} {
+		w := get(uc, path)
+		if got := w.Header().Get("Cache-Control"); w.Code != 200 || got != "public, max-age=3600" {
+			t.Errorf("GET %s = %d, Cache-Control %q", path, w.Code, got)
+		}
+	}
+}
+
+func TestCatalogos_ErroresNoLlevanCacheControl(t *testing.T) {
+	casos := []struct {
+		nombre string
+		uc     *fakeCatalogoUseCase
+		path   string
+	}{
+		{"400", &fakeCatalogoUseCase{}, "/api/v1/catalogos/paises/abc/provincias"},
+		{"404", &fakeCatalogoUseCase{err: domain.NotFound("El país no existe")}, "/api/v1/catalogos/paises/999/provincias"},
+		{"500", &fakeCatalogoUseCase{err: errors.New("boom")}, "/api/v1/catalogos/paises"},
+	}
+	for _, tc := range casos {
+		w := get(tc.uc, tc.path)
+		if w.Code == 200 || w.Header().Get("Cache-Control") != "" {
+			t.Errorf("%s: GET %s = %d, Cache-Control %q", tc.nombre, tc.path, w.Code, w.Header().Get("Cache-Control"))
+		}
+	}
+}
+
 func TestCatalogos_PasaElIdDeLaRutaAlServicio(t *testing.T) {
 	uc := &fakeCatalogoUseCase{}
 

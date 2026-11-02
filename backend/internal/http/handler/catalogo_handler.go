@@ -29,6 +29,10 @@ func NewCatalogoHandler(catalogos CatalogoUseCase) *CatalogoHandler {
 	return &CatalogoHandler{catalogos: catalogos}
 }
 
+// catalogoCacheControl iguala el TTL de la caché de Redis (1 h) para que el navegador
+// no vuelva a pedir las listas en cada apertura de la cascada.
+const catalogoCacheControl = "public, max-age=3600"
+
 type itemCatalogoResponse struct {
 	ID     int    `json:"id"`
 	Nombre string `json:"nombre"`
@@ -82,5 +86,6 @@ func respondItems(c *gin.Context, items []domain.ItemCatalogo, err error) {
 	for i, it := range items {
 		out[i] = itemCatalogoResponse{ID: it.ID, Nombre: it.Nombre}
 	}
+	c.Header("Cache-Control", catalogoCacheControl)
 	c.JSON(http.StatusOK, out)
 }
