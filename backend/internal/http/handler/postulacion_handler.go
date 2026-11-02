@@ -82,6 +82,16 @@ type formacionDTO struct {
 	DocumentoID    string `json:"documento_id"`
 }
 
+type capacitacionDTO struct {
+	Tipo        string `json:"tipo"`
+	Nombre      string `json:"nombre"`
+	Institucion string `json:"institucion"`
+	FechaInicio string `json:"fecha_inicio"`
+	FechaFin    string `json:"fecha_fin"`
+	Horas       int    `json:"horas"`
+	DocumentoID string `json:"documento_id"`
+}
+
 type respaldoDTO struct {
 	Nombre      string  `json:"nombre"`
 	DocumentoID *string `json:"documento_id"`
@@ -91,15 +101,16 @@ type respaldoDTO struct {
 // Cada issue de sección agrega aquí su campo. Los campos que todavía no existen en este
 // DTO (formacion, experiencia, ...) se ignoran.
 type formularioDTO struct {
-	Domicilio            domicilioDTO    `json:"domicilio"`
-	TieneFamiliares      bool            `json:"tiene_familiares"`
-	Familiares           []familiarDTO   `json:"familiares"`
-	Referencias          []referenciaDTO `json:"referencias"`
-	Formacion            []formacionDTO  `json:"formacion"`
-	Cargo                string          `json:"cargo"`
-	RespaldoOrganizacion respaldoDTO     `json:"respaldo_organizacion"`
-	TienePublicaciones   bool            `json:"tiene_publicaciones"`
-	Consentimiento       bool            `json:"consentimiento"`
+	Domicilio            domicilioDTO      `json:"domicilio"`
+	TieneFamiliares      bool              `json:"tiene_familiares"`
+	Familiares           []familiarDTO     `json:"familiares"`
+	Referencias          []referenciaDTO   `json:"referencias"`
+	Formacion            []formacionDTO    `json:"formacion"`
+	Capacitaciones       []capacitacionDTO `json:"capacitaciones"`
+	Cargo                string            `json:"cargo"`
+	RespaldoOrganizacion respaldoDTO       `json:"respaldo_organizacion"`
+	TienePublicaciones   bool              `json:"tiene_publicaciones"`
+	Consentimiento       bool              `json:"consentimiento"`
 }
 
 type parejaDTO struct {
@@ -153,6 +164,9 @@ func (d formularioDTO) dominio() domain.Formulario {
 	for _, fila := range d.Formacion {
 		f.Formacion = append(f.Formacion, domain.FormacionAcademica(fila))
 	}
+	for _, fila := range d.Capacitaciones {
+		f.Capacitaciones = append(f.Capacitaciones, domain.Capacitacion(fila))
+	}
 	return f
 }
 
@@ -185,6 +199,7 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 			Familiares:           []familiarDTO{},
 			Referencias:          []referenciaDTO{},
 			Formacion:            []formacionDTO{},
+			Capacitaciones:       []capacitacionDTO{},
 			Cargo:                f.Cargo,
 			RespaldoOrganizacion: respaldoDTO{Nombre: f.RespaldoOrganizacion.Nombre, DocumentoID: f.RespaldoOrganizacion.DocumentoID},
 			TienePublicaciones:   f.TienePublicaciones,
@@ -203,6 +218,9 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 	}
 	for _, fila := range f.Formacion {
 		r.Formacion = append(r.Formacion, formacionDTO(fila))
+	}
+	for _, fila := range f.Capacitaciones {
+		r.Capacitaciones = append(r.Capacitaciones, capacitacionDTO(fila))
 	}
 	return r
 }

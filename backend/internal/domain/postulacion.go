@@ -93,6 +93,7 @@ type Formulario struct {
 	Familiares           []Familiar
 	Referencias          []ReferenciaPersonal
 	Formacion            []FormacionAcademica
+	Capacitaciones       []Capacitacion
 	Cargo                string // vacío mientras no lo haya elegido
 	RespaldoOrganizacion RespaldoOrganizacion
 	TienePublicaciones   bool

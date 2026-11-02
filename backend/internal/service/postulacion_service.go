@@ -112,6 +112,7 @@ func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f
 	f.Familiares = limpiarFamiliares(f.Familiares)
 	f.Referencias = limpiarReferencias(f.Referencias)
 	f.Formacion = limpiarFormacion(f.Formacion)
+	f.Capacitaciones = limpiarCapacitaciones(f.Capacitaciones)
 	actual, err := s.asegurar(ctx, postulanteID)
 	if err != nil {
 		return domain.Postulacion{}, err
@@ -177,6 +178,7 @@ func validarFormularioEn(f domain.Formulario, ahora time.Time) error {
 	validarFamiliares(f, fields)
 	validarReferencias(f, fields)
 	validarFormacion(f.Formacion, ahora, fields)
+	validarCapacitaciones(f.Capacitaciones, ahora, fields)
 	if len(fields) > 0 {
 		return domain.Validation("Datos inválidos", fields)
 	}
