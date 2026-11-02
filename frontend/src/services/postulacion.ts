@@ -40,6 +40,44 @@ export interface FormacionAcademica {
   documento_id: string
 }
 
+export type TipoExperiencia = 'general' | 'direccion'
+export type ActividadExperiencia =
+  | 'finanzas'
+  | 'mercado_capitales'
+  | 'administracion_empresas'
+  | 'economia'
+  | 'derecho'
+  | 'afines'
+
+export interface Duracion {
+  anios: number
+  meses: number
+  dias: number
+}
+
+export interface ExperienciaProfesional {
+  tipo: TipoExperiencia
+  cargo: string
+  institucion: string
+  fecha_inicio: string
+  fecha_fin: string
+  actividades: ActividadExperiencia
+  descripcion: string
+  documento_id: string
+  duracion: Duracion
+}
+
+export type TipoPublicacion = 'publicacion' | 'investigacion'
+
+export interface PublicacionAcademica {
+  titulo: string
+  tipo: TipoPublicacion
+  medio: string
+  fecha: string
+  relacionada: boolean
+  documento_id: string
+}
+
 export type TipoCapacitacion = 'curso' | 'seminario' | 'taller'
 
 export interface Capacitacion {
@@ -90,6 +128,9 @@ export interface Postulacion {
   familiares: Familiar[]
   referencias: ReferenciaPersonal[]
   formacion: FormacionAcademica[]
+  experiencia: ExperienciaProfesional[]
+  duracion_experiencia_total: Duracion
+  publicaciones: PublicacionAcademica[]
   capacitaciones: Capacitacion[]
   cargo: string
   respaldo_organizacion: { nombre: string; documento_id: string | null }

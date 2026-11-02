@@ -82,6 +82,33 @@ type formacionDTO struct {
 	DocumentoID    string `json:"documento_id"`
 }
 
+type duracionDTO struct {
+	Anios int `json:"anios"`
+	Meses int `json:"meses"`
+	Dias  int `json:"dias"`
+}
+
+type experienciaDTO struct {
+	Tipo        string      `json:"tipo"`
+	Cargo       string      `json:"cargo"`
+	Institucion string      `json:"institucion"`
+	FechaInicio string      `json:"fecha_inicio"`
+	FechaFin    string      `json:"fecha_fin"`
+	Actividades string      `json:"actividades"`
+	Descripcion string      `json:"descripcion"`
+	DocumentoID string      `json:"documento_id"`
+	Duracion    duracionDTO `json:"duracion"`
+}
+
+type publicacionDTO struct {
+	Titulo      string `json:"titulo"`
+	Tipo        string `json:"tipo"`
+	Medio       string `json:"medio"`
+	Fecha       string `json:"fecha"`
+	Relacionada bool   `json:"relacionada"`
+	DocumentoID string `json:"documento_id"`
+}
+
 type capacitacionDTO struct {
 	Tipo        string `json:"tipo"`
 	Nombre      string `json:"nombre"`
@@ -106,6 +133,9 @@ type formularioDTO struct {
 	Familiares           []familiarDTO     `json:"familiares"`
 	Referencias          []referenciaDTO   `json:"referencias"`
 	Formacion            []formacionDTO    `json:"formacion"`
+	Experiencia          []experienciaDTO  `json:"experiencia"`
+	DuracionExperiencia  duracionDTO       `json:"duracion_experiencia_total"`
+	Publicaciones        []publicacionDTO  `json:"publicaciones"`
 	Capacitaciones       []capacitacionDTO `json:"capacitaciones"`
 	Cargo                string            `json:"cargo"`
 	RespaldoOrganizacion respaldoDTO       `json:"respaldo_organizacion"`
@@ -164,6 +194,16 @@ func (d formularioDTO) dominio() domain.Formulario {
 	for _, fila := range d.Formacion {
 		f.Formacion = append(f.Formacion, domain.FormacionAcademica(fila))
 	}
+	for _, fila := range d.Experiencia {
+		f.Experiencia = append(f.Experiencia, domain.ExperienciaProfesional{
+			Tipo: fila.Tipo, Cargo: fila.Cargo, Institucion: fila.Institucion,
+			FechaInicio: fila.FechaInicio, FechaFin: fila.FechaFin, Actividades: fila.Actividades,
+			Descripcion: fila.Descripcion, DocumentoID: fila.DocumentoID,
+		})
+	}
+	for _, fila := range d.Publicaciones {
+		f.Publicaciones = append(f.Publicaciones, domain.PublicacionAcademica(fila))
+	}
 	for _, fila := range d.Capacitaciones {
 		f.Capacitaciones = append(f.Capacitaciones, domain.Capacitacion(fila))
 	}
@@ -199,6 +239,9 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 			Familiares:           []familiarDTO{},
 			Referencias:          []referenciaDTO{},
 			Formacion:            []formacionDTO{},
+			Experiencia:          []experienciaDTO{},
+			DuracionExperiencia:  duracionDTO{Anios: f.DuracionExperiencia.Anios, Meses: f.DuracionExperiencia.Meses, Dias: f.DuracionExperiencia.Dias},
+			Publicaciones:        []publicacionDTO{},
 			Capacitaciones:       []capacitacionDTO{},
 			Cargo:                f.Cargo,
 			RespaldoOrganizacion: respaldoDTO{Nombre: f.RespaldoOrganizacion.Nombre, DocumentoID: f.RespaldoOrganizacion.DocumentoID},
@@ -218,6 +261,17 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 	}
 	for _, fila := range f.Formacion {
 		r.Formacion = append(r.Formacion, formacionDTO(fila))
+	}
+	for _, fila := range f.Experiencia {
+		r.Experiencia = append(r.Experiencia, experienciaDTO{
+			Tipo: fila.Tipo, Cargo: fila.Cargo, Institucion: fila.Institucion,
+			FechaInicio: fila.FechaInicio, FechaFin: fila.FechaFin, Actividades: fila.Actividades,
+			Descripcion: fila.Descripcion, DocumentoID: fila.DocumentoID,
+			Duracion: duracionDTO{Anios: fila.Duracion.Anios, Meses: fila.Duracion.Meses, Dias: fila.Duracion.Dias},
+		})
+	}
+	for _, fila := range f.Publicaciones {
+		r.Publicaciones = append(r.Publicaciones, publicacionDTO(fila))
 	}
 	for _, fila := range f.Capacitaciones {
 		r.Capacitaciones = append(r.Capacitaciones, capacitacionDTO(fila))
