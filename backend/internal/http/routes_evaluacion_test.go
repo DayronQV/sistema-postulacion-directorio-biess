@@ -382,23 +382,39 @@ func TestEvaluacionAdmin_Configuracion(t *testing.T) {
 
 	w := pedirEval(r, "GET", rutaEval+"/config", "", "")
 	m := cuerpoJSON(t, w)
-	if w.Code != 200 || m["configurada"] != false || m["inicia_en"] != nil || m["duracion_minutos"] != float64(30) || m["num_preguntas"] != float64(10) {
+	if w.Code != 200 || m["configurada"] != false || m["duracion_minutos"] != float64(30) || m["num_preguntas"] != float64(10) {
 		t.Fatalf("sin configurar: %d %s", w.Code, w.Body.String())
+	}
+	// El horario lo fija la fase Evaluación: la configuración ya no tiene fecha de inicio.
+	if _, existe := m["inicia_en"]; existe || len(m) != 4 {
+		t.Fatalf("la configuración solo trae duración, preguntas, total del banco y configurada: %v", m)
 	}
 
 	pedirEval(r, "POST", rutaEval+"/preguntas", "application/json", preguntasJSON(12))
-	cuerpo := `{"inicia_en":"2026-11-20T09:00:00-05:00","duracion_minutos":45,"num_preguntas":10}`
+	cuerpo := `{"duracion_minutos":45,"num_preguntas":10}`
 	w = pedirEval(r, "PUT", rutaEval+"/config", "application/json", cuerpo)
 	m = cuerpoJSON(t, w)
-	if w.Code != 200 || m["configurada"] != true || m["num_preguntas"] != float64(10) || m["total_banco"] != float64(12) || m["inicia_en"] != "2026-11-20T14:00:00Z" {
+	if w.Code != 200 || m["configurada"] != true || m["num_preguntas"] != float64(10) || m["total_banco"] != float64(12) {
 		t.Fatalf("guardar: %d %s", w.Code, w.Body.String())
+	}
+	if _, existe := m["inicia_en"]; existe {
+		t.Fatalf("la respuesta no debe traer inicia_en: %s", w.Body.String())
+	}
+	// Un inicia_en que mande una versión anterior de la pantalla se ignora: no es error.
+	w = pedirEval(r, "PUT", rutaEval+"/config", "application/json", `{"inicia_en":"2026-11-20T09:00:00-05:00","duracion_minutos":40,"num_preguntas":10}`)
+	if w.Code != 200 || cuerpoJSON(t, w)["duracion_minutos"] != float64(40) {
+		t.Fatalf("con un inicia_en de más: %d %s", w.Code, w.Body.String())
+	}
+	w = pedirEval(r, "PUT", rutaEval+"/config", "application/json", cuerpo)
+	if w.Code != 200 {
+		t.Fatalf("volver a 45 minutos: %d %s", w.Code, w.Body.String())
 	}
 	if w := pedirEval(r, "GET", rutaEval+"/config", "", ""); cuerpoJSON(t, w)["duracion_minutos"] != float64(45) {
 		t.Fatalf("lectura: %s", w.Body.String())
 	}
 
 	// Más preguntas que las del banco: 422 con el formato de la API.
-	w = pedirEval(r, "PUT", rutaEval+"/config", "application/json", `{"inicia_en":"2026-11-20T09:00:00-05:00","duracion_minutos":45,"num_preguntas":13}`)
+	w = pedirEval(r, "PUT", rutaEval+"/config", "application/json", `{"duracion_minutos":45,"num_preguntas":13}`)
 	e := decodeError(t, w)
 	if w.Code != 422 || e.Code != "VALIDATION_ERROR" || e.Fields["num_preguntas"] == "" {
 		t.Fatalf("más que el banco: %d %s", w.Code, w.Body.String())
@@ -408,10 +424,10 @@ func TestEvaluacionAdmin_Configuracion(t *testing.T) {
 	}
 
 	for _, c := range []struct{ nombre, cuerpo, campo string }{
-		{"sin campos", `{}`, "inicia_en"},
-		{"fecha inválida", `{"inicia_en":"mañana","duracion_minutos":45,"num_preguntas":1}`, "inicia_en"},
-		{"duración que no es número", `{"inicia_en":"2026-11-20T09:00:00-05:00","duracion_minutos":"x","num_preguntas":1}`, "duracion_minutos"},
-		{"duración cero", `{"inicia_en":"2026-11-20T09:00:00-05:00","duracion_minutos":0,"num_preguntas":1}`, "duracion_minutos"},
+		{"sin campos", `{}`, "duracion_minutos"},
+		{"sin número de preguntas", `{"duracion_minutos":45}`, "num_preguntas"},
+		{"duración que no es número", `{"duracion_minutos":"x","num_preguntas":1}`, "duracion_minutos"},
+		{"duración cero", `{"duracion_minutos":0,"num_preguntas":1}`, "duracion_minutos"},
 	} {
 		w := pedirEval(r, "PUT", rutaEval+"/config", "application/json", c.cuerpo)
 		if w.Code != 400 || decodeError(t, w).Fields[c.campo] == "" {

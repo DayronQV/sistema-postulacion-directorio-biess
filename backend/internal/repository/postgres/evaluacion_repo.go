@@ -158,8 +158,8 @@ func (r *EvaluacionRepo) HayIntentos(ctx context.Context) (bool, error) {
 func (r *EvaluacionRepo) ObtenerConfig(ctx context.Context) (domain.ConfigEvaluacion, bool, error) {
 	var c domain.ConfigEvaluacion
 	err := r.db.QueryRow(ctx,
-		`SELECT inicia_en, duracion_minutos, num_preguntas FROM eval_config WHERE id = 1`,
-	).Scan(&c.IniciaEn, &c.DuracionMinutos, &c.NumPreguntas)
+		`SELECT duracion_minutos, num_preguntas FROM eval_config WHERE id = 1`,
+	).Scan(&c.DuracionMinutos, &c.NumPreguntas)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.ConfigEvaluacion{}, false, nil
 	}
@@ -172,12 +172,11 @@ func (r *EvaluacionRepo) ObtenerConfig(ctx context.Context) (domain.ConfigEvalua
 // GuardarConfig crea o reemplaza la configuración (la tabla solo admite la fila id = 1).
 func (r *EvaluacionRepo) GuardarConfig(ctx context.Context, c domain.ConfigEvaluacion) error {
 	_, err := r.db.Exec(ctx, `
-INSERT INTO eval_config (id, inicia_en, duracion_minutos, num_preguntas)
-VALUES (1, $1, $2, $3)
+INSERT INTO eval_config (id, duracion_minutos, num_preguntas)
+VALUES (1, $1, $2)
 ON CONFLICT (id) DO UPDATE
-SET inicia_en = EXCLUDED.inicia_en,
-    duracion_minutos = EXCLUDED.duracion_minutos,
-    num_preguntas = EXCLUDED.num_preguntas`, c.IniciaEn, c.DuracionMinutos, c.NumPreguntas)
+SET duracion_minutos = EXCLUDED.duracion_minutos,
+    num_preguntas = EXCLUDED.num_preguntas`, c.DuracionMinutos, c.NumPreguntas)
 	if err != nil {
 		return fmt.Errorf("guardando la configuración de la evaluación: %w", err)
 	}

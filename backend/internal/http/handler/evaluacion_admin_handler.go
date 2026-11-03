@@ -8,7 +8,6 @@ import (
 	"mime"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -83,30 +82,23 @@ func respuestaPregunta(p domain.Pregunta) preguntaResponse {
 	return preguntaResponse{ID: p.ID, Enunciado: p.Enunciado, Opciones: p.Opciones, RespuestaCorrecta: p.RespuestaCorrecta}
 }
 
+// configRequest es la configuración del examen. Un "inicia_en" que llegue (de una versión
+// anterior de la pantalla) se ignora: el horario lo fija la fase Evaluación.
 type configRequest struct {
-	IniciaEn        string `json:"inicia_en"`
-	DuracionMinutos *int   `json:"duracion_minutos"`
-	NumPreguntas    *int   `json:"num_preguntas"`
+	DuracionMinutos *int `json:"duracion_minutos"`
+	NumPreguntas    *int `json:"num_preguntas"`
 }
 
 type configResponse struct {
-	IniciaEn        *time.Time `json:"inicia_en"`
-	DuracionMinutos int        `json:"duracion_minutos"`
-	NumPreguntas    int        `json:"num_preguntas"`
-	TotalBanco      int        `json:"total_banco"`
-	Configurada     bool       `json:"configurada"`
+	DuracionMinutos int  `json:"duracion_minutos"`
+	NumPreguntas    int  `json:"num_preguntas"`
+	TotalBanco      int  `json:"total_banco"`
+	Configurada     bool `json:"configurada"`
 }
 
-// respuestaConfig arma la respuesta. La hora de inicio sale siempre en UTC, igual al guardar
-// y al leer, sin importar el desfase con el que la envió el administrador.
 func respuestaConfig(c service.ConfigEvaluacion) configResponse {
-	var inicia *time.Time
-	if c.IniciaEn != nil {
-		utc := c.IniciaEn.UTC()
-		inicia = &utc
-	}
 	return configResponse{
-		IniciaEn: inicia, DuracionMinutos: c.DuracionMinutos, NumPreguntas: c.NumPreguntas,
+		DuracionMinutos: c.DuracionMinutos, NumPreguntas: c.NumPreguntas,
 		TotalBanco: c.TotalBanco, Configurada: c.Configurada,
 	}
 }
@@ -279,7 +271,7 @@ func (h *EvaluacionAdminHandler) GuardarConfig(c *gin.Context) {
 		return
 	}
 	cfg, err := h.evaluacion.GuardarConfig(c.Request.Context(), service.ConfigInput{
-		IniciaEn: req.IniciaEn, DuracionMinutos: req.DuracionMinutos, NumPreguntas: req.NumPreguntas,
+		DuracionMinutos: req.DuracionMinutos, NumPreguntas: req.NumPreguntas,
 	})
 	if err != nil {
 		middleware.Fail(c, err)

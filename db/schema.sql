@@ -195,7 +195,6 @@ INSERT INTO fases (nombre, orden, publicada, habilita_formulario) VALUES
 
 CREATE TABLE eval_config (
     id                SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-    inicia_en         TIMESTAMPTZ,
     duracion_minutos  INTEGER NOT NULL DEFAULT 30 CHECK (duracion_minutos > 0),
     num_preguntas     INTEGER NOT NULL DEFAULT 10 CHECK (num_preguntas > 0)
 );
