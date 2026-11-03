@@ -20,6 +20,107 @@ type fakeExamenes struct {
 	intentos      map[string]domain.IntentoEvaluacion     // por id de postulación
 	// otroGano simula que otra petición creó el intento justo antes de esta.
 	otroGano bool
+
+	respuestas     map[string]map[int]int // por id de intento: pregunta → opción del banco
+	finalizaciones int                    // veces que Finalizar guardó una nota
+	// otroFinalizo simula que la tarea periódica finalizó el intento justo antes.
+	otroFinalizo bool
+}
+
+// idIntento arma un id con forma de UUID a partir del id de la postulación.
+func idIntento(postulacionID string) string {
+	return fmt.Sprintf("00000000-0000-0000-0000-%012d", len(postulacionID)*1000+int(postulacionID[len(postulacionID)-1]))
+}
+
+func (f *fakeExamenes) porID(id string) (string, domain.IntentoEvaluacion, bool) {
+	for clave, i := range f.intentos {
+		if i.ID == id {
+			return clave, i, true
+		}
+	}
+	return "", domain.IntentoEvaluacion{}, false
+}
+
+func (f *fakeExamenes) GuardarRespuesta(_ context.Context, intentoID string, preguntaID, opcion int, ahora time.Time) (bool, error) {
+	_, i, ok := f.porID(intentoID)
+	if !ok || i.FinalizadoEn != nil || !ahora.Before(i.Cierre) {
+		return false, nil
+	}
+	if f.respuestas == nil {
+		f.respuestas = map[string]map[int]int{}
+	}
+	if f.respuestas[intentoID] == nil {
+		f.respuestas[intentoID] = map[int]int{}
+	}
+	f.respuestas[intentoID][preguntaID] = opcion
+	return true, nil
+}
+
+func (f *fakeExamenes) Respuestas(_ context.Context, intentoID string) (map[int]int, error) {
+	copia := map[int]int{}
+	for k, v := range f.respuestas[intentoID] {
+		copia[k] = v
+	}
+	return copia, nil
+}
+
+func (f *fakeExamenes) Finalizar(_ context.Context, intentoID string, nota float64, fin time.Time) (bool, error) {
+	clave, i, ok := f.porID(intentoID)
+	if !ok {
+		return false, nil
+	}
+	if f.otroFinalizo && i.FinalizadoEn == nil {
+		otraNota, otroFin := 12.5, fin.Add(-time.Second)
+		i.Nota, i.FinalizadoEn = &otraNota, &otroFin
+		f.intentos[clave] = i
+	}
+	if i.FinalizadoEn != nil {
+		return false, nil
+	}
+	i.Nota, i.FinalizadoEn = &nota, &fin
+	f.intentos[clave] = i
+	f.finalizaciones++
+	return true, nil
+}
+
+func (f *fakeExamenes) VencidosSinFinalizar(_ context.Context, ahora time.Time) ([]domain.IntentoEvaluacion, error) {
+	var vencidos []domain.IntentoEvaluacion
+	for _, i := range f.intentos {
+		if i.FinalizadoEn == nil && !ahora.Before(i.Cierre) {
+			vencidos = append(vencidos, i)
+		}
+	}
+	return vencidos, nil
+}
+
+func (f *fakeExamenes) IntentoPorID(_ context.Context, id string) (domain.IntentoEvaluacion, bool, error) {
+	_, i, ok := f.porID(id)
+	return i, ok, nil
+}
+
+func (f *fakeExamenes) resultado(i domain.IntentoEvaluacion) domain.ResultadoEvaluacion {
+	return domain.ResultadoEvaluacion{
+		IntentoID: i.ID, PostulacionID: i.PostulacionID, Codigo: "BIESS-2026-" + i.PostulacionID,
+		Cargo: domain.CargoAfiliados, Nombres: "Ana María", Apellidos: "Núñez Íñiguez", Cedula: "1712345675",
+		Email: "ana@correo.com", Inicio: i.Inicio, Cierre: i.Cierre, FinalizadoEn: i.FinalizadoEn, Nota: i.Nota,
+		TotalPreguntas: len(i.Preguntas),
+	}
+}
+
+func (f *fakeExamenes) Resultados(context.Context) ([]domain.ResultadoEvaluacion, error) {
+	var rs []domain.ResultadoEvaluacion
+	for _, i := range f.intentos {
+		rs = append(rs, f.resultado(i))
+	}
+	return rs, nil
+}
+
+func (f *fakeExamenes) ResultadoDelIntento(_ context.Context, id string) (domain.ResultadoEvaluacion, bool, error) {
+	_, i, ok := f.porID(id)
+	if !ok {
+		return domain.ResultadoEvaluacion{}, false, nil
+	}
+	return f.resultado(i), true, nil
 }
 
 func (f *fakeExamenes) PreguntasParaSorteo(context.Context) ([]domain.PreguntaSorteable, error) {
@@ -39,7 +140,7 @@ func (f *fakeExamenes) CrearIntento(_ context.Context, i domain.IntentoEvaluacio
 	if existente, ok := f.intentos[i.PostulacionID]; ok {
 		return existente, false, nil
 	}
-	i.ID = "intento-" + i.PostulacionID
+	i.ID = idIntento(i.PostulacionID)
 	if f.otroGano {
 		// El que ganó la carrera guardó un examen con el mismo contenido pero otra hora de cierre.
 		i.Cierre = i.Cierre.Add(time.Minute)
@@ -73,6 +174,7 @@ type escenarioEval struct {
 	banco    *fakeBanco
 	intentos *fakeExamenes
 	fases    *fakeFases
+	correo   *fakeMailer
 	reloj    *time.Time
 }
 
@@ -100,9 +202,11 @@ func nuevoEscenario(n, pide int, barajador domain.Barajador) escenarioEval {
 		intentos:      map[string]domain.IntentoEvaluacion{},
 	}
 	reloj := inicioExamen
+	correo := &fakeMailer{}
+	svc := service.NewEvaluacionService(banco, intentos, intentos, fases, barajador, func() time.Time { return reloj }).
+		ConMailer(correo, nil)
 	return escenarioEval{
-		svc:   service.NewEvaluacionService(banco, intentos, fases, barajador, func() time.Time { return reloj }),
-		banco: banco, intentos: intentos, fases: fases, reloj: &reloj,
+		svc: svc, banco: banco, intentos: intentos, fases: fases, correo: correo, reloj: &reloj,
 	}
 }
 

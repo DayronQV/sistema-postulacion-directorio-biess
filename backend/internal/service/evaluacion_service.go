@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"time"
 
@@ -63,23 +64,36 @@ type PreguntaEvaluacion struct {
 	Pregunta       domain.PreguntaPublica
 	Cierre         time.Time
 	TiempoRestante time.Duration
+	// Respuesta es la opción que ya eligió en esta pregunta, en la posición en que se le
+	// muestra (desde 0); nil si todavía no respondió.
+	Respuesta *int
 }
 
 // EvaluacionService atiende al postulante en la evaluación teórica (EF-14): iniciar el
 // examen con su sorteo y mostrarle las preguntas una por una.
 type EvaluacionService struct {
-	banco     domain.BancoEvaluacion
-	intentos  domain.IntentosEvaluacion
-	fases     domain.Fases
-	barajador domain.Barajador
-	ahora     func() time.Time
+	banco      domain.BancoEvaluacion
+	intentos   domain.IntentosEvaluacion
+	respuestas domain.RespuestasEvaluacion
+	fases      domain.Fases
+	barajador  domain.Barajador
+	ahora      func() time.Time
+	mailer     domain.Mailer // opcional: ver ConMailer
+	logger     *slog.Logger
 }
 
 // NewEvaluacionService crea el servicio con sus dependencias inyectadas. fases es la tabla de
 // fases del concurso (la fase Evaluación fija cuándo se puede rendir el examen) y ahora es el
 // reloj (time.Now en producción).
-func NewEvaluacionService(banco domain.BancoEvaluacion, intentos domain.IntentosEvaluacion, fases domain.Fases, barajador domain.Barajador, ahora func() time.Time) *EvaluacionService {
-	return &EvaluacionService{banco: banco, intentos: intentos, fases: fases, barajador: barajador, ahora: ahora}
+func NewEvaluacionService(banco domain.BancoEvaluacion, intentos domain.IntentosEvaluacion, respuestas domain.RespuestasEvaluacion, fases domain.Fases, barajador domain.Barajador, ahora func() time.Time) *EvaluacionService {
+	return &EvaluacionService{banco: banco, intentos: intentos, respuestas: respuestas, fases: fases, barajador: barajador, ahora: ahora}
+}
+
+// ConMailer indica el correo por el que se envía el reporte PDF al postulante cuando su
+// examen se finaliza, y el log donde se registra si ese envío falla. Sin mailer no se envía.
+func (s *EvaluacionService) ConMailer(m domain.Mailer, logger *slog.Logger) *EvaluacionService {
+	s.mailer, s.logger = m, logger
+	return s
 }
 
 // Iniciar deja al postulante comenzar la evaluación. Devuelve su sesión y true si la creó
@@ -111,6 +125,9 @@ func (s *EvaluacionService) Iniciar(ctx context.Context, postulanteID string) (S
 	if existente, hay, err := s.intentos.ObtenerIntento(ctx, post.ID); err != nil {
 		return SesionEvaluacion{}, false, err
 	} else if hay {
+		if err := s.cerrarSiVencio(ctx, existente, ahora); err != nil {
+			return SesionEvaluacion{}, false, err
+		}
 		sesion, err := sesionVigente(existente, ahora)
 		return sesion, false, err
 	}
@@ -188,8 +205,11 @@ func (s *EvaluacionService) Pregunta(ctx context.Context, postulanteID string, n
 	if !hay {
 		return PreguntaEvaluacion{}, domain.NotFound(MsgEvaluacionNoIniciada)
 	}
-	ahora := s.ahora()
+	ahora := s.ahora().Truncate(time.Microsecond)
 	if !intento.Vigente(ahora) {
+		if err := s.cerrarSiVencio(ctx, intento, ahora); err != nil {
+			return PreguntaEvaluacion{}, err
+		}
 		return PreguntaEvaluacion{}, domain.Conflict(MsgEvaluacionTerminada, nil)
 	}
 	if n < 1 || n > len(intento.Preguntas) {
@@ -211,12 +231,27 @@ func (s *EvaluacionService) Pregunta(ctx context.Context, postulanteID string, n
 		}
 		opciones[k] = p.Opciones[original]
 	}
+	respuestas, err := s.respuestas.Respuestas(ctx, intento.ID)
+	if err != nil {
+		return PreguntaEvaluacion{}, err
+	}
+	var respuesta *int
+	if elegida, respondio := respuestas[sorteada.PreguntaID]; respondio {
+		for k, original := range sorteada.Orden {
+			if original == elegida {
+				k := k
+				respuesta = &k
+				break
+			}
+		}
+	}
 	return PreguntaEvaluacion{
 		Numero:         n,
 		Total:          len(intento.Preguntas),
 		Pregunta:       domain.PreguntaPublica{ID: p.ID, Enunciado: p.Enunciado, Opciones: opciones},
 		Cierre:         intento.Cierre,
 		TiempoRestante: intento.Cierre.Sub(ahora),
+		Respuesta:      respuesta,
 	}, nil
 }
 
