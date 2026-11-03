@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Alert from '@/components/ui/Alert'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
@@ -7,6 +8,7 @@ import Loader from '@/components/ui/Loader'
 import { ModalConfirmacion } from '@/components/ui/Modal'
 import Select from '@/components/ui/Select'
 import { cx } from '@/lib/cx'
+import { RUTA_EVALUACION } from '@/routes/rutas'
 import { motivoDeBloqueo } from '@/features/postulacion/informacionPersonal'
 import { SECCIONES } from '@/features/postulacion/secciones'
 import PostulacionBloqueada from '@/features/postulacion/secciones/PostulacionBloqueada'
@@ -107,8 +109,10 @@ export default function FormularioPostulacion() {
         </div>
         {postulacion.supero_merito && (
           <Alert tipo="success" titulo="Superó la Fase de Méritos">
-            Su postulación pasó a Evaluación Técnica. Se le comunicará cómo continuar con la
-            evaluación teórica.
+            Su postulación pasó a Evaluación Técnica.{' '}
+            <Link to={RUTA_EVALUACION} className="font-semibold underline">
+              Ir a la evaluación
+            </Link>
           </Alert>
         )}
         <Confirmacion

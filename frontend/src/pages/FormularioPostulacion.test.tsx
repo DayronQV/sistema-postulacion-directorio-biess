@@ -121,6 +121,10 @@ describe('FormularioPostulacion', () => {
 
     expect(await screen.findByText('Evaluación Técnica')).toBeInTheDocument()
     expect(screen.getByText('Superó la Fase de Méritos')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ir a la evaluación' })).toHaveAttribute(
+      'href',
+      '/evaluacion',
+    )
   })
 
   it('avisa en el borrador cuando el periodo de postulación está cerrado', async () => {
