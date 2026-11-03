@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -41,13 +42,15 @@ func examenDePrueba(t *testing.T, repo *postgres.EvaluacionRepo, cedula string, 
 
 func TestEvaluacionRespuestas_GuardarReemplazarYLeer(t *testing.T) {
 	ctx := context.Background()
-	repo := postgres.NewEvaluacionRepo(newPool(t))
+	pool := newPool(t)
+	repo := postgres.NewEvaluacionRepo(pool)
+	tm := postgres.NewTxManager(pool)
 	inicio := time.Date(2026, 11, 20, 14, 0, 0, 0, time.UTC)
 	intento, ids := examenDePrueba(t, repo, "1799999931", inicio)
 	durante := inicio.Add(5 * time.Minute)
 
 	for _, r := range []struct{ pregunta, opcion int }{{ids[0], 2}, {ids[1], 0}, {ids[0], 1}} {
-		if ok, err := repo.GuardarRespuesta(ctx, intento.ID, r.pregunta, r.opcion, durante); err != nil || !ok {
+		if ok, err := guardarEnTx(t, tm, repo, intento.ID, r.pregunta, r.opcion, durante); err != nil || !ok {
 			t.Fatalf("guardar %+v: ok = %v, err = %v", r, ok, err)
 		}
 	}
@@ -57,14 +60,14 @@ func TestEvaluacionRespuestas_GuardarReemplazarYLeer(t *testing.T) {
 	}
 
 	// A la hora de cierre exacta ya no se guarda.
-	if ok, err := repo.GuardarRespuesta(ctx, intento.ID, ids[2], 0, intento.Cierre); err != nil || ok {
+	if ok, err := guardarEnTx(t, tm, repo, intento.ID, ids[2], 0, intento.Cierre); err != nil || ok {
 		t.Fatalf("en el cierre: ok = %v, err = %v", ok, err)
 	}
 	// Ni en un intento finalizado aunque no haya vencido.
-	if ok, _ := repo.Finalizar(ctx, intento.ID, 50, durante); !ok {
+	if ok, _ := finalizarEnTx(t, tm, repo, intento.ID, 50, durante); !ok {
 		t.Fatal("no se finalizó")
 	}
-	if ok, err := repo.GuardarRespuesta(ctx, intento.ID, ids[2], 0, durante); err != nil || ok {
+	if ok, err := guardarEnTx(t, tm, repo, intento.ID, ids[2], 0, durante); err != nil || ok {
 		t.Fatalf("en un intento finalizado: ok = %v, err = %v", ok, err)
 	}
 	if got, _ := repo.Respuestas(ctx, intento.ID); len(got) != 2 {
@@ -74,15 +77,17 @@ func TestEvaluacionRespuestas_GuardarReemplazarYLeer(t *testing.T) {
 
 func TestEvaluacionRespuestas_FinalizarUnaSolaVez(t *testing.T) {
 	ctx := context.Background()
-	repo := postgres.NewEvaluacionRepo(newPool(t))
+	pool := newPool(t)
+	repo := postgres.NewEvaluacionRepo(pool)
+	tm := postgres.NewTxManager(pool)
 	inicio := time.Date(2026, 11, 20, 14, 0, 0, 0, time.UTC)
 	intento, _ := examenDePrueba(t, repo, "1799999932", inicio)
 	fin := inicio.Add(12 * time.Minute)
 
-	if ok, err := repo.Finalizar(ctx, intento.ID, 66.67, fin); err != nil || !ok {
+	if ok, err := finalizarEnTx(t, tm, repo, intento.ID, 66.67, fin); err != nil || !ok {
 		t.Fatalf("primera: ok = %v, err = %v", ok, err)
 	}
-	if ok, err := repo.Finalizar(ctx, intento.ID, 10, fin.Add(time.Minute)); err != nil || ok {
+	if ok, err := finalizarEnTx(t, tm, repo, intento.ID, 10, fin.Add(time.Minute)); err != nil || ok {
 		t.Fatalf("segunda: ok = %v, err = %v", ok, err)
 	}
 	leido, existe, err := repo.IntentoPorID(ctx, intento.ID)
@@ -96,12 +101,14 @@ func TestEvaluacionRespuestas_FinalizarUnaSolaVez(t *testing.T) {
 
 func TestEvaluacionRespuestas_VencidosSinFinalizar(t *testing.T) {
 	ctx := context.Background()
-	repo := postgres.NewEvaluacionRepo(newPool(t))
+	pool := newPool(t)
+	repo := postgres.NewEvaluacionRepo(pool)
+	tm := postgres.NewTxManager(pool)
 	inicio := time.Date(2026, 11, 20, 14, 0, 0, 0, time.UTC)
 	vencido, _ := examenDePrueba(t, repo, "1799999933", inicio)
 	finalizado, _ := examenDePrueba(t, repo, "1799999934", inicio)
 	enCurso, _ := examenDePrueba(t, repo, "1799999935", inicio.Add(time.Hour))
-	if _, err := repo.Finalizar(ctx, finalizado.ID, 80, inicio.Add(10*time.Minute)); err != nil {
+	if _, err := finalizarEnTx(t, tm, repo, finalizado.ID, 80, inicio.Add(10*time.Minute)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -122,9 +129,10 @@ func TestEvaluacionRespuestas_ResultadosConLosDatosDelPostulante(t *testing.T) {
 	ctx := context.Background()
 	pool := newPool(t)
 	repo := postgres.NewEvaluacionRepo(pool)
+	tm := postgres.NewTxManager(pool)
 	inicio := time.Date(2026, 11, 20, 14, 0, 0, 0, time.UTC)
 	intento, _ := examenDePrueba(t, repo, "1799999936", inicio)
-	if _, err := repo.Finalizar(ctx, intento.ID, 33.33, inicio.Add(5*time.Minute)); err != nil {
+	if _, err := finalizarEnTx(t, tm, repo, intento.ID, 33.33, inicio.Add(5*time.Minute)); err != nil {
 		t.Fatal(err)
 	}
 	var codigo string
@@ -153,5 +161,94 @@ func TestEvaluacionRespuestas_ResultadosConLosDatosDelPostulante(t *testing.T) {
 	}
 	if _, existe, err := repo.ResultadoDelIntento(ctx, "99999999-9999-9999-9999-999999999999"); err != nil || existe {
 		t.Fatalf("inexistente: existe = %v, err = %v", existe, err)
+	}
+}
+
+// guardarEnTx guarda una respuesta en su propia transacción, como hace el servicio.
+func guardarEnTx(t *testing.T, tm *postgres.TxManager, repo *postgres.EvaluacionRepo, intentoID string, preguntaID, opcion int, ahora time.Time) (bool, error) {
+	t.Helper()
+	var guardada bool
+	err := tm.Ejecutar(context.Background(), func(ctx context.Context, tx domain.Tx) error {
+		var err error
+		guardada, err = repo.GuardarRespuesta(ctx, tx, intentoID, preguntaID, opcion, ahora)
+		return err
+	})
+	return guardada, err
+}
+
+// finalizarEnTx bloquea el intento y lo finaliza en una transacción, como hace el servicio.
+// Devuelve false si ya estaba finalizado.
+func finalizarEnTx(t *testing.T, tm *postgres.TxManager, repo *postgres.EvaluacionRepo, intentoID string, nota float64, fin time.Time) (bool, error) {
+	t.Helper()
+	var finalizado bool
+	err := tm.Ejecutar(context.Background(), func(ctx context.Context, tx domain.Tx) error {
+		abierto, err := repo.BloquearParaFinalizar(ctx, tx, intentoID)
+		if err != nil || !abierto {
+			return err
+		}
+		finalizado, err = repo.Finalizar(ctx, tx, intentoID, nota, fin)
+		return err
+	})
+	return finalizado, err
+}
+
+// Mientras un proceso finaliza el examen (con el intento bloqueado), una respuesta que llega a
+// la vez tiene que esperar y, al soltarse el bloqueo, rechazarse: nunca puede quedar guardada
+// sin haber entrado en la nota.
+func TestEvaluacionRespuestas_UnaRespuestaQueLlegaMientrasSeFinalizaEsperaYSeRechaza(t *testing.T) {
+	ctx := context.Background()
+	pool := newPool(t)
+	repo := postgres.NewEvaluacionRepo(pool)
+	tm := postgres.NewTxManager(pool)
+	inicio := time.Date(2026, 11, 20, 14, 0, 0, 0, time.UTC)
+	intento, ids := examenDePrueba(t, repo, "1799999937", inicio)
+	durante := inicio.Add(5 * time.Minute)
+
+	bloqueado := make(chan struct{})
+	soltar := make(chan struct{})
+	finalizacion := make(chan error, 1)
+	go func() {
+		finalizacion <- tm.Ejecutar(ctx, func(ctx context.Context, tx domain.Tx) error {
+			abierto, err := repo.BloquearParaFinalizar(ctx, tx, intento.ID)
+			if err != nil {
+				return err
+			}
+			if !abierto {
+				return errors.New("el intento debía estar abierto")
+			}
+			close(bloqueado)
+			<-soltar
+			_, err = repo.Finalizar(ctx, tx, intento.ID, 0, durante)
+			return err
+		})
+	}()
+	<-bloqueado
+
+	type resultadoGuardar struct {
+		ok  bool
+		err error
+	}
+	guardado := make(chan resultadoGuardar, 1)
+	go func() {
+		ok, err := guardarEnTx(t, tm, repo, intento.ID, ids[0], 1, durante)
+		guardado <- resultadoGuardar{ok, err}
+	}()
+
+	// Con el intento bloqueado para finalizar, la respuesta no puede terminar.
+	select {
+	case r := <-guardado:
+		t.Fatalf("la respuesta se guardó sin esperar a que terminara la finalización: %+v", r)
+	case <-time.After(500 * time.Millisecond):
+	}
+	close(soltar)
+	if err := <-finalizacion; err != nil {
+		t.Fatal(err)
+	}
+	r := <-guardado
+	if r.err != nil || r.ok {
+		t.Fatalf("la respuesta debía rechazarse al encontrar el examen finalizado: %+v", r)
+	}
+	if got, err := repo.Respuestas(ctx, intento.ID); err != nil || len(got) != 0 {
+		t.Fatalf("no debe quedar ninguna respuesta fuera de la nota: %v, %v", got, err)
 	}
 }

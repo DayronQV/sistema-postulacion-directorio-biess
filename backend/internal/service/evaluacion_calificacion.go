@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -60,7 +61,14 @@ func (s *EvaluacionService) GuardarRespuesta(ctx context.Context, postulanteID s
 			"opcion": fmt.Sprintf("Debe ser una de las opciones de la pregunta, de 0 a %d", len(sorteada.Orden)-1),
 		})
 	}
-	guardada, err := s.respuestas.GuardarRespuesta(ctx, intento.ID, sorteada.PreguntaID, sorteada.Orden[*opcion], ahora)
+	// En una transacción: el repositorio bloquea el intento en modo compartido antes de
+	// guardar, así una respuesta no se cuela mientras otro proceso califica el examen.
+	var guardada bool
+	err = s.tx.Ejecutar(ctx, func(ctx context.Context, tx domain.Tx) error {
+		var err error
+		guardada, err = s.respuestas.GuardarRespuesta(ctx, tx, intento.ID, sorteada.PreguntaID, sorteada.Orden[*opcion], ahora)
+		return err
+	})
 	if err != nil {
 		return err
 	}
@@ -88,6 +96,10 @@ func (s *EvaluacionService) Finalizar(ctx context.Context, postulanteID string) 
 // FinalizarVencidos finaliza los exámenes cuya hora de cierre ya pasó y que nadie finalizó,
 // con las respuestas guardadas hasta ese momento. Lo llama una tarea periódica y también se
 // hace antes de mostrar los resultados al administrador. Devuelve cuántos finalizó.
+//
+// Un examen que falla no detiene a los demás: se sigue con el resto y los errores se
+// devuelven juntos. Si no, un solo examen con un problema permanente dejaría a todos los
+// siguientes sin finalizar en cada vuelta de la tarea.
 func (s *EvaluacionService) FinalizarVencidos(ctx context.Context) (int, error) {
 	ahora := s.ahora().Truncate(time.Microsecond)
 	vencidos, err := s.respuestas.VencidosSinFinalizar(ctx, ahora)
@@ -95,20 +107,33 @@ func (s *EvaluacionService) FinalizarVencidos(ctx context.Context) (int, error) 
 		return 0, err
 	}
 	finalizados := 0
+	var fallos []error
 	for _, intento := range vencidos {
+		if err := ctx.Err(); err != nil {
+			fallos = append(fallos, err)
+			break
+		}
 		if _, err := s.finalizarIntento(ctx, intento, ahora); err != nil {
-			return finalizados, err
+			fallos = append(fallos, fmt.Errorf("finalizando el intento %s: %w", intento.ID, err))
+			continue
 		}
 		finalizados++
 	}
-	return finalizados, nil
+	return finalizados, errors.Join(fallos...)
 }
 
 // Resultados devuelve los exámenes de todos los postulantes para el administrador. Antes
-// finaliza los que vencieron, para que ninguno aparezca "en curso" cuando ya terminó.
+// finaliza los que vencieron, para que ninguno aparezca "en curso" cuando ya terminó. Si
+// alguno no se pudo finalizar, se registra y se muestran igual los resultados: ese examen
+// queda "en curso" hasta la próxima vuelta, en lugar de dejar al administrador sin la lista.
 func (s *EvaluacionService) Resultados(ctx context.Context) ([]domain.ResultadoEvaluacion, error) {
 	if _, err := s.FinalizarVencidos(ctx); err != nil {
-		return nil, err
+		if ctx.Err() != nil {
+			return nil, err
+		}
+		if s.logger != nil {
+			s.logger.Error("no se pudieron finalizar algunos exámenes vencidos", "error", err)
+		}
 	}
 	return s.respuestas.Resultados(ctx)
 }
@@ -184,19 +209,41 @@ func (s *EvaluacionService) cerrarSiVencio(ctx context.Context, intento domain.I
 
 // finalizarIntento califica el examen, guarda la nota y envía el reporte por correo. Si otro
 // proceso lo finalizó antes, devuelve lo que quedó guardado sin enviar el correo otra vez.
+//
+// Bloquear el intento, leer sus respuestas, calificar y guardar la nota van en una sola
+// transacción: una respuesta que llega a la vez queda guardada antes de calificar o se
+// rechaza (ver GuardarRespuesta), así la nota siempre coincide con las respuestas guardadas
+// que después muestran el reporte y los resultados. El correo se envía tras el COMMIT.
 func (s *EvaluacionService) finalizarIntento(ctx context.Context, intento domain.IntentoEvaluacion, ahora time.Time) (ResultadoFinal, error) {
-	detalle, aciertos, err := s.calificar(ctx, intento)
-	if err != nil {
-		return ResultadoFinal{}, err
-	}
 	total := len(intento.Preguntas)
-	nota := notaSobre100(aciertos, total)
 	// Un examen vencido termina a su hora de cierre, aunque se finalice después.
 	fin := ahora
 	if fin.After(intento.Cierre) {
 		fin = intento.Cierre
 	}
-	finalizado, err := s.respuestas.Finalizar(ctx, intento.ID, nota, fin)
+	var (
+		detalle    []DetallePregunta
+		aciertos   int
+		nota       float64
+		finalizado bool
+	)
+	err := s.tx.Ejecutar(ctx, func(ctx context.Context, tx domain.Tx) error {
+		abierto, err := s.respuestas.BloquearParaFinalizar(ctx, tx, intento.ID)
+		if err != nil || !abierto {
+			return err
+		}
+		respuestas, err := s.respuestas.RespuestasEnTx(ctx, tx, intento.ID)
+		if err != nil {
+			return err
+		}
+		detalle, aciertos, err = s.calificarCon(ctx, intento, respuestas)
+		if err != nil {
+			return err
+		}
+		nota = notaSobre100(aciertos, total)
+		finalizado, err = s.respuestas.Finalizar(ctx, tx, intento.ID, nota, fin)
+		return err
+	})
 	if err != nil {
 		return ResultadoFinal{}, err
 	}
@@ -230,13 +277,18 @@ func (s *EvaluacionService) resultadoGuardado(ctx context.Context, intento domai
 	return r, nil
 }
 
-// calificar compara cada respuesta guardada con la respuesta correcta del banco. Devuelve el
-// detalle por pregunta, en el orden del examen, y cuántas acertó.
+// calificar lee las respuestas guardadas del intento y lo califica (ver calificarCon).
 func (s *EvaluacionService) calificar(ctx context.Context, intento domain.IntentoEvaluacion) ([]DetallePregunta, int, error) {
 	respuestas, err := s.respuestas.Respuestas(ctx, intento.ID)
 	if err != nil {
 		return nil, 0, err
 	}
+	return s.calificarCon(ctx, intento, respuestas)
+}
+
+// calificarCon compara cada respuesta con la respuesta correcta del banco. Devuelve el
+// detalle por pregunta, en el orden del examen, y cuántas acertó.
+func (s *EvaluacionService) calificarCon(ctx context.Context, intento domain.IntentoEvaluacion, respuestas map[int]int) ([]DetallePregunta, int, error) {
 	detalle := make([]DetallePregunta, len(intento.Preguntas))
 	aciertos := 0
 	for i, sorteada := range intento.Preguntas {

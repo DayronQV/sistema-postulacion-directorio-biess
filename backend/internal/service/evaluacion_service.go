@@ -76,6 +76,7 @@ type EvaluacionService struct {
 	intentos   domain.IntentosEvaluacion
 	respuestas domain.RespuestasEvaluacion
 	fases      domain.Fases
+	tx         domain.TxManager
 	barajador  domain.Barajador
 	ahora      func() time.Time
 	mailer     domain.Mailer // opcional: ver ConMailer
@@ -83,10 +84,11 @@ type EvaluacionService struct {
 }
 
 // NewEvaluacionService crea el servicio con sus dependencias inyectadas. fases es la tabla de
-// fases del concurso (la fase Evaluación fija cuándo se puede rendir el examen) y ahora es el
-// reloj (time.Now en producción).
-func NewEvaluacionService(banco domain.BancoEvaluacion, intentos domain.IntentosEvaluacion, respuestas domain.RespuestasEvaluacion, fases domain.Fases, barajador domain.Barajador, ahora func() time.Time) *EvaluacionService {
-	return &EvaluacionService{banco: banco, intentos: intentos, respuestas: respuestas, fases: fases, barajador: barajador, ahora: ahora}
+// fases del concurso (la fase Evaluación fija cuándo se puede rendir el examen), tx abre las
+// transacciones de guardar una respuesta y de finalizar el examen, y ahora es el reloj
+// (time.Now en producción).
+func NewEvaluacionService(banco domain.BancoEvaluacion, intentos domain.IntentosEvaluacion, respuestas domain.RespuestasEvaluacion, fases domain.Fases, tx domain.TxManager, barajador domain.Barajador, ahora func() time.Time) *EvaluacionService {
+	return &EvaluacionService{banco: banco, intentos: intentos, respuestas: respuestas, fases: fases, tx: tx, barajador: barajador, ahora: ahora}
 }
 
 // ConMailer indica el correo por el que se envía el reporte PDF al postulante cuando su

@@ -315,3 +315,77 @@ func TestGenerarReportePDF_UnExamenLargoOcupaVariasPaginas(t *testing.T) {
 		t.Fatalf("60 preguntas no caben en una página: el reporte tiene %d", paginas)
 	}
 }
+
+func TestFinalizar_CalificaConLasRespuestasLeidasConElExamenBloqueado(t *testing.T) {
+	ctx := context.Background()
+	e := iniciado(t, 6, 4)
+	intento := e.intento()
+	// Otra petición confirmó una respuesta correcta justo antes de que finalizar obtuviera el
+	// bloqueo: la nota tiene que contarla, y el reporte después debe decir lo mismo.
+	e.intentos.alBloquear = func() {
+		if e.intentos.respuestas == nil {
+			e.intentos.respuestas = map[string]map[int]int{}
+		}
+		e.intentos.respuestas[intento.ID] = map[int]int{intento.Preguntas[0].PreguntaID: 0}
+	}
+
+	r, err := e.svc.Finalizar(ctx, "p1")
+	if err != nil || r.Aciertos != 1 || r.Nota != 25 {
+		t.Fatalf("la nota debe contar la respuesta confirmada antes del bloqueo: %+v, %v", r, err)
+	}
+	guardado := e.intento()
+	if guardado.Nota == nil || *guardado.Nota != r.Nota {
+		t.Fatalf("nota guardada = %v; se esperaba %v", guardado.Nota, r.Nota)
+	}
+	// Leer de nuevo el resultado (como el reporte y los resultados) da los mismos aciertos.
+	otra, err := e.svc.Finalizar(ctx, "p1")
+	if err != nil || otra.Aciertos != r.Aciertos || otra.Nota != r.Nota {
+		t.Fatalf("el resultado guardado no coincide con la nota: %+v, %v", otra, err)
+	}
+	if e.intentos.fueraDeTx != 0 {
+		t.Fatalf("bloquear, leer las respuestas y finalizar deben ir en la transacción (%d fuera)", e.intentos.fueraDeTx)
+	}
+}
+
+func TestGuardarRespuesta_UsaUnaTransaccion(t *testing.T) {
+	e := iniciado(t, 6, 3)
+	antes := e.tx.abiertas
+	if err := e.svc.GuardarRespuesta(context.Background(), "p1", 1, opc(posicionCorrecta)); err != nil {
+		t.Fatal(err)
+	}
+	if e.tx.abiertas != antes+1 || e.intentos.fueraDeTx != 0 {
+		t.Fatalf("guardar debe abrir una transacción: abiertas %d → %d, fuera de tx %d", antes, e.tx.abiertas, e.intentos.fueraDeTx)
+	}
+}
+
+func TestFinalizarVencidos_UnoQueFallaNoDetieneALosDemas(t *testing.T) {
+	ctx := context.Background()
+	e := iniciado(t, 10, 4)
+	e.intentos.postulaciones["p2"] = domain.PostulacionEvaluacion{ID: "post-2", Estado: domain.EstadoEnviada, SuperoMerito: true}
+	if _, _, err := e.svc.Iniciar(ctx, "p2"); err != nil {
+		t.Fatal(err)
+	}
+	e.intentos.fallaAlBloquear = e.intentos.intentos["post-1"].ID
+
+	*e.reloj = inicioExamen.Add(time.Hour) // los dos ya cerraron
+	n, err := e.svc.FinalizarVencidos(ctx)
+
+	if n != 1 || e.intentos.intentos["post-2"].FinalizadoEn == nil {
+		t.Fatalf("debe finalizar el que no falla: finalizados = %d", n)
+	}
+	if err == nil || !strings.Contains(err.Error(), e.intentos.fallaAlBloquear) {
+		t.Fatalf("debe informar el intento que falló: %v", err)
+	}
+}
+
+func TestResultados_ListaAunqueUnVencidoNoSePuedaFinalizar(t *testing.T) {
+	e := iniciado(t, 6, 3)
+	e.intentos.fallaAlBloquear = e.intento().ID
+	*e.reloj = inicioExamen.Add(time.Hour)
+
+	rs, err := e.svc.Resultados(context.Background())
+
+	if err != nil || len(rs) != 1 {
+		t.Fatalf("el administrador debe ver la lista aunque un examen no se pueda finalizar: %+v, %v", rs, err)
+	}
+}

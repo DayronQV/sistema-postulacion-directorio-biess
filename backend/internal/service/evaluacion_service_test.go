@@ -25,6 +25,30 @@ type fakeExamenes struct {
 	finalizaciones int                    // veces que Finalizar guardó una nota
 	// otroFinalizo simula que la tarea periódica finalizó el intento justo antes.
 	otroFinalizo bool
+	// alBloquear corre dentro de BloquearParaFinalizar, antes de devolver el bloqueo: simula
+	// una respuesta que otra petición confirmó justo antes de que se obtuviera el bloqueo.
+	alBloquear func()
+	// fueraDeTx cuenta escrituras o lecturas para calificar hechas sin transacción.
+	fueraDeTx int
+	// fallaAlBloquear hace fallar BloquearParaFinalizar para ese id de intento.
+	fallaAlBloquear string
+}
+
+// fakeTxEval imita el TxManager: ejecuta fn con una transacción falsa y cuenta las llamadas.
+type fakeTxEval struct{ abiertas int }
+
+type txFalsaEval struct{}
+
+func (t *fakeTxEval) Ejecutar(ctx context.Context, fn func(context.Context, domain.Tx) error) error {
+	t.abiertas++
+	return fn(ctx, txFalsaEval{})
+}
+
+// enTx comprueba que el método se llamó dentro de una transacción del fakeTxEval.
+func (f *fakeExamenes) enTx(tx domain.Tx) {
+	if _, ok := tx.(txFalsaEval); !ok {
+		f.fueraDeTx++
+	}
 }
 
 // idIntento arma un id con forma de UUID a partir del id de la postulación.
@@ -41,7 +65,8 @@ func (f *fakeExamenes) porID(id string) (string, domain.IntentoEvaluacion, bool)
 	return "", domain.IntentoEvaluacion{}, false
 }
 
-func (f *fakeExamenes) GuardarRespuesta(_ context.Context, intentoID string, preguntaID, opcion int, ahora time.Time) (bool, error) {
+func (f *fakeExamenes) GuardarRespuesta(_ context.Context, tx domain.Tx, intentoID string, preguntaID, opcion int, ahora time.Time) (bool, error) {
+	f.enTx(tx)
 	_, i, ok := f.porID(intentoID)
 	if !ok || i.FinalizadoEn != nil || !ahora.Before(i.Cierre) {
 		return false, nil
@@ -64,15 +89,39 @@ func (f *fakeExamenes) Respuestas(_ context.Context, intentoID string) (map[int]
 	return copia, nil
 }
 
-func (f *fakeExamenes) Finalizar(_ context.Context, intentoID string, nota float64, fin time.Time) (bool, error) {
+func (f *fakeExamenes) RespuestasEnTx(ctx context.Context, tx domain.Tx, intentoID string) (map[int]int, error) {
+	f.enTx(tx)
+	return f.Respuestas(ctx, intentoID)
+}
+
+func (f *fakeExamenes) BloquearParaFinalizar(_ context.Context, tx domain.Tx, intentoID string) (bool, error) {
+	f.enTx(tx)
+	if intentoID == f.fallaAlBloquear {
+		return false, errors.New("base de datos caída para este intento")
+	}
 	clave, i, ok := f.porID(intentoID)
 	if !ok {
 		return false, nil
 	}
 	if f.otroFinalizo && i.FinalizadoEn == nil {
-		otraNota, otroFin := 12.5, fin.Add(-time.Second)
+		otraNota, otroFin := 12.5, i.Cierre.Add(-time.Second)
 		i.Nota, i.FinalizadoEn = &otraNota, &otroFin
 		f.intentos[clave] = i
+	}
+	if i.FinalizadoEn != nil {
+		return false, nil
+	}
+	if f.alBloquear != nil {
+		f.alBloquear()
+	}
+	return true, nil
+}
+
+func (f *fakeExamenes) Finalizar(_ context.Context, tx domain.Tx, intentoID string, nota float64, fin time.Time) (bool, error) {
+	f.enTx(tx)
+	clave, i, ok := f.porID(intentoID)
+	if !ok {
+		return false, nil
 	}
 	if i.FinalizadoEn != nil {
 		return false, nil
@@ -176,6 +225,7 @@ type escenarioEval struct {
 	fases    *fakeFases
 	correo   *fakeMailer
 	reloj    *time.Time
+	tx       *fakeTxEval
 }
 
 // finVentana es el fin de la fase Evaluación: dos horas después del inicio.
@@ -203,10 +253,11 @@ func nuevoEscenario(n, pide int, barajador domain.Barajador) escenarioEval {
 	}
 	reloj := inicioExamen
 	correo := &fakeMailer{}
-	svc := service.NewEvaluacionService(banco, intentos, intentos, fases, barajador, func() time.Time { return reloj }).
+	tx := &fakeTxEval{}
+	svc := service.NewEvaluacionService(banco, intentos, intentos, fases, tx, barajador, func() time.Time { return reloj }).
 		ConMailer(correo, nil)
 	return escenarioEval{
-		svc: svc, banco: banco, intentos: intentos, fases: fases, correo: correo, reloj: &reloj,
+		svc: svc, banco: banco, intentos: intentos, fases: fases, correo: correo, reloj: &reloj, tx: tx,
 	}
 }
 

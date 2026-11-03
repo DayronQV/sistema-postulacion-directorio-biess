@@ -21,7 +21,7 @@ func evaluacionRoutes(c *container) apihttp.RouteRegistrar {
 // intentos y de respuestas, y el reporte se envía por el correo configurado.
 func nuevaEvaluacion(c *container) *service.EvaluacionService {
 	repo := postgres.NewEvaluacionRepo(c.db)
-	return service.NewEvaluacionService(repo, repo, repo, postgres.NewFasesRepo(c.db), service.BarajadorCrypto{}, time.Now).
+	return service.NewEvaluacionService(repo, repo, repo, postgres.NewFasesRepo(c.db), postgres.NewTxManager(c.db), service.BarajadorCrypto{}, time.Now).
 		ConMailer(c.mailer, c.logger)
 }
 

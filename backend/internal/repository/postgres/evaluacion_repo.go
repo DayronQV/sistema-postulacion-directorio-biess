@@ -314,27 +314,77 @@ func escanearIntento(row pgx.Row) (domain.IntentoEvaluacion, error) {
 	return i, nil
 }
 
-// GuardarRespuesta inserta o reemplaza la respuesta en una sola sentencia, y solo si el
-// intento sigue abierto a la hora dada: así una respuesta que llega justo después del cierre
-// no se cuela.
-func (r *EvaluacionRepo) GuardarRespuesta(ctx context.Context, intentoID string, preguntaID, opcion int, ahora time.Time) (bool, error) {
-	tag, err := r.db.Exec(ctx, `
-INSERT INTO eval_respuestas (intento_id, pregunta_id, opcion)
-SELECT $1, $2, $3
-WHERE EXISTS (
-    SELECT 1 FROM eval_intentos
-    WHERE id = $1 AND finalizado_at IS NULL AND cierre > $4
-)
-ON CONFLICT (intento_id, pregunta_id) DO UPDATE SET opcion = EXCLUDED.opcion`, intentoID, preguntaID, opcion, ahora)
+// GuardarRespuesta inserta o reemplaza la respuesta dentro de tx, y solo si el intento sigue
+// abierto a la hora dada. Primero bloquea la fila del intento en modo compartido (FOR SHARE),
+// que choca con el FOR UPDATE de BloquearParaFinalizar: si el intento se está calificando,
+// esta espera; al soltarse, PostgreSQL vuelve a evaluar la condición sobre la fila ya
+// finalizada y la respuesta se rechaza. Así ninguna respuesta queda fuera de la nota.
+func (r *EvaluacionRepo) GuardarRespuesta(ctx context.Context, tx domain.Tx, intentoID string, preguntaID, opcion int, ahora time.Time) (bool, error) {
+	ptx, err := pgxTx(tx)
 	if err != nil {
+		return false, err
+	}
+	var abierto bool
+	err = ptx.QueryRow(ctx, `
+SELECT true FROM eval_intentos
+WHERE id = $1 AND finalizado_at IS NULL AND cierre > $2
+FOR SHARE`, intentoID, ahora).Scan(&abierto)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("bloqueando el intento para guardar la respuesta: %w", err)
+	}
+	if _, err := ptx.Exec(ctx, `
+INSERT INTO eval_respuestas (intento_id, pregunta_id, opcion)
+VALUES ($1, $2, $3)
+ON CONFLICT (intento_id, pregunta_id) DO UPDATE SET opcion = EXCLUDED.opcion`, intentoID, preguntaID, opcion); err != nil {
 		return false, fmt.Errorf("guardando la respuesta: %w", err)
 	}
-	return tag.RowsAffected() == 1, nil
+	return true, nil
+}
+
+// consultador es lo que tienen en común el pool y una transacción de pgx para leer filas.
+type consultador interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
 // Respuestas devuelve las respuestas guardadas del intento.
 func (r *EvaluacionRepo) Respuestas(ctx context.Context, intentoID string) (map[int]int, error) {
-	rows, err := r.db.Query(ctx, `SELECT pregunta_id, opcion FROM eval_respuestas WHERE intento_id = $1`, intentoID)
+	return leerRespuestas(ctx, r.db, intentoID)
+}
+
+// RespuestasEnTx devuelve las respuestas guardadas del intento dentro de tx.
+func (r *EvaluacionRepo) RespuestasEnTx(ctx context.Context, tx domain.Tx, intentoID string) (map[int]int, error) {
+	ptx, err := pgxTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	return leerRespuestas(ctx, ptx, intentoID)
+}
+
+// BloquearParaFinalizar bloquea la fila del intento (FOR UPDATE) si todavía no está
+// finalizado; false si ya lo estaba. Si otro proceso lo está finalizando, espera a que
+// termine y, al volver a evaluar la condición, devuelve false.
+func (r *EvaluacionRepo) BloquearParaFinalizar(ctx context.Context, tx domain.Tx, intentoID string) (bool, error) {
+	ptx, err := pgxTx(tx)
+	if err != nil {
+		return false, err
+	}
+	var abierto bool
+	err = ptx.QueryRow(ctx, `
+SELECT true FROM eval_intentos WHERE id = $1 AND finalizado_at IS NULL FOR UPDATE`, intentoID).Scan(&abierto)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("bloqueando el intento para finalizarlo: %w", err)
+	}
+	return true, nil
+}
+
+func leerRespuestas(ctx context.Context, q consultador, intentoID string) (map[int]int, error) {
+	rows, err := q.Query(ctx, `SELECT pregunta_id, opcion FROM eval_respuestas WHERE intento_id = $1`, intentoID)
 	if err != nil {
 		return nil, fmt.Errorf("leyendo las respuestas: %w", err)
 	}
@@ -353,10 +403,14 @@ func (r *EvaluacionRepo) Respuestas(ctx context.Context, intentoID string) (map[
 	return respuestas, nil
 }
 
-// Finalizar guarda la nota solo si el intento no estaba finalizado: si dos procesos lo
-// finalizan a la vez (el postulante y la tarea periódica), solo uno gana.
-func (r *EvaluacionRepo) Finalizar(ctx context.Context, intentoID string, nota float64, finalizadoEn time.Time) (bool, error) {
-	tag, err := r.db.Exec(ctx, `
+// Finalizar guarda la nota dentro de tx solo si el intento no estaba finalizado: si dos
+// procesos lo finalizan a la vez (el postulante y la tarea periódica), solo uno gana.
+func (r *EvaluacionRepo) Finalizar(ctx context.Context, tx domain.Tx, intentoID string, nota float64, finalizadoEn time.Time) (bool, error) {
+	ptx, err := pgxTx(tx)
+	if err != nil {
+		return false, err
+	}
+	tag, err := ptx.Exec(ctx, `
 UPDATE eval_intentos SET finalizado_at = $2, nota = $3
 WHERE id = $1 AND finalizado_at IS NULL`, intentoID, finalizadoEn, nota)
 	if err != nil {
