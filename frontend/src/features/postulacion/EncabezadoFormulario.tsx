@@ -3,7 +3,7 @@ import EncabezadoPagina from '@/components/layout/EncabezadoPagina'
 
 interface EncabezadoFormularioProps {
   codigo?: string
-  // Etiqueta del estado (Borrador, Enviada, Evaluación Técnica).
+  // Etiqueta del estado (En proceso, Enviada, Evaluación Técnica).
   estado: ReactNode
 }
 

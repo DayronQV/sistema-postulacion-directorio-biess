@@ -149,7 +149,7 @@ export default function FormularioPostulacion() {
       <EncabezadoFormulario
         codigo={postulacion.codigo}
         // Aquí siempre es borrador: la enviada y la cerrada tienen su propia pantalla.
-        estado={<Badge tono="warning">Borrador</Badge>}
+        estado={<Badge tono="warning">En proceso</Badge>}
       />
 
       {/* Avance */}
