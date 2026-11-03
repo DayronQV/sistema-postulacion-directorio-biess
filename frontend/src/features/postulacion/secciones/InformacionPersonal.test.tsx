@@ -4,6 +4,8 @@ import { ApiError } from '@/services/errores'
 import type { InformacionPersonal as InformacionApi } from '@/services/postulacion'
 import InformacionPersonal from './InformacionPersonal'
 import PostulacionBloqueada from './PostulacionBloqueada'
+import ContenedorToasts from '@/components/ui/ContenedorToasts'
+import { reiniciarToasts } from '@/store/toasts'
 
 const soltera: InformacionApi = {
   cedula: '1712345675',
@@ -25,6 +27,12 @@ const casada: InformacionApi = {
 function dato(etiqueta: string) {
   return screen.getByText(etiqueta).nextElementSibling
 }
+
+beforeEach(() => {
+  // El aviso de guardado es un toast: se monta su contenedor y se limpia entre pruebas.
+  reiniciarToasts()
+  render(<ContenedorToasts />)
+})
 
 describe('<InformacionPersonal />', () => {
   it('muestra los datos del Registro Civil con la fecha en DD/MM/AAAA', () => {
@@ -94,8 +102,11 @@ describe('<InformacionPersonal />', () => {
     expect(screen.getByRole('button', { name: /Guardando/ })).toBeDisabled()
   })
 
-  it('confirma el guardado', () => {
-    render(<InformacionPersonal informacion={soltera} onGuardar={vi.fn()} guardado />)
+  it('confirma el guardado con un toast, al pasar de sin guardar a guardado', () => {
+    const { rerender } = render(<InformacionPersonal informacion={soltera} onGuardar={vi.fn()} />)
+    expect(screen.queryByText('La información personal se guardó.')).not.toBeInTheDocument()
+
+    rerender(<InformacionPersonal informacion={soltera} onGuardar={vi.fn()} guardado />)
 
     expect(screen.getByText('La información personal se guardó.')).toBeInTheDocument()
   })

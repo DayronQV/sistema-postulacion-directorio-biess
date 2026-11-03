@@ -8,6 +8,7 @@ import {
   type Postulacion,
 } from '@/services/postulacion'
 import { ApiError } from '@/services/errores'
+import { mostrarToast } from '@/store/toasts'
 
 export interface EstadoFormulario {
   postulacion: Postulacion | null
@@ -85,6 +86,8 @@ export async function guardarSeccion(
       guardando: false,
       seccionesConCambios: estado.seccionesConCambios.filter((s) => s !== id),
     })
+    // Inhabilidades y el cierre guardan por aquí y no tenían ningún aviso de éxito.
+    mostrarToast('La información se guardó correctamente.')
     return true
   } catch (e) {
     poner({ guardando: false, errorGuardado: comoApiError(e) })

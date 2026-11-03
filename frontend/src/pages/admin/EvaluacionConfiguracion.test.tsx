@@ -6,6 +6,8 @@ import { guardarConfig, obtenerConfig } from '@/services/adminEvaluacion'
 import { listarFases } from '@/services/adminFases'
 import { ApiError } from '@/services/errores'
 import EvaluacionConfiguracion from './EvaluacionConfiguracion'
+import ContenedorToasts from '@/components/ui/ContenedorToasts'
+import { reiniciarToasts } from '@/store/toasts'
 
 vi.mock('@/services/adminEvaluacion', async (original) => ({
   ...(await original<typeof import('@/services/adminEvaluacion')>()),
@@ -31,6 +33,9 @@ function montar() {
 }
 
 beforeEach(() => {
+  // El aviso de guardado es un toast: se monta su contenedor y se limpia entre pruebas.
+  reiniciarToasts()
+  render(<ContenedorToasts />)
   mockObtener.mockReset().mockResolvedValue(config)
   mockGuardar.mockReset()
   mockFases.mockReset().mockResolvedValue([])

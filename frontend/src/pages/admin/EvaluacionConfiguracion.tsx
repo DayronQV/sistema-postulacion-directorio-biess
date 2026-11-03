@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Campo from '@/components/form/Campo'
 import Alert from '@/components/ui/Alert'
+import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
@@ -66,6 +67,7 @@ function FormularioConfig({ config, fases }: { config: ConfigEvaluacion; fases: 
   const [errorGeneral, setErrorGeneral] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
+  useAvisoDeGuardado(guardado, 'Configuración guardada.')
   const [bancoTotal, setBancoTotal] = useState(config.total_banco)
   const [configurada, setConfigurada] = useState(config.configurada)
   // Se recalcula con la duración que se está escribiendo.
@@ -120,7 +122,6 @@ function FormularioConfig({ config, fases }: { config: ConfigEvaluacion; fases: 
             {errorGeneral}
           </Alert>
         )}
-        {guardado && <Alert tipo="success">Configuración guardada.</Alert>}
         {ventana !== null && (
           <Alert
             tipo="warning"

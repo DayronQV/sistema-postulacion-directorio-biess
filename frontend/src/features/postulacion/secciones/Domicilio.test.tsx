@@ -4,6 +4,8 @@ import { listarCantones, listarPaises, listarProvincias } from '@/services/catal
 import { ApiError } from '@/services/errores'
 import { DOMICILIO_VACIO, type ValoresDomicilio } from '../domicilio'
 import Domicilio from './Domicilio'
+import ContenedorToasts from '@/components/ui/ContenedorToasts'
+import { reiniciarToasts } from '@/store/toasts'
 
 vi.mock('@/services/catalogos')
 
@@ -32,6 +34,9 @@ function diferido<T>() {
 }
 
 beforeEach(() => {
+  // El aviso de guardado es un toast: se monta su contenedor y se limpia entre pruebas.
+  reiniciarToasts()
+  render(<ContenedorToasts />)
   vi.mocked(listarPaises).mockResolvedValue(PAISES)
   vi.mocked(listarProvincias).mockResolvedValue(PROVINCIAS)
   vi.mocked(listarCantones).mockImplementation(
@@ -361,9 +366,17 @@ describe('Domicilio: estados de guardado', () => {
     expect(boton).toHaveAttribute('aria-busy', 'true')
   })
 
-  it('confirma el guardado', async () => {
-    montar({ guardado: true })
+  it('confirma el guardado con un toast, al pasar de sin guardar a guardado', async () => {
+    const props = {
+      valoresIniciales: DOMICILIO_VACIO,
+      correoPrincipal: 'ana@correo.com',
+      onGuardar: vi.fn(),
+    }
+    const { rerender } = render(<Domicilio {...props} />)
     await paisListo()
+    expect(screen.queryByText('Domicilio guardado.')).not.toBeInTheDocument()
+
+    rerender(<Domicilio {...props} guardado />)
 
     expect(screen.getByText('Domicilio guardado.')).toBeInTheDocument()
   })

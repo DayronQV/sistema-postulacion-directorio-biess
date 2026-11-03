@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import Campo from '@/components/form/Campo'
 import { CampoTexto } from '@/components/form/campos'
 import Alert from '@/components/ui/Alert'
+import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Loader from '@/components/ui/Loader'
@@ -55,6 +56,7 @@ export default function Domicilio({
     if (error) aplicarErroresDeCampo(error, setError, CAMPOS_API_DOMICILIO)
   }, [error, setError])
 
+  useAvisoDeGuardado(guardado && !error, 'Domicilio guardado.')
   const idPais = useId()
   const idProvincia = useId()
   const idCanton = useId()
@@ -91,7 +93,6 @@ export default function Domicilio({
             {error.message}
           </Alert>
         )}
-        {guardado && !error && <Alert tipo="success">Domicilio guardado.</Alert>}
 
         <fieldset disabled={guardando} className="flex flex-col gap-space-md">
           <div className="grid gap-space-md sm:grid-cols-2">

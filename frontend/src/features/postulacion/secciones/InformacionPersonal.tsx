@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import Alert from '@/components/ui/Alert'
+import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import type { ApiError } from '@/services/errores'
@@ -36,6 +37,7 @@ export default function InformacionPersonal({
   error = null,
 }: InformacionPersonalProps) {
   const conPareja = estadoCivilConPareja(informacion.estado_civil)
+  useAvisoDeGuardado(guardado, 'La información personal se guardó.')
 
   return (
     <Card
@@ -44,7 +46,6 @@ export default function InformacionPersonal({
     >
       <div className="flex flex-col gap-space-md">
         {error && <Alert tipo="error" titulo={error.message} />}
-        {guardado && <Alert tipo="success">La información personal se guardó.</Alert>}
 
         <dl className="grid grid-cols-1 gap-space-md sm:grid-cols-2">
           <Dato etiqueta="Nombres">{informacion.nombres}</Dato>

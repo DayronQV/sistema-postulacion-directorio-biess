@@ -6,6 +6,8 @@ import { ApiError } from '@/services/errores'
 import type { ResultadoCargo, TipoCargo } from '@/services/postulacion'
 import { ETIQUETA_CARGO, MSG_CARGO_VALIDO, PREGUNTA_RESPALDO } from '../reglasCargo'
 import Cargo, { type CargoInicial, type CargoProps } from './Cargo'
+import ContenedorToasts from '@/components/ui/ContenedorToasts'
+import { reiniciarToasts } from '@/store/toasts'
 
 vi.mock('@/services/documentos', () => ({
   subirDocumento: vi.fn(),
@@ -43,6 +45,9 @@ function elegirPdf() {
 }
 
 beforeEach(() => {
+  // El aviso de guardado es un toast: se monta su contenedor y se limpia entre pruebas.
+  reiniciarToasts()
+  render(<ContenedorToasts />)
   mockSubir.mockReset()
   mockEliminar.mockReset()
   mockEliminar.mockResolvedValue(undefined)
