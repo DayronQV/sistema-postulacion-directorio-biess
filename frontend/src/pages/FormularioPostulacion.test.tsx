@@ -92,6 +92,41 @@ describe('FormularioPostulacion', () => {
     expect(screen.queryByLabelText('Cambios sin guardar')).toBeNull()
   })
 
+  // El navegador dispara `input` y luego `change` al elegir en una lista. Si la marca de
+  // "cambios sin guardar" redibuja la página con el primero, React devuelve la lista a su
+  // valor anterior antes de que llegue el segundo y la primera elección se pierde.
+  it('la primera elección en una lista se queda, aunque marque cambios sin guardar', async () => {
+    obtener.mockResolvedValue({ ...base, formacion: [] })
+    const user = userEvent.setup()
+    render(<FormularioPostulacion />)
+    await screen.findByText('POST-2026-0001')
+
+    await user.click(screen.getByRole('button', { name: /5\. Formación académica/ }))
+    await user.click(await screen.findByRole('button', { name: 'Agregar formación' }))
+    const nivel = screen.getByLabelText(/Nivel de instrucción/)
+    expect(screen.queryByLabelText(/Institución educativa/)).not.toBeInTheDocument()
+
+    await user.selectOptions(nivel, 'tercer_nivel')
+
+    expect(nivel).toHaveValue('tercer_nivel')
+    expect(screen.getByLabelText(/Institución educativa/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Cambios sin guardar')).toBeInTheDocument()
+  })
+
+  it('escribir texto en un campo también marca cambios sin guardar', async () => {
+    obtener.mockResolvedValue({ ...base, referencias: [] })
+    const user = userEvent.setup()
+    render(<FormularioPostulacion />)
+    await screen.findByText('POST-2026-0001')
+
+    await user.click(screen.getByRole('button', { name: /9\. Referencias personales/ }))
+    await user.click(await screen.findByRole('button', { name: 'Agregar referencia' }))
+    expect(screen.queryByLabelText('Cambios sin guardar')).toBeNull()
+
+    await user.type(screen.getByLabelText(/Nombres y apellidos/), 'A')
+    expect(screen.getByLabelText('Cambios sin guardar')).toBeInTheDocument()
+  })
+
   it('con la postulación enviada no muestra secciones editables, solo la confirmación', async () => {
     obtener.mockResolvedValue({ ...base, estado: 'enviada', consentimiento: true })
     render(
