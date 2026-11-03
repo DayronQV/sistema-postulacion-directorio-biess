@@ -152,8 +152,8 @@ export default function CargaMasiva({ onCargado }: CargaMasivaProps) {
                           <Badge tono="success">Válida</Badge>
                         ) : (
                           <ul className="list-disc pl-4 text-label-sm text-error">
-                            {f.errores.map((error) => (
-                              <li key={error}>{error}</li>
+                            {f.errores.map((error, i) => (
+                              <li key={i}>{error}</li>
                             ))}
                           </ul>
                         )}

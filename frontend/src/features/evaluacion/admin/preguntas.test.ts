@@ -26,6 +26,12 @@ describe('validarPregunta', () => {
     expect(errores['opciones[0]']).toBeUndefined()
   })
 
+  it('una opción repetida sin distinguir mayúsculas también es un error, como en el servidor', () => {
+    const errores = validarPregunta({ ...valida, opciones: ['Quito', 'quito'] })
+    expect(errores['opciones[1]']).toBe('La opción está repetida')
+    expect(errores['opciones[0]']).toBeUndefined()
+  })
+
   it('la respuesta correcta debe estar dentro de las opciones', () => {
     expect(validarPregunta({ ...valida, respuesta_correcta: 2 }).respuesta_correcta).toBeDefined()
     expect(validarPregunta({ ...valida, respuesta_correcta: -1 }).respuesta_correcta).toBeDefined()

@@ -32,8 +32,9 @@ export function validarPregunta(p: BorradorPregunta): Record<string, string> {
     if (!texto) errores[`opciones[${i}]`] = 'La opción no puede estar vacía'
     else if ([...texto].length > MAX_OPCION)
       errores[`opciones[${i}]`] = `Máximo ${MAX_OPCION} caracteres`
-    else if (vistas.has(texto)) errores[`opciones[${i}]`] = 'La opción está repetida'
-    else vistas.set(texto, i)
+    // El servidor compara sin distinguir mayúsculas.
+    else if (vistas.has(texto.toLowerCase())) errores[`opciones[${i}]`] = 'La opción está repetida'
+    else vistas.set(texto.toLowerCase(), i)
   })
 
   const correcta = p.respuesta_correcta
