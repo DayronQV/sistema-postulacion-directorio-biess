@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import Icon from '@/components/ui/Icon'
+import { RUTA_LOGIN_ADMIN } from '@/routes/rutas'
 
 interface LayoutAccesoProps {
   children?: ReactNode
@@ -11,6 +12,10 @@ interface LayoutAccesoProps {
 // En móvil el panel se reduce a una franja superior con el logo.
 // Las imágenes están en public/img (logo sin fondo y edificio sin el cuadriculado).
 export default function LayoutAcceso({ children }: LayoutAccesoProps) {
+  // El personal del BIESS entra por otra pantalla (usuario y contraseña, no cédula): el pie
+  // enlaza a ella desde las pantallas del postulante. En la del panel no se muestra, porque la
+  // propia tarjeta ya trae el enlace de vuelta ("¿Es postulante? Ingrese aquí").
+  const enPanel = useLocation().pathname === RUTA_LOGIN_ADMIN
   return (
     <div className="flex min-h-screen flex-col bg-surface">
       <div className="relative flex flex-1 flex-col lg:flex-row">
@@ -63,13 +68,27 @@ export default function LayoutAcceso({ children }: LayoutAccesoProps) {
         </main>
       </div>
 
-      <footer className="flex items-center justify-center gap-3 bg-surface-container-lowest px-margin-mobile py-space-md text-legal-code text-on-surface-variant shadow-[0_-1px_8px_rgba(0,0,0,0.04)] sm:px-margin">
-        <Icon nombre="verified_user" relleno className="text-[22px] text-primary-container" />
-        <span className="h-6 w-px bg-outline-variant" />
-        <p>
-          © {new Date().getFullYear()} Banco del Instituto Ecuatoriano de Seguridad Social (BIESS).
-          Sistema del Concurso de Méritos y Oposición.
-        </p>
+      <footer className="flex flex-col items-center justify-center gap-3 bg-surface-container-lowest px-margin-mobile py-space-md text-legal-code text-on-surface-variant shadow-[0_-1px_8px_rgba(0,0,0,0.04)] sm:px-margin md:flex-row">
+        <div className="flex items-center gap-3">
+          <Icon nombre="verified_user" relleno className="text-[22px] text-primary-container" />
+          <span className="h-6 w-px bg-outline-variant" />
+          <p>
+            © {new Date().getFullYear()} Banco del Instituto Ecuatoriano de Seguridad Social
+            (BIESS). Sistema del Concurso de Méritos y Oposición.
+          </p>
+        </div>
+        {!enPanel && (
+          <>
+            <span className="hidden h-6 w-px bg-outline-variant md:block" />
+            <Link
+              to={RUTA_LOGIN_ADMIN}
+              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-primary-container bg-primary-fixed/40 px-4 py-2 text-body-bold text-primary-container hover:bg-primary-container hover:text-on-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+            >
+              <Icon nombre="admin_panel_settings" relleno className="text-[22px]" />
+              Acceso del personal del BIESS
+            </Link>
+          </>
+        )}
       </footer>
     </div>
   )
