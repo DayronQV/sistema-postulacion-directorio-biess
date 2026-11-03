@@ -60,6 +60,11 @@ services:
       # La URL pública del frontend: también arma los enlaces de los correos.
       CORS_ALLOWED_ORIGIN: https://${DOMINIO:-localhost}
       MAILER: ${MAILER:-log}
+      # Solo con MAILER=mailjet (correo real); ver .env.example.
+      MAILJET_API_KEY: ${MAILJET_API_KEY:-}
+      MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Concurso Directorio BIESS}
       # Personas que reconocen los simuladores del Registro Civil y del IESS. El archivo no
       # está en el repositorio: se copia al servidor (ver PADRON_ARCHIVO en .env.example).
       PADRON_ARCHIVO: /datos/padron.json
