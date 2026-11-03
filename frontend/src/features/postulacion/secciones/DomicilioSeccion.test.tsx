@@ -123,7 +123,7 @@ describe('DomicilioSeccion (conectado a la API)', () => {
     await user.type(screen.getByLabelText(/^Provincia \/ Estado/), 'Antioquia')
     await user.type(screen.getByLabelText(/^Ciudad\*$/), 'Medellín')
     await user.type(screen.getByLabelText(/^Teléfono celular/), '0999999999')
-    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     expect(await screen.findByText('Domicilio guardado.')).toBeInTheDocument()
     expect(guardarPostulacion).toHaveBeenCalledTimes(1)
@@ -157,7 +157,7 @@ describe('DomicilioSeccion (conectado a la API)', () => {
     await user.type(screen.getByLabelText(/^Provincia \/ Estado/), 'Antioquia')
     await user.type(screen.getByLabelText(/^Ciudad\*$/), 'Medellín')
     await user.type(screen.getByLabelText(/^Teléfono celular/), '0999999999')
-    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
 
     expect(await screen.findByText('Datos inválidos')).toBeInTheDocument()
     expect(

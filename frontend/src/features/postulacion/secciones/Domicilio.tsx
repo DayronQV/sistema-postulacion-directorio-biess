@@ -86,7 +86,6 @@ export default function Domicilio({
     <FormProvider {...form}>
       <form noValidate onSubmit={enviar} className="flex flex-col gap-space-md">
         <h2 className="text-headline-sm text-on-surface">Información domiciliaria y de contacto</h2>
-
         {error && (
           <Alert tipo="error" titulo="No se pudo guardar">
             {error.message}
@@ -127,7 +126,10 @@ export default function Domicilio({
                   >
                     <Select
                       id={idProvincia}
-                      opciones={provincias.items.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
+                      opciones={provincias.items.map((p) => ({
+                        valor: p.id,
+                        etiqueta: p.nombre,
+                      }))}
                       placeholder="Seleccione la provincia"
                       invalido={Boolean(errors.provinciaId)}
                       {...registroProvincia}
@@ -152,7 +154,10 @@ export default function Domicilio({
                     >
                       <Select
                         id={idCanton}
-                        opciones={cantones.items.map((c) => ({ valor: c.id, etiqueta: c.nombre }))}
+                        opciones={cantones.items.map((c) => ({
+                          valor: c.id,
+                          etiqueta: c.nombre,
+                        }))}
                         placeholder="Seleccione el cantón"
                         invalido={Boolean(errors.cantonId)}
                         {...registroCanton}
@@ -198,13 +203,14 @@ export default function Domicilio({
               autoComplete="tel-national"
               placeholder="0999999999"
               ayuda="10 dígitos, empieza en 09."
+              icono="call"
             />
             <Campo
               id={idCorreo}
               etiqueta="Correo electrónico 1"
               ayuda="Es el correo de su registro."
             >
-              <Input id={idCorreo} value={correoPrincipal} readOnly />
+              <Input id={idCorreo} value={correoPrincipal} readOnly icono="mail" />
             </Campo>
             <CampoTexto
               name="emailSecundario"
@@ -212,6 +218,7 @@ export default function Domicilio({
               type="email"
               autoComplete="email"
               placeholder="otro@correo.com"
+              icono="mail"
             />
             <CampoTexto
               name="telefonoDomicilio"
@@ -220,18 +227,52 @@ export default function Domicilio({
               inputMode="numeric"
               autoComplete="tel-national"
               ayuda="Solo dígitos, con código de área."
+              icono="call"
             />
-            <CampoTexto name="callePrincipal" etiqueta="Calle principal" />
-            <CampoTexto name="numero" etiqueta="Número" />
-            <CampoTexto name="calleSecundaria" etiqueta="Calle secundaria" />
-            <CampoTexto name="sector" etiqueta="Sector" />
+            <CampoTexto
+              name="callePrincipal"
+              etiqueta="Calle principal"
+              icono="location_on"
+              placeholder="Av. Principal"
+            />
+            <CampoTexto name="numero" etiqueta="Número" icono="tag" />
+            <CampoTexto
+              name="calleSecundaria"
+              etiqueta="Calle secundaria"
+              icono="location_on"
+              placeholder="Av. Secundaria"
+            />
+            <CampoTexto
+              name="sector"
+              etiqueta="Sector"
+              icono="apartment"
+              placeholder="Ej. Centro"
+            />
           </div>
-          <CampoTexto name="referencia" etiqueta="Referencia" />
+          <CampoTexto
+            name="referencia"
+            etiqueta="Referencia"
+            icono="location_on"
+            placeholder="Ej. Frente al parque"
+          />
         </fieldset>
 
-        <div className="flex justify-end">
-          <Button type="submit" cargando={guardando} textoCargando="Guardando...">
-            Guardar
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button
+            variante="secondary"
+            icono="refresh"
+            disabled={guardando}
+            onClick={() => form.reset()}
+          >
+            Limpiar
+          </Button>
+          <Button
+            type="submit"
+            icono="arrow_forward"
+            cargando={guardando}
+            textoCargando="Guardando..."
+          >
+            Continuar
           </Button>
         </div>
       </form>

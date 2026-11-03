@@ -20,6 +20,8 @@ export interface DefSeccion {
   id: string
   titulo: string
   icono: string
+  // Título de la franja azul de la sección, si es distinto del menú.
+  encabezado?: string
   Componente: ComponentType<PropsSeccion>
   // Marca de "sección completa" que se ve en el menú.
   estaCompleta: (p: Postulacion) => boolean

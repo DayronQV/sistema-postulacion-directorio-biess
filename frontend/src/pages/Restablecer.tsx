@@ -5,13 +5,13 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CampoTexto } from '@/components/form/campos'
 import Alert from '@/components/ui/Alert'
 import Button from '@/components/ui/Button'
-import Card from '@/components/ui/Card'
 import { aplicarErroresDeCampo } from '@/features/auth/errores'
 import { esquemaRestablecer, type FormRestablecer } from '@/features/auth/esquemas'
 import IndicadorFortaleza from '@/features/auth/IndicadorFortaleza'
 import { useApi } from '@/hooks/useApi'
 import { restablecerPassword, type DatosRestablecer } from '@/services/auth'
 import { ApiError } from '@/services/errores'
+import TarjetaAcceso from '@/components/layout/TarjetaAcceso'
 
 // Tiempo que se muestra el mensaje de éxito antes de ir al login.
 export const ESPERA_REDIRECCION_MS = 4000
@@ -29,11 +29,8 @@ export default function Restablecer() {
   }, [listo, navigate])
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-space-lg px-margin-mobile py-space-lg sm:px-margin">
-      <h1 className="text-headline-lg-mobile text-primary sm:text-headline-lg">
-        Restablecer contraseña
-      </h1>
-      <Card>
+    <TarjetaAcceso icono="password" titulo="Restablecer contraseña">
+      <div>
         {!token ? (
           <EnlaceInvalido mensaje="El enlace para restablecer la contraseña no es válido." />
         ) : listo ? (
@@ -49,8 +46,8 @@ export default function Restablecer() {
         ) : (
           <FormularioNuevaPassword token={token} onListo={() => setListo(true)} />
         )}
-      </Card>
-    </main>
+      </div>
+    </TarjetaAcceso>
   )
 }
 

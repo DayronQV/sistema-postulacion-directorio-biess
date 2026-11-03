@@ -10,6 +10,7 @@ import { useBloqueosExamen } from '@/features/evaluacion/useBloqueosExamen'
 import { useExamen } from '@/features/evaluacion/useExamen'
 import { formatoReloj } from '@/features/evaluacion/useReloj'
 import { cx } from '@/lib/cx'
+import EncabezadoPagina from '@/components/layout/EncabezadoPagina'
 
 // Último minuto: el reloj se marca en rojo.
 const SEGUNDOS_DE_AVISO = 60
@@ -27,7 +28,15 @@ export default function Evaluacion() {
   const urgente = examen.restante !== null && examen.restante <= SEGUNDOS_DE_AVISO
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
+    <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-space-md p-margin-mobile sm:p-margin">
+      {/* Durante el examen se quita el encabezado para dejar el reloj y la pregunta a la vista. */}
+      {examen.fase !== 'examen' && (
+        <EncabezadoPagina
+          icono="quiz"
+          titulo="Evaluación técnica"
+          descripcion="Evaluación teórica del Concurso de Méritos y Oposición."
+        />
+      )}
       {examen.fase === 'inicio' && (
         <InstruccionesExamen
           iniciando={examen.iniciando}

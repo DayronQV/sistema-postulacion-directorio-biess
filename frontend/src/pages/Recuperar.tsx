@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Alert from '@/components/ui/Alert'
 import Button from '@/components/ui/Button'
-import Card from '@/components/ui/Card'
 import FormularioIdentidad from '@/features/auth/FormularioIdentidad'
 import { solicitarRecuperacion } from '@/services/auth'
+import TarjetaAcceso from '@/components/layout/TarjetaAcceso'
 
 // "¿Olvidaste tu contraseña?" (EF-11): valida la identidad contra el Registro Civil y
 // el servidor envía el enlace al correo registrado. El mensaje de confirmación es el
@@ -13,11 +13,8 @@ export default function Recuperar() {
   const [enviado, setEnviado] = useState(false)
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-space-lg px-margin-mobile py-space-lg sm:px-margin">
-      <div className="flex flex-col gap-space-xs">
-        <h1 className="text-headline-lg-mobile text-primary sm:text-headline-lg">
-          Recuperar contraseña
-        </h1>
+    <TarjetaAcceso icono="lock_reset" titulo="Recuperar contraseña">
+      <div className="flex flex-col gap-space-xs text-center">
         {!enviado && (
           <p className="text-body-md text-on-surface-variant">
             Compruebe su identidad y le enviaremos un enlace para crear una nueva contraseña.
@@ -25,7 +22,7 @@ export default function Recuperar() {
         )}
       </div>
 
-      <Card>
+      <div>
         {enviado ? (
           <div className="flex flex-col gap-space-md">
             <Alert tipo="success" titulo="Solicitud recibida">
@@ -44,7 +41,7 @@ export default function Recuperar() {
             mensajeBloqueo="recuperación fallida, inténtelo nuevamente en 10 minutos"
           />
         )}
-      </Card>
+      </div>
 
       <p className="text-center text-body-md text-on-surface-variant">
         ¿Recordó su contraseña?{' '}
@@ -52,6 +49,6 @@ export default function Recuperar() {
           Inicie sesión
         </Link>
       </p>
-    </main>
+    </TarjetaAcceso>
   )
 }

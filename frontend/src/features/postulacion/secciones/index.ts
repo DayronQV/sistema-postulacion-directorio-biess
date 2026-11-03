@@ -25,6 +25,7 @@ export const SECCIONES: DefSeccion[] = [
   {
     id: 'domicilio',
     titulo: 'Domicilio y contacto',
+    encabezado: 'Información domiciliaria y de contacto',
     icono: 'home',
     Componente: DomicilioSeccion,
     estaCompleta: (p) => Boolean(p.domicilio?.pais_id && p.domicilio.telefono_celular),

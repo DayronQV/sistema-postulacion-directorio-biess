@@ -6,6 +6,7 @@ import TarjetaFase from '@/features/admin/TarjetaFase'
 import { useApi } from '@/hooks/useApi'
 import { listarFases } from '@/services/adminFases'
 import { useSesion } from '@/store/sesion'
+import EncabezadoPagina from '@/components/layout/EncabezadoPagina'
 
 // Fases del concurso (EF-13): el administrador las publica, fija sus fechas y habilita el
 // formulario de postulación; el analista solo las consulta.
@@ -18,8 +19,12 @@ export default function Fases() {
   }, [ejecutar])
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
-      <h1 className="text-headline-lg text-primary">Fases del concurso</h1>
+    <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-space-md p-margin-mobile sm:p-margin">
+      <EncabezadoPagina
+        icono="event"
+        titulo="Fases del concurso"
+        descripcion="Publique cada fase, fije sus fechas y habilite el formulario de postulación."
+      />
       {!editable && (
         <Alert tipo="info" titulo="Acceso de solo lectura">
           Como analista puede consultar las fases; solo el administrador las modifica.

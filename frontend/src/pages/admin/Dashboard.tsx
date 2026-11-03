@@ -4,6 +4,7 @@ import Card from '@/components/ui/Card'
 import Loader from '@/components/ui/Loader'
 import { ApiError } from '@/services/errores'
 import { obtenerDashboard, type DashboardPostulaciones } from '@/services/adminDashboard'
+import EncabezadoPagina from '@/components/layout/EncabezadoPagina'
 
 const INTERVALO_ACTUALIZACION = 30_000
 
@@ -88,13 +89,12 @@ export default function Dashboard() {
   const maximoCargo = datos ? Math.max(...Object.values(datos.por_cargo)) : 0
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
-      <div>
-        <h1 className="text-headline-lg text-primary">Dashboard de postulantes</h1>
-        <p className="mt-1 text-body-md text-on-surface-variant">
-          Los indicadores se actualizan automáticamente cada 30 segundos.
-        </p>
-      </div>
+    <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-space-md p-margin-mobile sm:p-margin">
+      <EncabezadoPagina
+        icono="monitoring"
+        titulo="Dashboard de postulantes"
+        descripcion="Los indicadores se actualizan automáticamente cada 30 segundos."
+      />
 
       {error && (
         <Alert tipo="error" titulo="No se pudo actualizar el dashboard">
