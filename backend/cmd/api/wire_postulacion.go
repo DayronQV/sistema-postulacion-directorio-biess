@@ -33,7 +33,8 @@ func postulacionRoutes(c *container) apihttp.RouteRegistrar {
 		c.logger,
 	)).ConHistorialLaboral(c.historial).ConMailer(c.mailer).
 		ConFases(postgres.NewFasesRepo(c.db))
-	documentos := service.NewDocumentoService(postgres.NewDocumentoRepo(c.db))
+	documentos := service.NewDocumentoService(postgres.NewDocumentoRepo(c.db)).
+		ConFases(postgres.NewFasesRepo(c.db))
 	postulacion := apihttp.PostulacionRoutes(handler.NewPostulacionHandler(svc), c.tokens)
 	cargo := apihttp.CargoRoutes(handler.NewCargoHandler(svc), c.tokens)
 	archivos := apihttp.DocumentoRoutes(handler.NewDocumentoHandler(documentos), c.tokens)

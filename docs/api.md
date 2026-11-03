@@ -92,7 +92,7 @@ Forma de `PUT /postulacion`:
 
 **Fase de Méritos.** La respuesta incluye `supero_merito` (lo marca el administrador con `PUT /admin/postulaciones/{id}/merito`) y `estado_visible`, el estado que ve el postulante: `Borrador`, `Enviada`, `Cerrada` o `Evaluación Técnica` (enviada y con la Fase de Méritos superada). Ambos son de solo lectura: `PUT` los ignora.
 
-**Periodo de postulación.** La respuesta incluye `periodo_abierto` (solo lectura): `true` si la fase Postulación está publicada, con el formulario habilitado y dentro de sus fechas. Fuera del periodo, crear la postulación (`GET /postulacion` cuando aún no existe), `PUT /postulacion`, `POST /postulacion/cargo/validar` y `POST /postulacion/enviar` responden `403` "El periodo de postulación no está habilitado"; leer una postulación existente sigue funcionando.
+**Periodo de postulación.** La respuesta incluye `periodo_abierto` (solo lectura): `true` si la fase Postulación está publicada, con el formulario habilitado y dentro de sus fechas. Fuera del periodo, crear la postulación (`GET /postulacion` cuando aún no existe), `PUT /postulacion`, `POST /postulacion/cargo/validar`, `POST /postulacion/enviar`, `POST /postulacion/documentos` y `DELETE /postulacion/documentos/{id}` responden `403` "El periodo de postulación no está habilitado"; leer una postulación existente y descargar sus documentos sigue funcionando.
 
 ## Administración (requiere rol `analista` o `administrador`)
 | Método y ruta | Descripción |

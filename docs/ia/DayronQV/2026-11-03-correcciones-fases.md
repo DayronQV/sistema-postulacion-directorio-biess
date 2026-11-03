@@ -22,3 +22,11 @@ Agrega las pruebas y comprueba que fallan si se quita cada corrección.
 
 ## Para qué se usó
 Corregir las observaciones de la revisión del PR #102 con sus pruebas.
+
+## Segundo prompt (versión redactada)
+```
+En el mismo PR, haz que subir y eliminar documentos PDF también respeten el periodo de
+postulación: con el periodo cerrado deben responder 403, igual que guardar y enviar. Leer o
+descargar un documento propio sigue permitido. Agrega las pruebas y comprueba que fallan si
+se quita la regla.
+```
