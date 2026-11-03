@@ -51,8 +51,10 @@ export default function EncabezadoPagina({
           {descripcion && <p className="text-body-md text-on-surface">{descripcion}</p>}
           {detalle && <div className="flex flex-wrap items-center gap-3">{detalle}</div>}
         </div>
+        {/* Por debajo de 1280 px los botones van en su propia fila: sobre la foto taparían la
+            descripción, porque en tableta y laptop el panel blanco ocupa casi todo el ancho. */}
         {acciones && (
-          <div className="flex flex-wrap gap-3 md:absolute md:bottom-3 md:right-6">{acciones}</div>
+          <div className="flex flex-wrap gap-3 xl:absolute xl:bottom-3 xl:right-6">{acciones}</div>
         )}
       </div>
     </header>

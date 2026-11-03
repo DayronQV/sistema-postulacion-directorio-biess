@@ -17,7 +17,8 @@ export default function LayoutAcceso({ children }: LayoutAccesoProps) {
         {/* Panel institucional */}
         <aside className="relative overflow-hidden bg-gradient-to-b from-primary via-primary-container to-[#2a5d9c] text-on-primary lg:w-[34%] lg:[clip-path:ellipse(100%_140%_at_0%_50%)]">
           <div className="relative z-10 flex flex-col gap-space-md px-margin-mobile py-space-lg sm:px-margin lg:px-14 lg:pt-16">
-            <Link to="/" className="block w-56 focus:outline-none lg:w-[340px]">
+            {/* Ancho con tope: a 1024 px el panel mide menos que 340 px más sus márgenes. */}
+            <Link to="/" className="block w-56 focus:outline-none lg:w-full lg:max-w-[340px]">
               <img
                 src="/img/logo-biess.png"
                 alt="BIESS, Banco del Instituto Ecuatoriano de Seguridad Social"

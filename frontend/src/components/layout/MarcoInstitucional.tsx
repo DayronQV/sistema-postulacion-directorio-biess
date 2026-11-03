@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import Icon from '@/components/ui/Icon'
 import { cx } from '@/lib/cx'
@@ -108,6 +108,16 @@ export default function MarcoInstitucional({
   const [lateralOculta, setLateralOculta] = useState(false)
   const lateral = { menu, inicio, etiquetaMenu }
 
+  // El menú deslizable se cierra también con Escape.
+  useEffect(() => {
+    if (!menuAbierto) return
+    const alPulsar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuAbierto(false)
+    }
+    window.addEventListener('keydown', alPulsar)
+    return () => window.removeEventListener('keydown', alPulsar)
+  }, [menuAbierto])
+
   return (
     <div className="flex min-h-screen bg-[#f3f6fb]">
       {/* Escritorio: barra fija */}
@@ -155,10 +165,7 @@ export default function MarcoInstitucional({
                   <Icon nombre="person" relleno className="text-[22px]" />
                 </span>
                 <span className="hidden flex-col sm:flex">
-                  <span className="flex items-center gap-1 text-body-bold text-on-surface">
-                    {nombreUsuario}
-                    <Icon nombre="expand_more" className="text-[20px] text-on-surface-variant" />
-                  </span>
+                  <span className="text-body-bold text-on-surface">{nombreUsuario}</span>
                   {detalleUsuario && (
                     <span className="text-legal-code text-on-surface-variant">
                       {detalleUsuario}

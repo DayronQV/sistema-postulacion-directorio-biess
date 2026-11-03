@@ -25,7 +25,7 @@ export default function LayoutPrivado({
       menu={MENU}
       inicio={RUTA_FORMULARIO}
       etiquetaMenu="Menú principal"
-      nombreUsuario={usuario?.nombre ?? 'Usuario'}
+      nombreUsuario={usuario?.nombre ?? 'Postulante'}
       detalleUsuario={usuario && `C.I. ${usuario.cedula}`}
       onCerrarSesion={onCerrarSesion}
     >
