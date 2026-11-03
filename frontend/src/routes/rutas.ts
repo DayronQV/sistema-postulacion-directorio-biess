@@ -3,6 +3,8 @@ import type { Rol } from '@/store/sesion'
 export const RUTA_LOGIN = '/login'
 // Única pantalla privada del postulante por ahora; el primer ingreso va aquí siempre.
 export const RUTA_FORMULARIO = '/postulacion'
+// Evaluación teórica del postulante habilitado (EF-14).
+export const RUTA_EVALUACION = '/evaluacion'
 // Panel de administración (EF-13) y su login.
 export const RUTA_ADMIN = '/admin'
 export const RUTA_ADMIN_DASHBOARD = '/admin/dashboard'

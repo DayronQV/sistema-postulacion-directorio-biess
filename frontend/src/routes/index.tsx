@@ -4,6 +4,7 @@ import LayoutPublico from '@/components/layout/LayoutPublico'
 import Componentes from '@/pages/Componentes'
 import FormularioPostulacion from '@/pages/FormularioPostulacion'
 import ImprimirPostulacion from '@/pages/ImprimirPostulacion'
+import Evaluacion from '@/pages/Evaluacion'
 import Inicio from '@/pages/Inicio'
 import Login from '@/pages/Login'
 import Recuperar from '@/pages/Recuperar'
@@ -21,6 +22,7 @@ import RutaProtegida from './RutaProtegida'
 import {
   RUTA_ADMIN,
   RUTA_ADMIN_DASHBOARD,
+  RUTA_EVALUACION,
   RUTA_FORMULARIO,
   RUTA_LOGIN,
   RUTA_LOGIN_ADMIN,
@@ -51,6 +53,7 @@ export default function AppRoutes() {
         <Route path="/postulacion/imprimir" element={<ImprimirPostulacion />} />
         <Route element={<LayoutPrivado />}>
           <Route path={RUTA_FORMULARIO} element={<FormularioPostulacion />} />
+          <Route path={RUTA_EVALUACION} element={<Evaluacion />} />
         </Route>
       </Route>
 
