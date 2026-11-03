@@ -75,6 +75,33 @@ func TestCargarConvierteLosCamposDeCadaPersona(t *testing.T) {
 	}
 }
 
+func TestElArchivoDeEjemploEsValido(t *testing.T) {
+	registros, err := padron.Cargar("padron.example.json")
+	if err != nil {
+		t.Fatalf("padron.example.json debe cargar sin errores: %v", err)
+	}
+	if len(registros) < 2 || registros[1].Ciudadano.Pareja == nil {
+		t.Errorf("el ejemplo debe mostrar al menos una persona con pareja: %+v", registros)
+	}
+}
+
+func TestCargarUnaCarpetaExplicaQueFaltaElArchivo(t *testing.T) {
+	_, err := padron.Cargar(t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "falta copiar padron.json") {
+		t.Errorf("se esperaba un aviso de que falta el archivo, got %v", err)
+	}
+}
+
+func TestCargarRechazaTextoDespuesDelArreglo(t *testing.T) {
+	_, err := padron.Cargar(escribir(t, "["+personaSoltera+"] sobra"))
+	if err == nil || !strings.Contains(err.Error(), "texto después del arreglo") {
+		t.Errorf("se esperaba un error por el texto sobrante, got %v", err)
+	}
+	if _, err := padron.Cargar(escribir(t, "["+personaSoltera+"]\n")); err != nil {
+		t.Errorf("un salto de línea final no es texto sobrante: %v", err)
+	}
+}
+
 func TestCargarSinCalidadesNoDaNingunaCalidad(t *testing.T) {
 	json := strings.Replace(personaSoltera, `"calidades": ["afiliado"]`, `"calidades": []`, 1)
 	registros, err := padron.Cargar(escribir(t, "["+json+"]"))

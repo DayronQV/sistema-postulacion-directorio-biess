@@ -4,6 +4,19 @@
 // Sirve para desplegar con personas concretas sin escribir sus datos en el código: el
 // archivo vive fuera del repositorio y se indica con PADRON_ARCHIVO. Sin esa variable,
 // los simuladores usan sus ciudadanos de prueba fijos.
+//
+// Formato: un arreglo JSON; padron.example.json, junto a este archivo, es un ejemplo
+// completo (una prueba lo carga, así que siempre es válido). Por persona:
+//   - cedula: 10 dígitos válidos por módulo 10.
+//   - nombres, apellidos, nacionalidad: texto (solo "Ecuatoriana" puede postular).
+//   - genero: "Masculino" o "Femenino".
+//   - fecha_nacimiento, fecha_expedicion: "AAAA-MM-DD", en el pasado.
+//   - codigo_dactilar: 10 letras mayúsculas o dígitos, por ejemplo "V1234V5678".
+//   - estado_civil: "Soltero/a", "Casado/a", "Unión de hecho", "Divorciado/a" o "Viudo/a".
+//   - pareja: {"nombres_apellidos", "cedula"}; obligatoria con "Casado/a" o "Unión de
+//     hecho" y prohibida con los demás.
+//   - calidades: lista con "afiliado", "jubilado" y/o "empleador" (vacía = ninguna).
+//     Decide qué cargo puede elegir la persona al postular.
 package padron
 
 import (
@@ -11,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -60,6 +74,11 @@ type parejaJSON struct {
 // los problemas (con la posición de la persona en el archivo, sin sus datos), para que el
 // servidor no arranque con un padrón a medias.
 func Cargar(ruta string) ([]Registro, error) {
+	// Si el archivo no existe en el servidor, Docker monta en su lugar una carpeta vacía
+	// con ese nombre; se avisa con un mensaje que dice qué hacer.
+	if info, err := os.Stat(ruta); err == nil && info.IsDir() {
+		return nil, fmt.Errorf("el padrón %s es una carpeta, no un archivo: falta copiar padron.json al servidor (ver PADRON_ARCHIVO en .env.example)", ruta)
+	}
 	datos, err := os.ReadFile(ruta)
 	if err != nil {
 		return nil, fmt.Errorf("leyendo el padrón %s: %w", ruta, err)
@@ -69,6 +88,9 @@ func Cargar(ruta string) ([]Registro, error) {
 	var personas []personaJSON
 	if err := dec.Decode(&personas); err != nil {
 		return nil, fmt.Errorf("el padrón %s no es un arreglo JSON válido: %w", ruta, err)
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("el padrón %s tiene texto después del arreglo JSON", ruta)
 	}
 	if len(personas) == 0 {
 		return nil, fmt.Errorf("el padrón %s no tiene ninguna persona", ruta)

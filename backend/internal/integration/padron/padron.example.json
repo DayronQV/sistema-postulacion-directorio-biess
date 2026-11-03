@@ -1,0 +1,27 @@
+[
+  {
+    "cedula": "1713579249",
+    "nombres": "Ana María",
+    "apellidos": "Loor Mero",
+    "genero": "Femenino",
+    "fecha_nacimiento": "1990-05-17",
+    "nacionalidad": "Ecuatoriana",
+    "estado_civil": "Soltero/a",
+    "fecha_expedicion": "2020-02-03",
+    "codigo_dactilar": "V1234V5678",
+    "calidades": ["afiliado"]
+  },
+  {
+    "cedula": "0913579249",
+    "nombres": "Luis Alberto",
+    "apellidos": "Pico Zambrano",
+    "genero": "Masculino",
+    "fecha_nacimiento": "1958-01-02",
+    "nacionalidad": "Ecuatoriana",
+    "estado_civil": "Casado/a",
+    "pareja": { "nombres_apellidos": "Rosa Elena Vera Mero", "cedula": "1313579243" },
+    "fecha_expedicion": "2018-07-09",
+    "codigo_dactilar": "E4321I8765",
+    "calidades": ["jubilado", "empleador"]
+  }
+]
