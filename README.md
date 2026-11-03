@@ -2,6 +2,16 @@
 
 Módulo de registro y postulación del Concurso Público de Méritos y Oposición del Directorio del BIESS. Examen práctico de Frameworks de Programación Web (trabajo en grupo).
 
+## Qué incluye
+Frontend en React, TypeScript, Vite y Tailwind CSS; backend en Go con Gin; PostgreSQL 16 y Redis 7.
+
+- **Registro y acceso del postulante (EF-11):** validación de identidad con el Registro Civil simulado (fecha de expedición o código dactilar), bloqueo de 10 minutos tras 3 intentos fallidos con Redis y recuperación de contraseña.
+- **Formulario de postulación (EF-12):** información personal, domicilio con la cascada país, provincia y cantón, familiares, cargo (con la validación de Historial Laboral simulada), formación, experiencia con su cálculo de tiempo, publicaciones, capacitación, referencias, inhabilidades, consentimiento y envío. Solo se admite nacionalidad ecuatoriana. Guardar la postulación es una transacción.
+- **Panel de administración (EF-13):** fases del concurso, dashboard, nómina con el detalle de cada postulación y sus certificados, y la matriz comparativa en Excel y PDF.
+- **Evaluación teórica (EF-14):** banco de preguntas, examen con sorteo y reloj, calificación automática y reporte en PDF por correo.
+
+Las integraciones externas (Registro Civil, Historial Laboral y correo) están simuladas detrás de una interfaz con un adaptador `mock`.
+
 ## Documentación para el equipo
 - [Reglas para agentes y personas](AGENTS.md): léelo primero.
 - [Especificación condensada](docs/especificacion.md)
@@ -11,15 +21,17 @@ Módulo de registro y postulación del Concurso Público de Méritos y Oposició
 
 ## Prerrequisitos
 - Go 1.26.1 o superior
-- Node.js 20 o superior
+- Node.js 24 (la versión que usan el CI y el Dockerfile del frontend) y npm
 - Docker y Docker Compose (para PostgreSQL 16 y Redis 7)
+
+Si no usas Docker, necesitas PostgreSQL 16 y Redis 7 instalados; ver "Script SQL" más abajo.
 
 ## Ejecución local
 1. Copiar las variables de entorno y ajustarlas:
    ```bash
    cp .env.example .env
    ```
-2. Levantar la base de datos y Redis (carga `db/schema.sql` y `db/seed_catalogos.sql` la primera vez):
+2. Levantar la base de datos y Redis. La primera vez, con el volumen vacío, PostgreSQL ejecuta solo el script `db/schema.sql` (tablas y división política) y `db/seed_admin.sql` (usuarios de prueba del panel):
    ```bash
    docker compose up -d
    ```
@@ -32,11 +44,21 @@ Módulo de registro y postulación del Concurso Público de Méritos y Oposició
    ```bash
    cd frontend && npm install && npm run dev
    ```
+5. Abrir la aplicación: el frontend en http://localhost:5173 y la API en http://localhost:8080. Desde la pantalla de inicio, "Registrarse" crea una cuenta de postulante (usa las cédulas de prueba de más abajo) y "Acceso del personal del BIESS" lleva al panel de administración.
 
 Si el puerto 5432 de tu máquina ya está ocupado por otro PostgreSQL, cambia `POSTGRES_PORT` y el puerto de `DATABASE_URL` en tu `.env` (por ejemplo a 5433).
 
+El proyecto no tiene migraciones: el esquema solo se carga desde cero. Si ya tenías una base de una versión anterior, recréala (se borran sus datos) con `docker compose down -v` y `docker compose up -d`.
+
+## Script SQL
+`db/schema.sql` es el script único de la base de datos: crea todas las tablas y, al final, carga la división política (194 países, 24 provincias y 199 cantones). Se puede ejecutar de una vez en una base vacía, sin Docker:
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
+```
+Los usuarios de prueba del panel van aparte, en `db/seed_admin.sql`, porque tienen contraseñas públicas y no deben cargarse en producción.
+
 ## Datos de prueba (Registro Civil simulado)
-El Registro Civil real no es accesible para este proyecto, así que se simula con 7 ciudadanos de prueba (`backend/internal/integration/registrocivil/mock.go`). Las cédulas son válidas por módulo 10 y no pertenecen a personas reales. Para comprobar la identidad (registro y recuperación de contraseña) basta con acertar **uno** de los dos datos: la fecha de expedición o el código dactilar.
+El Registro Civil real no es accesible para este proyecto, así que se simula con 7 ciudadanos de prueba (`backend/internal/integration/registrocivil/mock.go`). Las cédulas son válidas por módulo 10 y no pertenecen a personas reales. Para comprobar la identidad (registro y recuperación de contraseña) se ingresa **uno** de los dos datos, a elección: la fecha de expedición o el código dactilar (10 caracteres entre letras y números).
 
 | Cédula | Caso que permite probar | Nacionalidad | Estado civil | Fecha de expedición | Código dactilar |
 | --- | --- | --- | --- | --- | --- |
@@ -51,14 +73,12 @@ El Registro Civil real no es accesible para este proyecto, así que se simula co
 Cualquier otra cédula responde "no existe" en el simulador.
 
 ## Usuarios de administración
-El panel (`/admin/login`) no tiene registro público: `db/seed_admin.sql` siembra estos usuarios al crear la base. Las contraseñas son solo para desarrollo y pruebas.
+El panel no tiene registro público y tiene su propio acceso, con usuario y contraseña (no con cédula): http://localhost:5173/admin/login, o el botón "Acceso del personal del BIESS" de la pantalla de inicio. `db/seed_admin.sql` siembra estos usuarios al crear la base. Las contraseñas son solo para desarrollo y pruebas.
 
 | Usuario | Contraseña | Rol |
 | --- | --- | --- |
 | `analista` | `Analista2026` | Analista (Talento Humano): solo lectura |
 | `administrador` | `Admin2026` | Administrador (Comisión de Selección) |
-
-Si la base ya existía antes de esta semilla, recréela con `docker compose down -v` y `docker compose up -d`.
 
 ## Pruebas
 - Backend: `go test ./...` dentro de `backend/`.
