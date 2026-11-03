@@ -3,8 +3,23 @@ package http
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/middleware"
 )
+
+// EvaluacionRoutes registra la evaluación del postulante bajo /api/v1/evaluacion. Exigen un
+// token válido (401) con rol postulante (403): un administrador no rinde el examen.
+func EvaluacionRoutes(h *handler.EvaluacionHandler, tokens domain.TokenIssuer) RouteRegistrar {
+	return func(api *gin.RouterGroup) {
+		evaluacion := api.Group("/evaluacion",
+			middleware.RequireAuth(tokens),
+			middleware.RequireRole(domain.RolPostulante),
+		)
+		evaluacion.POST("/iniciar", h.Iniciar)
+		evaluacion.GET("/pregunta/:n", h.Pregunta)
+	}
+}
 
 // EvaluacionAdminModulo registra el banco de preguntas y la configuración de la evaluación
 // (EF-14) bajo /api/v1/admin/evaluacion.

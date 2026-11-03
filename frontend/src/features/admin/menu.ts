@@ -15,6 +15,8 @@ const TODOS: Rol[] = ['analista', 'administrador']
 // Las pantallas de escritura van con roles: ['administrador'].
 export const MENU_ADMIN: ItemMenuAdmin[] = [
   { ruta: '/admin', titulo: 'Inicio', icono: 'dashboard', roles: TODOS },
+  // El analista las consulta; la pantalla deshabilita los controles si no es administrador.
+  { ruta: '/admin/fases', titulo: 'Fases', icono: 'event', roles: TODOS },
   { ruta: '/admin/dashboard', titulo: 'Dashboard', icono: 'monitoring', roles: TODOS },
 ]
 

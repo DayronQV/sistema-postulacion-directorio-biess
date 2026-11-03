@@ -92,13 +92,16 @@ Forma de `PUT /postulacion`:
 
 **Fase de Méritos.** La respuesta incluye `supero_merito` (lo marca el administrador con `PUT /admin/postulaciones/{id}/merito`) y `estado_visible`, el estado que ve el postulante: `Borrador`, `Enviada`, `Cerrada` o `Evaluación Técnica` (enviada y con la Fase de Méritos superada). Ambos son de solo lectura: `PUT` los ignora.
 
+**Periodo de postulación.** La respuesta incluye `periodo_abierto` (solo lectura): `true` si la fase Postulación está publicada, con el formulario habilitado y dentro de sus fechas. Fuera del periodo, crear la postulación (`GET /postulacion` cuando aún no existe), `PUT /postulacion`, `POST /postulacion/cargo/validar`, `POST /postulacion/enviar`, `POST /postulacion/documentos` y `DELETE /postulacion/documentos/{id}` responden `403` "El periodo de postulación no está habilitado"; leer una postulación existente y descargar sus documentos sigue funcionando.
+
 ## Administración (requiere rol `analista` o `administrador`)
 | Método y ruta | Descripción |
 | --- | --- |
 | `POST /admin/auth/login` | `{ usuario, password }` → `{ token, expires_in, usuario, rol }` (`expires_in` en segundos; mismo bloqueo por intentos: `401` "sus credenciales de ingreso son incorrectas", `429 LOCKED` al tercer fallo). Público |
 | `GET /admin/sesion` | `{ usuario, rol }` del token. Todas las rutas `/admin/*` salvo el login exigen token de `analista` o `administrador` (`401` sin token, `403` con token de postulante); las de escritura, solo `administrador` (`403` para el analista) |
-| `GET /admin/fases` · `PUT /admin/fases/{id}` | Ver y publicar las fases; habilitar el formulario EF-12 |
-| `GET /admin/dashboard` | `{ por_cargo: { afiliados, jubilados, empleador }, por_estado: { borrador, enviada, cerrada }, total }` |
+| `GET /admin/fases` | `[{ id, nombre, orden, publicada, habilita_formulario, fecha_inicio, fecha_fin }]` en orden (`Postulación`, `Méritos`, `Evaluación`). Las fechas son RFC 3339 o `null` (sin límite por ese lado) |
+| `PUT /admin/fases/{id}` | `{ publicada, habilita_formulario, fecha_inicio, fecha_fin }` → la fase actualizada. Reemplaza el estado de la fase: `publicada` y `habilita_formulario` son **obligatorios** (un cuerpo vacío o incompleto es `400`, para no cerrar el periodo sin querer) y una fecha ausente o `null` significa sin fecha. Solo `administrador` (`403` para el analista); `404` si no existe. `400` con `fields`: `publicada` y `habilita_formulario` obligatorios; `habilita_formulario` solo en la fase Postulación y con `publicada: true`; `fecha_fin` no anterior a `fecha_inicio`. Habilitar la fase Postulación abre el formulario EF-12 (ver *Periodo de postulación*) |
+| `GET /admin/dashboard` | `{ por_cargo: { afiliados, jubilados, empleador }, por_estado: { borrador, enviada, cerrada }, total }`. Cuenta todas las postulaciones: un borrador sin cargo elegido suma al `total` pero a ningún cargo |
 | `GET /admin/postulaciones?cargo=&estado=` | Nómina de postulantes, paginada |
 | `GET /admin/postulaciones/{id}` | Formulario íntegro, con duración de experiencias |
 | `GET /admin/postulaciones/{id}/documentos/{docId}` | Descarga de certificados |
@@ -133,6 +136,15 @@ Una pregunta es `{ enunciado, opciones: [texto, ...], respuesta_correcta }`, con
 - `PUT /admin/evaluacion/preguntas/{id}` (una pregunta completa) → `200` con la pregunta; `404` si no existe. `DELETE /admin/evaluacion/preguntas/{id}` → `204`; `404` si no existe. Ninguna de las dos se puede una vez que algún postulante inició la evaluación (`409`), y no se puede eliminar una pregunta si el banco quedaría con menos de las que pide la configuración (`409`).
 - `GET /admin/evaluacion/config` → `{ inicia_en, duracion_minutos, num_preguntas, total_banco, configurada }`. Mientras no se configure: `inicia_en: null`, 30 minutos, 10 preguntas y `configurada: false`.
 - `PUT /admin/evaluacion/config` con `{ inicia_en, duracion_minutos, num_preguntas }` → `200` con la misma forma. `inicia_en` en RFC 3339 con zona horaria (por ejemplo `2026-11-20T09:00:00-05:00`) y siempre se responde en UTC; la duración va de 1 a 480 minutos. `422` si `num_preguntas` supera las preguntas del banco (`fields.num_preguntas` dice cuántas hay).
+
+### Evaluación del postulante (solo `postulante`)
+Las rutas `/evaluacion/*` exigen token de postulante (`401` sin token, `403` con token de analista o administrador). Todas las horas van en UTC y el tiempo restante lo calcula el servidor.
+
+- `POST /evaluacion/iniciar` (sin cuerpo) → `{ total_preguntas, inicio, cierre, tiempo_restante_segundos }`. `201` si crea el examen y `200` si el postulante ya tenía uno en curso (devuelve el mismo, con el tiempo que le queda).
+  - `403` si no tiene la postulación enviada, si no superó la Fase de Méritos o si la evaluación no tiene fecha configurada (`FORBIDDEN`). Solo se puede iniciar dentro de la **ventana de inicio**, que va desde `inicia_en` hasta `inicia_en` más `duracion_minutos`: antes de la hora de inicio es `403` y `fields.inicia_en` dice cuándo empieza; después de cerrada la ventana es `403` "El plazo para iniciar la evaluación terminó" y `fields.cierra_en` dice cuándo cerró. Quien empieza dentro de la ventana tiene su tiempo completo (la hora de cierre de su examen es su inicio más la duración, aunque pase de la ventana), y quien ya empezó conserva su examen.
+  - Hay un **solo intento por postulante**: uno ya terminado o vencido no se reabre (`409`). `422` si el banco no tiene las preguntas que pide la configuración.
+  - El sorteo toma `num_preguntas` preguntas distintas del banco, en orden aleatorio, y cada pregunta con sus opciones en orden aleatorio (`crypto/rand`), distinto para cada postulante. La hora de cierre es el inicio más `duracion_minutos`.
+- `GET /evaluacion/pregunta/{n}` (n desde 1) → `{ numero, total, id, enunciado, opciones, cierre, tiempo_restante_segundos }`. Las opciones vienen en el orden que le tocó al postulante y **nunca** incluye la respuesta correcta. `404` si no ha iniciado la evaluación o `n` no existe en su examen; `409` si el examen ya terminó o se agotó el tiempo.
 
 ## Utilidad
 `GET /health` → `200 { "status": "ok" }` (sin prefijo `/api/v1`).

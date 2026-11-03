@@ -77,6 +77,9 @@ func (s *PostulacionService) ValidarCargo(ctx context.Context, postulanteID, car
 	if !domain.CargoValido(cargo) {
 		return domain.ResultadoCargo{}, domain.Validation("Datos inválidos", map[string]string{"cargo": "Cargo no válido"})
 	}
+	if err := s.verificarPeriodo(ctx); err != nil {
+		return domain.ResultadoCargo{}, err
+	}
 	actual, err := s.asegurar(ctx, postulanteID)
 	if err != nil {
 		return domain.ResultadoCargo{}, err
