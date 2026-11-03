@@ -22,6 +22,7 @@ type Config struct {
 	RequestTimeout     time.Duration // REQUEST_TIMEOUT_SECONDS
 	CORSAllowedOrigins []string      // CORS_ALLOWED_ORIGIN (uno o varios, separados por coma)
 	Mailer             string        // MAILER: adaptador de correo ("log" por defecto)
+	PadronArchivo      string        // PADRON_ARCHIVO: personas de los simuladores (vacío = ciudadanos de prueba)
 }
 
 // Load carga el archivo .env si existe (sin pisar variables ya definidas en el
@@ -85,6 +86,8 @@ func fromEnv(get func(string) string) (Config, error) {
 	if cfg.Mailer == "" {
 		cfg.Mailer = "log"
 	}
+
+	cfg.PadronArchivo = strings.TrimSpace(get("PADRON_ARCHIVO"))
 
 	origins := strings.TrimSpace(get("CORS_ALLOWED_ORIGIN"))
 	if origins == "" {
