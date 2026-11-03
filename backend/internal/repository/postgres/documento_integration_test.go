@@ -16,14 +16,17 @@ func TestDocumento_DescargaAisladaYEliminacion(t *testing.T) {
 	idA := crearPostulante(t, pool, registrocivil.CedulaFlujoFeliz)
 	idB := crearPostulante(t, pool, registrocivil.CedulaUnionDeHecho)
 	postulaciones := newService(pool)
-	if _, err := postulaciones.Obtener(context.Background(), idA); err != nil {
+	pA, err := postulaciones.Obtener(context.Background(), idA)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := postulaciones.Obtener(context.Background(), idB); err != nil {
+	pB, err := postulaciones.Obtener(context.Background(), idB)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	documentos := service.NewDocumentoService(postgres.NewDocumentoRepo(pool))
+	documentosRepo := postgres.NewDocumentoRepo(pool)
+	documentos := service.NewDocumentoService(documentosRepo)
 	d, err := documentos.Subir(context.Background(), idA, domain.DocumentoFormacion, "titulo.pdf", []byte("%PDF-1.7"))
 	if err != nil {
 		t.Fatalf("subiendo: %v", err)
@@ -33,6 +36,12 @@ func TestDocumento_DescargaAisladaYEliminacion(t *testing.T) {
 	}
 	if propio, err := documentos.Descargar(context.Background(), idA, d.ID); err != nil || string(propio.Contenido) != "%PDF-1.7" {
 		t.Fatalf("descarga propia = %+v, %v", propio, err)
+	}
+	if _, err = documentosRepo.ObtenerDePostulacion(context.Background(), pB.ID, d.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("el panel descargó un documento de otra postulación: %v", err)
+	}
+	if propio, err := documentosRepo.ObtenerDePostulacion(context.Background(), pA.ID, d.ID); err != nil || string(propio.Contenido) != "%PDF-1.7" {
+		t.Fatalf("descarga del panel = %+v, %v", propio, err)
 	}
 	if err = documentos.Eliminar(context.Background(), idA, d.ID); err != nil {
 		t.Fatalf("eliminando documento sin referencia: %v", err)

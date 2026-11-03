@@ -1,5 +1,10 @@
 import type { InternalAxiosRequestConfig } from 'axios'
-import { marcarMerito } from './adminPostulaciones'
+import {
+  descargarDocumentoAdmin,
+  listarPostulacionesAdmin,
+  marcarMerito,
+  obtenerPostulacionAdmin,
+} from './adminPostulaciones'
 import { http } from './http'
 
 afterEach(() => {
@@ -20,5 +25,64 @@ describe('servicio de postulaciones del panel', () => {
     expect(r).toEqual(respuesta)
     expect(peticiones[0]).toMatchObject({ method: 'put', url: '/admin/postulaciones/p1/merito' })
     expect(JSON.parse(peticiones[0].data)).toEqual({ supero: true })
+  })
+
+  it('lista con filtros y página codificados en la URL', async () => {
+    const peticiones: InternalAxiosRequestConfig[] = []
+    const respuesta = { items: [], total: 0, pagina: 2, por_pagina: 20 }
+    http.defaults.adapter = (config) => {
+      peticiones.push(config)
+      return Promise.resolve({ status: 200, statusText: '', headers: {}, config, data: respuesta })
+    }
+
+    await expect(
+      listarPostulacionesAdmin(new AbortController().signal, {
+        cargo: 'afiliados',
+        estado: 'enviada',
+        elegible: 'true',
+        pagina: 2,
+      }),
+    ).resolves.toEqual(respuesta)
+    expect(peticiones[0].url).toBe(
+      '/admin/postulaciones?cargo=afiliados&estado=enviada&elegible=true&pagina=2',
+    )
+  })
+
+  it('obtiene el detalle completo por id', async () => {
+    const peticiones: InternalAxiosRequestConfig[] = []
+    const respuesta = { id: 'p 1', codigo: 'BIESS-2026-000001' }
+    http.defaults.adapter = (config) => {
+      peticiones.push(config)
+      return Promise.resolve({ status: 200, statusText: '', headers: {}, config, data: respuesta })
+    }
+
+    await expect(obtenerPostulacionAdmin(new AbortController().signal, 'p 1')).resolves.toEqual(
+      respuesta,
+    )
+    expect(peticiones[0].url).toBe('/admin/postulaciones/p%201')
+  })
+
+  it('descarga el certificado y conserva el nombre de la cabecera', async () => {
+    const peticiones: InternalAxiosRequestConfig[] = []
+    const pdf = new Blob(['%PDF'])
+    http.defaults.adapter = (config) => {
+      peticiones.push(config)
+      return Promise.resolve({
+        status: 200,
+        statusText: '',
+        headers: { 'content-disposition': "attachment; filename*=UTF-8''t%C3%ADtulo.pdf" },
+        config,
+        data: pdf,
+      })
+    }
+
+    await expect(
+      descargarDocumentoAdmin(new AbortController().signal, 'p 1', 'd 1'),
+    ).resolves.toEqual({ contenido: pdf, nombre: 'título.pdf' })
+    expect(peticiones[0]).toMatchObject({
+      method: 'get',
+      url: '/admin/postulaciones/p%201/documentos/d%201',
+      responseType: 'blob',
+    })
   })
 })

@@ -102,9 +102,9 @@ Forma de `PUT /postulacion`:
 | `GET /admin/fases` | `[{ id, nombre, orden, publicada, habilita_formulario, fecha_inicio, fecha_fin }]` en orden (`Postulación`, `Méritos`, `Evaluación`). Las fechas son RFC 3339 o `null` (sin límite por ese lado) |
 | `PUT /admin/fases/{id}` | `{ publicada, habilita_formulario, fecha_inicio, fecha_fin }` → la fase actualizada. Reemplaza el estado de la fase: `publicada` y `habilita_formulario` son **obligatorios** (un cuerpo vacío o incompleto es `400`, para no cerrar el periodo sin querer) y una fecha ausente o `null` significa sin fecha. Solo `administrador` (`403` para el analista); `404` si no existe. `400` con `fields`: `publicada` y `habilita_formulario` obligatorios; `habilita_formulario` solo en la fase Postulación y con `publicada: true`; `fecha_fin` no anterior a `fecha_inicio`. Habilitar la fase Postulación abre el formulario EF-12 (ver *Periodo de postulación*) |
 | `GET /admin/dashboard` | `{ por_cargo: { afiliados, jubilados, empleador } }` |
-| `GET /admin/postulaciones?cargo=&estado=` | Nómina de postulantes, paginada |
-| `GET /admin/postulaciones/{id}` | Formulario íntegro, con duración de experiencias |
-| `GET /admin/postulaciones/{id}/documentos/{docId}` | Descarga de certificados |
+| `GET /admin/postulaciones?cargo=&estado=&elegible=&pagina=` | Nómina paginada (`20` por página): `{ items, total, pagina, por_pagina }`. Cada fila incluye `id`, `codigo`, `cedula`, `nombres`, `apellidos`, `cargo`, `estado` y `elegible` |
+| `GET /admin/postulaciones/{id}` | Formulario íntegro, con duración individual y total de experiencias |
+| `GET /admin/postulaciones/{id}/documentos/{docId}` | Descarga un certificado solo si pertenece a esa postulación; en otro caso, `404` |
 | `GET /admin/matriz?formato=xlsx\|pdf` | Cuadro comparativo de postulantes |
 | `PUT /admin/postulaciones/{id}/merito` | `{ supero: bool }` → `{ id, supero_merito, estado_visible }`. Marca si superó la Fase de Méritos. Solo `administrador` (`403` para el analista) y solo postulaciones `enviada` (`409` si no; `404` si no existe). |
 

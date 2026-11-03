@@ -13,6 +13,8 @@ import LayoutAdmin from '@/features/admin/LayoutAdmin'
 import LoginAdmin from '@/pages/admin/LoginAdmin'
 import Fases from '@/pages/admin/Fases'
 import PanelAdmin from '@/pages/admin/PanelAdmin'
+import PostulacionDetalle from '@/pages/admin/PostulacionDetalle'
+import Postulaciones from '@/pages/admin/Postulaciones'
 import RutaInvitado from './RutaInvitado'
 import RutaProtegida from './RutaProtegida'
 import { RUTA_ADMIN, RUTA_FORMULARIO, RUTA_LOGIN, RUTA_LOGIN_ADMIN } from './rutas'
@@ -55,6 +57,8 @@ export default function AppRoutes() {
         <Route element={<LayoutAdmin />}>
           <Route path={RUTA_ADMIN} element={<PanelAdmin />} />
           <Route path={`${RUTA_ADMIN}/fases`} element={<Fases />} />
+          <Route path={`${RUTA_ADMIN}/postulaciones`} element={<Postulaciones />} />
+          <Route path={`${RUTA_ADMIN}/postulaciones/:id`} element={<PostulacionDetalle />} />
         </Route>
       </Route>
 

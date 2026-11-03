@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/middleware"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
 )
@@ -15,14 +16,83 @@ type MeritoUseCase interface {
 	MarcarMerito(ctx context.Context, postulacionID string, supero bool) (service.ResultadoMerito, error)
 }
 
+// ConsultaPostulacionUseCase reúne las lecturas de la nómina administrativa.
+type ConsultaPostulacionUseCase interface {
+	Listar(ctx context.Context, filtro service.FiltroPostulacionesInput) (service.PaginaPostulaciones, error)
+	Obtener(ctx context.Context, postulacionID string) (domain.Postulacion, error)
+	DescargarDocumento(ctx context.Context, postulacionID, documentoID string) (domain.Documento, error)
+}
+
 // AdminPostulacionHandler atiende las acciones del panel sobre las postulaciones.
 type AdminPostulacionHandler struct {
-	meritos MeritoUseCase
+	meritos   MeritoUseCase
+	consultas ConsultaPostulacionUseCase
 }
 
 // NewAdminPostulacionHandler crea el handler.
 func NewAdminPostulacionHandler(meritos MeritoUseCase) *AdminPostulacionHandler {
 	return &AdminPostulacionHandler{meritos: meritos}
+}
+
+// ConConsultas conecta las lecturas de la nómina y el expediente completo.
+func (h *AdminPostulacionHandler) ConConsultas(consultas ConsultaPostulacionUseCase) *AdminPostulacionHandler {
+	h.consultas = consultas
+	return h
+}
+
+type resumenPostulacionResponse struct {
+	ID        string `json:"id"`
+	Codigo    string `json:"codigo"`
+	Cedula    string `json:"cedula"`
+	Nombres   string `json:"nombres"`
+	Apellidos string `json:"apellidos"`
+	Cargo     string `json:"cargo"`
+	Estado    string `json:"estado"`
+	Elegible  bool   `json:"elegible"`
+}
+
+// Listar atiende GET /admin/postulaciones con filtros y paginación.
+func (h *AdminPostulacionHandler) Listar(c *gin.Context) {
+	pagina, ok := enteroDeConsulta(c, "pagina")
+	if !ok {
+		return
+	}
+	r, err := h.consultas.Listar(c.Request.Context(), service.FiltroPostulacionesInput{
+		Cargo: c.Query("cargo"), Estado: c.Query("estado"), Elegible: c.Query("elegible"), Pagina: pagina,
+	})
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	items := make([]resumenPostulacionResponse, 0, len(r.Items))
+	for _, item := range r.Items {
+		items = append(items, resumenPostulacionResponse{
+			ID: item.ID, Codigo: item.Codigo, Cedula: item.Cedula, Nombres: item.Nombres,
+			Apellidos: item.Apellidos, Cargo: item.Cargo, Estado: item.Estado, Elegible: item.Elegible,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "total": r.Total, "pagina": r.Pagina, "por_pagina": r.PorPagina})
+}
+
+// Obtener atiende GET /admin/postulaciones/{id}.
+func (h *AdminPostulacionHandler) Obtener(c *gin.Context) {
+	p, err := h.consultas.Obtener(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, respuesta(p))
+}
+
+// DescargarDocumento atiende la descarga de un certificado del expediente.
+func (h *AdminPostulacionHandler) DescargarDocumento(c *gin.Context) {
+	d, err := h.consultas.DescargarDocumento(c.Request.Context(), c.Param("id"), c.Param("docId"))
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.Header("Content-Disposition", disposicionAdjunto(d.Nombre))
+	c.Data(http.StatusOK, "application/pdf", d.Contenido)
 }
 
 type meritoRequest struct {
@@ -51,6 +121,9 @@ func (h *AdminPostulacionHandler) MarcarMerito(c *gin.Context) {
 }
 
 // Rutas registra las rutas de escritura de este módulo en el panel (solo administrador).
-func (h *AdminPostulacionHandler) Rutas(_, escritura *gin.RouterGroup) {
+func (h *AdminPostulacionHandler) Rutas(lectura, escritura *gin.RouterGroup) {
+	lectura.GET("/postulaciones", h.Listar)
+	lectura.GET("/postulaciones/:id/documentos/:docId", h.DescargarDocumento)
+	lectura.GET("/postulaciones/:id", h.Obtener)
 	escritura.PUT("/postulaciones/:id/merito", h.MarcarMerito)
 }
