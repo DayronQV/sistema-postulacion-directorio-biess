@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import Campo from '@/components/form/Campo'
 import Alert from '@/components/ui/Alert'
+import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -59,6 +60,7 @@ export default function TarjetaFase({ fase, editable, onGuardada }: TarjetaFaseP
   // Lo último que respondió el servidor: el encabezado muestra lo guardado, no lo editado.
   const [vigente, setVigente] = useState(fase)
   const { ejecutar, cargando, error } = useApi(llamada)
+  useAvisoDeGuardado(guardada && !error, 'Fase guardada.')
 
   const errorFin =
     inicio && fin && fin < inicio
@@ -142,7 +144,6 @@ export default function TarjetaFase({ fase, editable, onGuardada }: TarjetaFaseP
         </fieldset>
 
         {error && <Alert tipo="error">{error.fields?.habilita_formulario ?? error.message}</Alert>}
-        {guardada && !error && <Alert tipo="success">Fase guardada.</Alert>}
 
         {editable && (
           <div className="flex justify-end">

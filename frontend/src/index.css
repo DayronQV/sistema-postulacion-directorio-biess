@@ -38,3 +38,21 @@
   size: A4;
   margin: 15mm;
 }
+
+/* Aparición suave de los avisos flotantes (toasts). Sin movimiento si la persona lo desactivó. */
+@keyframes toast-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast-entrada {
+    animation: toast-entrada 0.2s ease-out;
+  }
+}

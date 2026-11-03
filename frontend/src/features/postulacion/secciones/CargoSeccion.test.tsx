@@ -9,6 +9,8 @@ import {
 } from '@/services/postulacion'
 import { ETIQUETA_CARGO } from '../reglasCargo'
 import CargoSeccion from './CargoSeccion'
+import ContenedorToasts from '@/components/ui/ContenedorToasts'
+import { reiniciarToasts } from '@/store/toasts'
 
 vi.mock('@/services/postulacion')
 
@@ -82,6 +84,12 @@ const opcion = (cargo: keyof typeof ETIQUETA_CARGO) =>
 
 afterEach(() => {
   vi.resetAllMocks()
+})
+
+beforeEach(() => {
+  // El aviso de guardado es un toast: se monta su contenedor y se limpia entre pruebas.
+  reiniciarToasts()
+  render(<ContenedorToasts />)
 })
 
 describe('<CargoSeccion />', () => {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Campo from '@/components/form/Campo'
 import DocumentoUpload from '@/components/form/DocumentoUpload'
 import Alert from '@/components/ui/Alert'
+import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
 import Button from '@/components/ui/Button'
 import DateInput from '@/components/ui/DateInput'
 import Input from '@/components/ui/Input'
@@ -119,6 +120,7 @@ export default function Experiencia({ valor, onGuardar }: ExperienciaProps) {
   const [errores, setErrores] = useState<ReturnType<typeof erroresDe>>({})
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
+  useAvisoDeGuardado(guardado, 'La información se guardó correctamente.')
   // Hay cambios en la lista que todavía no se guardaron (hoy, solo filas eliminadas).
   // Agregar o editar una fila la guarda al momento. Solo entonces se ofrece
   // "Guardar información".
@@ -357,7 +359,6 @@ export default function Experiencia({ valor, onGuardar }: ExperienciaProps) {
         </div>
       )}
 
-      {guardado && <Alert tipo="success">La información se guardó correctamente.</Alert>}
       {errorGuardar && (
         <Alert tipo="error" titulo={errorGuardar.message}>
           {erroresServidor.length > 0 && (

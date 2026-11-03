@@ -4,6 +4,8 @@ import { vi } from 'vitest'
 import { ApiError } from '@/services/errores'
 import type { Familiar } from '@/services/postulacion'
 import Familiares, { type ValoresFamiliares } from './Familiares'
+import ContenedorToasts from '@/components/ui/ContenedorToasts'
+import { reiniciarToasts } from '@/store/toasts'
 
 const ana: Familiar = {
   nombres_apellidos: 'Ana Pérez',
@@ -52,6 +54,12 @@ const nombresEnTabla = () =>
     .queryAllByRole('row')
     .slice(1)
     .map((r) => within(r).queryAllByRole('cell')[0]?.textContent)
+
+beforeEach(() => {
+  // El aviso de guardado es un toast: se monta su contenedor y se limpia entre pruebas.
+  reiniciarToasts()
+  render(<ContenedorToasts />)
+})
 
 describe('Familiares', () => {
   it('con "No" no muestra la tabla y no ofrece Guardar información hasta cambiar algo', async () => {

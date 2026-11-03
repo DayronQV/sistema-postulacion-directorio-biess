@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { ApiError } from '@/services/errores'
 import { guardarPostulacion, obtenerPostulacion, type Postulacion } from '@/services/postulacion'
 import InformacionPersonalSeccion from './InformacionPersonalSeccion'
+import ContenedorToasts from '@/components/ui/ContenedorToasts'
+import { reiniciarToasts } from '@/store/toasts'
 
 vi.mock('@/services/postulacion')
 
@@ -84,6 +86,12 @@ const extranjera = (estado: Postulacion['estado']) => {
 
 afterEach(() => {
   vi.resetAllMocks()
+})
+
+beforeEach(() => {
+  // El aviso de guardado es un toast: se monta su contenedor y se limpia entre pruebas.
+  reiniciarToasts()
+  render(<ContenedorToasts />)
 })
 
 describe('<InformacionPersonalSeccion />', () => {

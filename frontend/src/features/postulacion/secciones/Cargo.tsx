@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react'
 import Campo from '@/components/form/Campo'
 import DocumentoUpload from '@/components/form/DocumentoUpload'
 import Alert from '@/components/ui/Alert'
+import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import RadioSiNo from '@/components/ui/RadioSiNo'
@@ -90,6 +91,7 @@ export default function Cargo({ valoresIniciales, onValidar, onGuardar }: CargoP
   const [errores, setErrores] = useState<ErroresCargo>({})
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
+  useAvisoDeGuardado(guardado, 'La postulación se guardó correctamente.')
   const [errorGuardar, setErrorGuardar] = useState<ApiError | null>(null)
 
   const validando = validacion?.estado === 'validando'
@@ -301,7 +303,6 @@ export default function Cargo({ valoresIniciales, onValidar, onGuardar }: CargoP
         </div>
       )}
 
-      {guardado && <Alert tipo="success">La postulación se guardó correctamente.</Alert>}
       {errorGuardar && (
         <Alert tipo="error" titulo={errorGuardar.message}>
           {camposServidor.length > 0 && (
