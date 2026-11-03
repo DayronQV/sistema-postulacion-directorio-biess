@@ -45,6 +45,33 @@ type PostulacionesAdmin interface {
 	ObtenerPorIDAdmin(ctx context.Context, postulacionID string) (Postulacion, error)
 }
 
+// FiltroMatrizAdmin acota las filas incluidas en la exportación. Elegible nil no filtra.
+type FiltroMatrizAdmin struct {
+	Cargo    string
+	Estado   string
+	Elegible *bool
+}
+
+// FilaMatrizAdmin contiene las columnas del cuadro comparativo de postulantes.
+type FilaMatrizAdmin struct {
+	Codigo           string
+	Cedula           string
+	Nombres          string
+	Apellidos        string
+	Cargo            string
+	Estado           string
+	Elegible         bool
+	NivelAcademico   string
+	AniosExperiencia float64
+	Capacitaciones   int
+	Publicaciones    int
+}
+
+// MatrizPostulaciones es el puerto de lectura optimizada para las exportaciones.
+type MatrizPostulaciones interface {
+	ListarMatriz(ctx context.Context, filtro FiltroMatrizAdmin) ([]FilaMatrizAdmin, error)
+}
+
 // DocumentosAdmin permite descargar un respaldo comprobando que pertenece a la
 // postulación que se está consultando en el panel.
 type DocumentosAdmin interface {

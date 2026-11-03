@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -281,22 +282,221 @@ RETURNING id::text`, i.PostulacionID, preguntas, i.Inicio, i.Cierre).Scan(&i.ID)
 
 // ObtenerIntento devuelve el intento de la postulación; false si no tiene.
 func (r *EvaluacionRepo) ObtenerIntento(ctx context.Context, postulacionID string) (domain.IntentoEvaluacion, bool, error) {
-	var (
-		i         domain.IntentoEvaluacion
-		preguntas []byte
-	)
-	err := r.db.QueryRow(ctx, `
-SELECT id::text, postulacion_id::text, preguntas, inicio, cierre, finalizado_at, nota::float8
-FROM eval_intentos WHERE postulacion_id = $1`, postulacionID,
-	).Scan(&i.ID, &i.PostulacionID, &preguntas, &i.Inicio, &i.Cierre, &i.FinalizadoEn, &i.Nota)
+	i, err := escanearIntento(r.db.QueryRow(ctx, `SELECT `+columnasIntento+` FROM eval_intentos WHERE postulacion_id = $1`, postulacionID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.IntentoEvaluacion{}, false, nil
 	}
 	if err != nil {
 		return domain.IntentoEvaluacion{}, false, fmt.Errorf("leyendo el intento de evaluación: %w", err)
 	}
+	return i, true, nil
+}
+
+// --- Respuestas, calificación y resultados (domain.RespuestasEvaluacion) ---
+
+var _ domain.RespuestasEvaluacion = (*EvaluacionRepo)(nil)
+
+const columnasIntento = `id::text, postulacion_id::text, preguntas, inicio, cierre, finalizado_at, nota::float8`
+
+// escanearIntento lee una fila con columnasIntento.
+func escanearIntento(row pgx.Row) (domain.IntentoEvaluacion, error) {
+	var (
+		i         domain.IntentoEvaluacion
+		preguntas []byte
+	)
+	if err := row.Scan(&i.ID, &i.PostulacionID, &preguntas, &i.Inicio, &i.Cierre, &i.FinalizadoEn, &i.Nota); err != nil {
+		return domain.IntentoEvaluacion{}, err
+	}
+	var err error
 	if i.Preguntas, err = preguntasDesdeJSON(preguntas); err != nil {
-		return domain.IntentoEvaluacion{}, false, fmt.Errorf("decodificando las preguntas del intento %s: %w", i.ID, err)
+		return domain.IntentoEvaluacion{}, fmt.Errorf("decodificando las preguntas del intento %s: %w", i.ID, err)
+	}
+	return i, nil
+}
+
+// GuardarRespuesta inserta o reemplaza la respuesta dentro de tx, y solo si el intento sigue
+// abierto a la hora dada. Primero bloquea la fila del intento en modo compartido (FOR SHARE),
+// que choca con el FOR UPDATE de BloquearParaFinalizar: si el intento se está calificando,
+// esta espera; al soltarse, PostgreSQL vuelve a evaluar la condición sobre la fila ya
+// finalizada y la respuesta se rechaza. Así ninguna respuesta queda fuera de la nota.
+func (r *EvaluacionRepo) GuardarRespuesta(ctx context.Context, tx domain.Tx, intentoID string, preguntaID, opcion int, ahora time.Time) (bool, error) {
+	ptx, err := pgxTx(tx)
+	if err != nil {
+		return false, err
+	}
+	var abierto bool
+	err = ptx.QueryRow(ctx, `
+SELECT true FROM eval_intentos
+WHERE id = $1 AND finalizado_at IS NULL AND cierre > $2
+FOR SHARE`, intentoID, ahora).Scan(&abierto)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("bloqueando el intento para guardar la respuesta: %w", err)
+	}
+	if _, err := ptx.Exec(ctx, `
+INSERT INTO eval_respuestas (intento_id, pregunta_id, opcion)
+VALUES ($1, $2, $3)
+ON CONFLICT (intento_id, pregunta_id) DO UPDATE SET opcion = EXCLUDED.opcion`, intentoID, preguntaID, opcion); err != nil {
+		return false, fmt.Errorf("guardando la respuesta: %w", err)
+	}
+	return true, nil
+}
+
+// consultador es lo que tienen en común el pool y una transacción de pgx para leer filas.
+type consultador interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
+// Respuestas devuelve las respuestas guardadas del intento.
+func (r *EvaluacionRepo) Respuestas(ctx context.Context, intentoID string) (map[int]int, error) {
+	return leerRespuestas(ctx, r.db, intentoID)
+}
+
+// RespuestasEnTx devuelve las respuestas guardadas del intento dentro de tx.
+func (r *EvaluacionRepo) RespuestasEnTx(ctx context.Context, tx domain.Tx, intentoID string) (map[int]int, error) {
+	ptx, err := pgxTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	return leerRespuestas(ctx, ptx, intentoID)
+}
+
+// BloquearParaFinalizar bloquea la fila del intento (FOR UPDATE) si todavía no está
+// finalizado; false si ya lo estaba. Si otro proceso lo está finalizando, espera a que
+// termine y, al volver a evaluar la condición, devuelve false.
+func (r *EvaluacionRepo) BloquearParaFinalizar(ctx context.Context, tx domain.Tx, intentoID string) (bool, error) {
+	ptx, err := pgxTx(tx)
+	if err != nil {
+		return false, err
+	}
+	var abierto bool
+	err = ptx.QueryRow(ctx, `
+SELECT true FROM eval_intentos WHERE id = $1 AND finalizado_at IS NULL FOR UPDATE`, intentoID).Scan(&abierto)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("bloqueando el intento para finalizarlo: %w", err)
+	}
+	return true, nil
+}
+
+func leerRespuestas(ctx context.Context, q consultador, intentoID string) (map[int]int, error) {
+	rows, err := q.Query(ctx, `SELECT pregunta_id, opcion FROM eval_respuestas WHERE intento_id = $1`, intentoID)
+	if err != nil {
+		return nil, fmt.Errorf("leyendo las respuestas: %w", err)
+	}
+	defer rows.Close()
+	respuestas := map[int]int{}
+	for rows.Next() {
+		var pregunta, opcion int
+		if err := rows.Scan(&pregunta, &opcion); err != nil {
+			return nil, fmt.Errorf("leyendo una respuesta: %w", err)
+		}
+		respuestas[pregunta] = opcion
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("recorriendo las respuestas: %w", err)
+	}
+	return respuestas, nil
+}
+
+// Finalizar guarda la nota dentro de tx solo si el intento no estaba finalizado: si dos
+// procesos lo finalizan a la vez (el postulante y la tarea periódica), solo uno gana.
+func (r *EvaluacionRepo) Finalizar(ctx context.Context, tx domain.Tx, intentoID string, nota float64, finalizadoEn time.Time) (bool, error) {
+	ptx, err := pgxTx(tx)
+	if err != nil {
+		return false, err
+	}
+	tag, err := ptx.Exec(ctx, `
+UPDATE eval_intentos SET finalizado_at = $2, nota = $3
+WHERE id = $1 AND finalizado_at IS NULL`, intentoID, finalizadoEn, nota)
+	if err != nil {
+		return false, fmt.Errorf("finalizando el intento: %w", err)
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
+// VencidosSinFinalizar devuelve los intentos ya vencidos que nadie finalizó.
+func (r *EvaluacionRepo) VencidosSinFinalizar(ctx context.Context, ahora time.Time) ([]domain.IntentoEvaluacion, error) {
+	rows, err := r.db.Query(ctx, `SELECT `+columnasIntento+`
+FROM eval_intentos WHERE finalizado_at IS NULL AND cierre <= $1 ORDER BY cierre`, ahora)
+	if err != nil {
+		return nil, fmt.Errorf("buscando los intentos vencidos: %w", err)
+	}
+	defer rows.Close()
+	var intentos []domain.IntentoEvaluacion
+	for rows.Next() {
+		i, err := escanearIntento(rows)
+		if err != nil {
+			return nil, fmt.Errorf("leyendo un intento vencido: %w", err)
+		}
+		intentos = append(intentos, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("recorriendo los intentos vencidos: %w", err)
+	}
+	return intentos, nil
+}
+
+// IntentoPorID devuelve un intento por su id.
+func (r *EvaluacionRepo) IntentoPorID(ctx context.Context, intentoID string) (domain.IntentoEvaluacion, bool, error) {
+	i, err := escanearIntento(r.db.QueryRow(ctx, `SELECT `+columnasIntento+` FROM eval_intentos WHERE id = $1`, intentoID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.IntentoEvaluacion{}, false, nil
+	}
+	if err != nil {
+		return domain.IntentoEvaluacion{}, false, fmt.Errorf("leyendo el intento de evaluación: %w", err)
 	}
 	return i, true, nil
+}
+
+const selectResultados = `
+SELECT i.id::text, p.id::text, p.codigo, COALESCE(p.cargo, ''), p.nombres, p.apellidos,
+       t.cedula, t.email, i.inicio, i.cierre, i.finalizado_at, i.nota::float8,
+       jsonb_array_length(i.preguntas)
+FROM eval_intentos i
+JOIN postulaciones p ON p.id = i.postulacion_id
+JOIN postulantes t ON t.id = p.postulante_id`
+
+func escanearResultado(row pgx.Row) (domain.ResultadoEvaluacion, error) {
+	var r domain.ResultadoEvaluacion
+	err := row.Scan(&r.IntentoID, &r.PostulacionID, &r.Codigo, &r.Cargo, &r.Nombres, &r.Apellidos,
+		&r.Cedula, &r.Email, &r.Inicio, &r.Cierre, &r.FinalizadoEn, &r.Nota, &r.TotalPreguntas)
+	return r, err
+}
+
+// Resultados devuelve todos los exámenes con los datos del postulante.
+func (r *EvaluacionRepo) Resultados(ctx context.Context) ([]domain.ResultadoEvaluacion, error) {
+	rows, err := r.db.Query(ctx, selectResultados+` ORDER BY p.apellidos, p.nombres`)
+	if err != nil {
+		return nil, fmt.Errorf("listando los resultados de la evaluación: %w", err)
+	}
+	defer rows.Close()
+	resultados := []domain.ResultadoEvaluacion{}
+	for rows.Next() {
+		res, err := escanearResultado(rows)
+		if err != nil {
+			return nil, fmt.Errorf("leyendo un resultado: %w", err)
+		}
+		resultados = append(resultados, res)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("recorriendo los resultados: %w", err)
+	}
+	return resultados, nil
+}
+
+// ResultadoDelIntento devuelve el resultado de un intento.
+func (r *EvaluacionRepo) ResultadoDelIntento(ctx context.Context, intentoID string) (domain.ResultadoEvaluacion, bool, error) {
+	res, err := escanearResultado(r.db.QueryRow(ctx, selectResultados+` WHERE i.id = $1`, intentoID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ResultadoEvaluacion{}, false, nil
+	}
+	if err != nil {
+		return domain.ResultadoEvaluacion{}, false, fmt.Errorf("leyendo el resultado del intento: %w", err)
+	}
+	return res, true, nil
 }

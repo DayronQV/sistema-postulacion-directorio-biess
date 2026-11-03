@@ -1,15 +1,31 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { vi, type Mock } from 'vitest'
-import { listarPostulacionesAdmin } from '@/services/adminPostulaciones'
+import { descargarMatrizAdmin, listarPostulacionesAdmin } from '@/services/adminPostulaciones'
 import Postulaciones from './Postulaciones'
 
-vi.mock('@/services/adminPostulaciones', () => ({ listarPostulacionesAdmin: vi.fn() }))
+vi.mock('@/services/adminPostulaciones', () => ({
+  listarPostulacionesAdmin: vi.fn(),
+  descargarMatrizAdmin: vi.fn(),
+}))
 const mockListar = listarPostulacionesAdmin as Mock
+const mockDescargarMatriz = descargarMatrizAdmin as Mock
 
 beforeEach(() => {
+  vi.restoreAllMocks()
   mockListar.mockReset()
+  mockDescargarMatriz.mockReset()
+  mockDescargarMatriz.mockResolvedValue({
+    contenido: new Blob(['xlsx']),
+    nombre: 'matriz.xlsx',
+  })
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    value: vi.fn(() => 'blob:matriz'),
+  })
+  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
   mockListar.mockResolvedValue({
     items: [
       {
@@ -67,4 +83,24 @@ it('muestra una lista vacía sin bloquear la página', async () => {
   renderPagina()
 
   expect(await screen.findByText('No hay postulantes con estos filtros.')).toBeInTheDocument()
+})
+
+it('exporta Excel con los filtros activos y muestra el loader', async () => {
+  const user = userEvent.setup()
+  renderPagina()
+  await screen.findByText('BIESS-2026-000001')
+  await user.selectOptions(screen.getByLabelText('Cargo'), 'afiliados')
+  await user.selectOptions(screen.getByLabelText('Estado'), 'enviada')
+
+  await user.click(screen.getByRole('button', { name: 'Exportar Excel' }))
+
+  await waitFor(() =>
+    expect(mockDescargarMatriz).toHaveBeenCalledWith(
+      expect.any(AbortSignal),
+      'xlsx',
+      expect.objectContaining({ cargo: 'afiliados', estado: 'enviada', pagina: 1 }),
+    ),
+  )
+  expect(URL.createObjectURL).toHaveBeenCalled()
+  expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled()
 })

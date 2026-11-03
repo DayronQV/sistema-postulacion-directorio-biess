@@ -23,10 +23,16 @@ type ConsultaPostulacionUseCase interface {
 	DescargarDocumento(ctx context.Context, postulacionID, documentoID string) (domain.Documento, error)
 }
 
+// MatrizUseCase genera las exportaciones del cuadro comparativo.
+type MatrizUseCase interface {
+	Exportar(ctx context.Context, filtro service.FiltroMatrizInput) (service.ArchivoMatriz, error)
+}
+
 // AdminPostulacionHandler atiende las acciones del panel sobre las postulaciones.
 type AdminPostulacionHandler struct {
 	meritos   MeritoUseCase
 	consultas ConsultaPostulacionUseCase
+	matriz    MatrizUseCase
 }
 
 // NewAdminPostulacionHandler crea el handler.
@@ -37,6 +43,12 @@ func NewAdminPostulacionHandler(meritos MeritoUseCase) *AdminPostulacionHandler 
 // ConConsultas conecta las lecturas de la nómina y el expediente completo.
 func (h *AdminPostulacionHandler) ConConsultas(consultas ConsultaPostulacionUseCase) *AdminPostulacionHandler {
 	h.consultas = consultas
+	return h
+}
+
+// ConMatriz conecta la generación de exportaciones de la nómina.
+func (h *AdminPostulacionHandler) ConMatriz(matriz MatrizUseCase) *AdminPostulacionHandler {
+	h.matriz = matriz
 	return h
 }
 
@@ -95,6 +107,20 @@ func (h *AdminPostulacionHandler) DescargarDocumento(c *gin.Context) {
 	c.Data(http.StatusOK, "application/pdf", d.Contenido)
 }
 
+// ExportarMatriz atiende GET /admin/matriz en Excel o PDF.
+func (h *AdminPostulacionHandler) ExportarMatriz(c *gin.Context) {
+	archivo, err := h.matriz.Exportar(c.Request.Context(), service.FiltroMatrizInput{
+		Formato: c.Query("formato"), Cargo: c.Query("cargo"),
+		Estado: c.Query("estado"), Elegible: c.Query("elegible"),
+	})
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.Header("Content-Disposition", disposicionAdjunto(archivo.Nombre))
+	c.Data(http.StatusOK, archivo.ContentType, archivo.Contenido)
+}
+
 type meritoRequest struct {
 	// Puntero para exigir el campo: un false explícito es válido, ausente no.
 	Supero *bool `json:"supero" binding:"required"`
@@ -122,6 +148,7 @@ func (h *AdminPostulacionHandler) MarcarMerito(c *gin.Context) {
 
 // Rutas registra las rutas de escritura de este módulo en el panel (solo administrador).
 func (h *AdminPostulacionHandler) Rutas(lectura, escritura *gin.RouterGroup) {
+	lectura.GET("/matriz", h.ExportarMatriz)
 	lectura.GET("/postulaciones", h.Listar)
 	lectura.GET("/postulaciones/:id/documentos/:docId", h.DescargarDocumento)
 	lectura.GET("/postulaciones/:id", h.Obtener)

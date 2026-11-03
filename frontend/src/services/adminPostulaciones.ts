@@ -59,17 +59,17 @@ export async function obtenerPostulacionAdmin(signal: AbortSignal, id: string) {
   return data
 }
 
-function nombreDescarga(contentDisposition: unknown) {
-  if (typeof contentDisposition !== 'string') return 'certificado.pdf'
+function nombreDescarga(contentDisposition: unknown, respaldo = 'certificado.pdf') {
+  if (typeof contentDisposition !== 'string') return respaldo
   const utf8 = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
   if (utf8) {
     try {
       return decodeURIComponent(utf8)
     } catch {
-      return 'certificado.pdf'
+      return respaldo
     }
   }
-  return contentDisposition.match(/filename="?([^";]+)"?/i)?.[1] ?? 'certificado.pdf'
+  return contentDisposition.match(/filename="?([^";]+)"?/i)?.[1] ?? respaldo
 }
 
 export async function descargarDocumentoAdmin(
@@ -84,6 +84,30 @@ export async function descargarDocumentoAdmin(
   return {
     contenido: respuesta.data,
     nombre: nombreDescarga(respuesta.headers['content-disposition']),
+  }
+}
+
+export type FormatoMatriz = 'xlsx' | 'pdf'
+
+export async function descargarMatrizAdmin(
+  signal: AbortSignal,
+  formato: FormatoMatriz,
+  filtros: FiltrosPostulacionesAdmin,
+) {
+  const params = new URLSearchParams({ formato })
+  if (filtros.cargo) params.set('cargo', filtros.cargo)
+  if (filtros.estado) params.set('estado', filtros.estado)
+  if (filtros.elegible) params.set('elegible', filtros.elegible)
+  const respuesta = await http.get<Blob>(`/admin/matriz?${params.toString()}`, {
+    signal,
+    responseType: 'blob',
+  })
+  return {
+    contenido: respuesta.data,
+    nombre: nombreDescarga(
+      respuesta.headers['content-disposition'],
+      `matriz-postulantes.${formato}`,
+    ),
   }
 }
 
