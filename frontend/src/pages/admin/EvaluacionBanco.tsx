@@ -17,6 +17,7 @@ import {
   type PreguntaNueva,
 } from '@/services/adminEvaluacion'
 import { ApiError } from '@/services/errores'
+import EncabezadoPagina from '@/components/layout/EncabezadoPagina'
 
 const POR_PAGINA = 20
 
@@ -132,27 +133,26 @@ export default function EvaluacionBanco() {
     : 1
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-headline-lg text-primary">Banco de preguntas</h1>
-          <p className="mt-1 text-body-md text-on-surface-variant">
-            Preguntas de opción múltiple de la evaluación teórica.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Button
-            variante="secondary"
-            icono="upload_file"
-            onClick={() => setCargaAbierta((abierta) => !abierta)}
-          >
-            Carga masiva
-          </Button>
-          <Button icono="add" onClick={() => setFormulario({ pregunta: null })}>
-            Nueva pregunta
-          </Button>
-        </div>
-      </div>
+    <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-space-md p-margin-mobile sm:p-margin">
+      <EncabezadoPagina
+        icono="quiz"
+        titulo="Banco de preguntas"
+        descripcion="Preguntas de opción múltiple de la evaluación teórica."
+        acciones={
+          <>
+            <Button
+              variante="secondary"
+              icono="upload_file"
+              onClick={() => setCargaAbierta((abierta) => !abierta)}
+            >
+              Carga masiva
+            </Button>
+            <Button icono="add" onClick={() => setFormulario({ pregunta: null })}>
+              Nueva pregunta
+            </Button>
+          </>
+        }
+      />
 
       {aviso && (
         <Alert tipo="success" onCerrar={() => setAviso('')}>

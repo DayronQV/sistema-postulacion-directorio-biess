@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Alert from '@/components/ui/Alert'
 import Button from '@/components/ui/Button'
-import Card from '@/components/ui/Card'
 import PasoCuenta from '@/features/auth/PasoCuenta'
 import PasoIdentidad from '@/features/auth/PasoIdentidad'
+import TarjetaAcceso from '@/components/layout/TarjetaAcceso'
 
 // Tiempo que se muestra el mensaje de éxito antes de ir al login.
 export const ESPERA_REDIRECCION_MS = 4000
@@ -35,9 +35,8 @@ export default function Registro() {
   }, [estado.paso, navigate])
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-space-lg px-margin-mobile py-space-lg sm:px-margin">
-      <div className="flex flex-col gap-space-xs">
-        <h1 className="text-headline-lg-mobile text-primary sm:text-headline-lg">Registro</h1>
+    <TarjetaAcceso icono="person_add" titulo="Registro">
+      <div className="flex flex-col gap-space-xs text-center">
         {estado.paso !== 'listo' && (
           <p className="text-body-md text-on-surface-variant">
             Paso {estado.paso === 'identidad' ? 1 : 2} de 2:{' '}
@@ -46,7 +45,7 @@ export default function Registro() {
         )}
       </div>
 
-      <Card>
+      <div>
         {estado.paso === 'identidad' && (
           <div className="flex flex-col gap-space-md">
             {estado.aviso && <Alert tipo="warning">{estado.aviso}</Alert>}
@@ -78,7 +77,7 @@ export default function Registro() {
             </Button>
           </div>
         )}
-      </Card>
+      </div>
 
       {estado.paso !== 'listo' && (
         <p className="text-center text-body-md text-on-surface-variant">
@@ -88,6 +87,6 @@ export default function Registro() {
           </Link>
         </p>
       )}
-    </main>
+    </TarjetaAcceso>
   )
 }

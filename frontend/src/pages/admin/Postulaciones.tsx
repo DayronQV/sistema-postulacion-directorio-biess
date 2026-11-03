@@ -15,6 +15,7 @@ import {
   type PaginaPostulacionesAdmin,
 } from '@/services/adminPostulaciones'
 import { ApiError } from '@/services/errores'
+import EncabezadoPagina from '@/components/layout/EncabezadoPagina'
 
 const etiquetasCargo = {
   afiliados: 'Afiliados',
@@ -109,37 +110,36 @@ export default function Postulaciones() {
     : 1
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
-      <div className="flex flex-col justify-between gap-space-md lg:flex-row lg:items-end">
-        <div>
-          <h1 className="text-headline-lg text-primary">Nómina de postulantes</h1>
-          <p className="mt-1 text-body-md text-on-surface-variant">
-            Consulte el formulario completo y los certificados de cada postulante.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            variante="secondary"
-            icono="download"
-            cargando={exportando === 'xlsx'}
-            textoCargando="Exportando Excel..."
-            disabled={exportando !== null}
-            onClick={() => exportar('xlsx')}
-          >
-            Exportar Excel
-          </Button>
-          <Button
-            variante="secondary"
-            icono="picture_as_pdf"
-            cargando={exportando === 'pdf'}
-            textoCargando="Exportando PDF..."
-            disabled={exportando !== null}
-            onClick={() => exportar('pdf')}
-          >
-            Exportar PDF
-          </Button>
-        </div>
-      </div>
+    <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-space-md p-margin-mobile sm:p-margin">
+      <EncabezadoPagina
+        icono="folder_open"
+        titulo="Nómina de postulantes"
+        descripcion="Consulte el formulario completo y los certificados de cada postulante."
+        acciones={
+          <>
+            <Button
+              variante="secondary"
+              icono="download"
+              cargando={exportando === 'xlsx'}
+              textoCargando="Exportando Excel..."
+              disabled={exportando !== null}
+              onClick={() => exportar('xlsx')}
+            >
+              Exportar Excel
+            </Button>
+            <Button
+              variante="secondary"
+              icono="picture_as_pdf"
+              cargando={exportando === 'pdf'}
+              textoCargando="Exportando PDF..."
+              disabled={exportando !== null}
+              onClick={() => exportar('pdf')}
+            >
+              Exportar PDF
+            </Button>
+          </>
+        }
+      />
 
       <Card titulo="Filtros">
         <div className="grid gap-space-md md:grid-cols-3">

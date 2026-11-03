@@ -11,6 +11,7 @@ import {
   type ResultadoEvaluacion,
 } from '@/services/adminEvaluacion'
 import { ApiError } from '@/services/errores'
+import EncabezadoPagina from '@/components/layout/EncabezadoPagina'
 
 const etiquetasCargo: Record<string, string> = {
   afiliados: 'Afiliados',
@@ -55,23 +56,22 @@ export default function EvaluacionResultados() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-headline-lg text-primary">Resultados de la evaluación</h1>
-          <p className="mt-1 text-body-md text-on-surface-variant">
-            Notas de los postulantes que iniciaron el examen. La nota es el porcentaje de aciertos.
-          </p>
-        </div>
-        <Button
-          variante="secondary"
-          icono="refresh"
-          disabled={cargando}
-          onClick={() => void ejecutar()}
-        >
-          Actualizar
-        </Button>
-      </div>
+    <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-space-md p-margin-mobile sm:p-margin">
+      <EncabezadoPagina
+        icono="grading"
+        titulo="Resultados de la evaluación"
+        descripcion="Notas de los postulantes que iniciaron el examen. La nota es el porcentaje de aciertos."
+        acciones={
+          <Button
+            variante="secondary"
+            icono="refresh"
+            disabled={cargando}
+            onClick={() => void ejecutar()}
+          >
+            Actualizar
+          </Button>
+        }
+      />
 
       {cargando && !resultados && <Loader texto="Cargando resultados..." />}
       {error && (

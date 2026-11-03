@@ -11,6 +11,7 @@ import { ventanaMasCortaQueElExamen } from '@/features/evaluacion/admin/ventana'
 import { guardarConfig, obtenerConfig, type ConfigEvaluacion } from '@/services/adminEvaluacion'
 import { listarFases, type Fase } from '@/services/adminFases'
 import { ApiError } from '@/services/errores'
+import EncabezadoPagina from '@/components/layout/EncabezadoPagina'
 
 const MIN_DURACION = 1
 const MAX_DURACION = 480
@@ -33,13 +34,12 @@ export default function EvaluacionConfiguracion() {
   }, [ejecutar, cargarFases])
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
-      <div>
-        <h1 className="text-headline-lg text-primary">Configuración de la evaluación</h1>
-        <p className="mt-1 text-body-md text-on-surface-variant">
-          Defina la duración del examen y cuántas preguntas recibe cada postulante.
-        </p>
-      </div>
+    <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-space-md p-margin-mobile sm:p-margin">
+      <EncabezadoPagina
+        icono="tune"
+        titulo="Configuración de la evaluación"
+        descripcion="Defina la duración del examen y cuántas preguntas recibe cada postulante."
+      />
 
       {cargando && <Loader texto="Cargando la configuración..." />}
       {error && (

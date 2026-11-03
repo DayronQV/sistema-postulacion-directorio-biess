@@ -1,11 +1,11 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Alert from '@/components/ui/Alert'
-import Card from '@/components/ui/Card'
 import FormularioLoginAdmin from '@/features/admin/FormularioLoginAdmin'
 import type { EstadoRedireccion } from '@/routes/RutaProtegida'
 import { RUTA_ADMIN } from '@/routes/rutas'
 import type { RespuestaLoginAdmin } from '@/services/adminAuth'
 import { iniciarSesion } from '@/store/sesion'
+import TarjetaAcceso from '@/components/layout/TarjetaAcceso'
 
 // Ingreso al panel de administración (EF-13) para analistas y administradores.
 export default function LoginAdmin() {
@@ -20,11 +20,8 @@ export default function LoginAdmin() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-space-lg px-margin-mobile py-space-lg sm:px-margin">
-      <div className="flex flex-col gap-space-xs">
-        <h1 className="text-headline-lg-mobile text-primary sm:text-headline-lg">
-          Panel de administración
-        </h1>
+    <TarjetaAcceso icono="admin_panel_settings" titulo="Panel de administración">
+      <div className="flex flex-col gap-space-xs text-center">
         <p className="text-body-md text-on-surface-variant">
           Ingreso para el personal de Talento Humano y de la Comisión de Selección.
         </p>
@@ -36,9 +33,9 @@ export default function LoginAdmin() {
         </Alert>
       )}
 
-      <Card>
+      <div>
         <FormularioLoginAdmin onIngreso={onIngreso} />
-      </Card>
+      </div>
 
       <p className="text-center text-body-md text-on-surface-variant">
         ¿Es postulante?{' '}
@@ -46,6 +43,6 @@ export default function LoginAdmin() {
           Ingrese aquí
         </Link>
       </p>
-    </main>
+    </TarjetaAcceso>
   )
 }

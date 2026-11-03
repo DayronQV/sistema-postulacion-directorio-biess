@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import LayoutPrivado from '@/components/layout/LayoutPrivado'
+import LayoutAcceso from '@/components/layout/LayoutAcceso'
 import LayoutPublico from '@/components/layout/LayoutPublico'
 import Componentes from '@/pages/Componentes'
 import FormularioPostulacion from '@/pages/FormularioPostulacion'
@@ -34,8 +35,8 @@ import {
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Rutas públicas */}
-      <Route element={<LayoutPublico />}>
+      {/* Pantallas públicas con el diseño institucional de acceso */}
+      <Route element={<LayoutAcceso />}>
         <Route path="/" element={<Inicio />} />
         {/* Solo sin sesión: con sesión abierta se va a la página principal */}
         <Route element={<RutaInvitado />}>
@@ -45,9 +46,14 @@ export default function AppRoutes() {
         </Route>
         <Route path="/recuperar" element={<Recuperar />} />
         <Route path="/restablecer" element={<Restablecer />} />
-        {/* Muestra interna de componentes: solo en desarrollo */}
-        {import.meta.env.DEV && <Route path="/componentes" element={<Componentes />} />}
       </Route>
+
+      {/* Muestra interna de componentes: solo en desarrollo */}
+      {import.meta.env.DEV && (
+        <Route element={<LayoutPublico />}>
+          <Route path="/componentes" element={<Componentes />} />
+        </Route>
+      )}
 
       {/* Rutas privadas del postulante: todas dentro de RutaProtegida. Un analista o un
           administrador no entra a ellas (el servidor también responde 403). */}

@@ -36,12 +36,20 @@ export function CampoTexto({
   requerido,
   ayuda,
   reglas,
+  iconoEtiqueta,
   ...resto
-}: Base & Omit<ComponentProps<typeof Input>, 'name' | 'invalido'>) {
+}: Base & { iconoEtiqueta?: string } & Omit<ComponentProps<typeof Input>, 'name' | 'invalido'>) {
   const { register } = useFormContext()
   const { id, error } = useCampo(name)
   return (
-    <Campo id={id} etiqueta={etiqueta} requerido={requerido} error={error} ayuda={ayuda}>
+    <Campo
+      id={id}
+      etiqueta={etiqueta}
+      requerido={requerido}
+      error={error}
+      ayuda={ayuda}
+      icono={iconoEtiqueta}
+    >
       <Input
         id={id}
         invalido={Boolean(error)}

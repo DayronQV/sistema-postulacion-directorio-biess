@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Alert from '@/components/ui/Alert'
-import Card from '@/components/ui/Card'
+import TarjetaAcceso from '@/components/layout/TarjetaAcceso'
 import FormularioLogin from '@/features/auth/FormularioLogin'
 import type { EstadoRedireccion } from '@/routes/RutaProtegida'
 import { RUTA_FORMULARIO } from '@/routes/rutas'
@@ -25,14 +25,19 @@ export default function Login() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-space-lg px-margin-mobile py-space-lg sm:px-margin">
-      <div className="flex flex-col gap-space-xs">
-        <h1 className="text-headline-lg-mobile text-primary sm:text-headline-lg">Iniciar sesión</h1>
-        <p className="text-body-md text-on-surface-variant">
-          Ingrese con su cédula y la contraseña que registró.
-        </p>
-      </div>
-
+    <TarjetaAcceso
+      icono="person"
+      titulo="Iniciar sesión"
+      descripcion="Ingrese con su cédula y la contraseña que registró."
+      pie={
+        <>
+          ¿Aún no tiene cuenta?{' '}
+          <Link to="/registro" className="text-body-bold text-primary-container underline">
+            Regístrese
+          </Link>
+        </>
+      }
+    >
       {estado.expirada && (
         <Alert tipo="warning" titulo="Su sesión expiró">
           Inicie sesión nuevamente para continuar donde estaba.
@@ -45,16 +50,7 @@ export default function Login() {
         </Alert>
       )}
 
-      <Card>
-        <FormularioLogin onIngreso={onIngreso} />
-      </Card>
-
-      <p className="text-center text-body-md text-on-surface-variant">
-        ¿Aún no tiene cuenta?{' '}
-        <Link to="/registro" className="text-body-bold text-primary-container underline">
-          Regístrese
-        </Link>
-      </p>
-    </main>
+      <FormularioLogin onIngreso={onIngreso} />
+    </TarjetaAcceso>
   )
 }

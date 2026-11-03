@@ -32,7 +32,7 @@ export default function InstruccionesExamen({
   const fecha = error ? cuando(error) : null
   return (
     <Card
-      titulo="Evaluación técnica"
+      titulo="Instrucciones"
       descripcion="Lea las instrucciones antes de empezar. Tiene un solo intento."
     >
       <div className="flex flex-col gap-space-md">

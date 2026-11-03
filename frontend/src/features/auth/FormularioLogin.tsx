@@ -1,10 +1,11 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
 import { CampoTexto } from '@/components/form/campos'
 import Alert from '@/components/ui/Alert'
 import Button from '@/components/ui/Button'
+import Icon from '@/components/ui/Icon'
 import { useApi } from '@/hooks/useApi'
 import { iniciarSesionPostulante, type Credenciales, type RespuestaLogin } from '@/services/auth'
 import { ApiError } from '@/services/errores'
@@ -28,6 +29,7 @@ export default function FormularioLogin({ onIngreso }: FormularioLoginProps) {
   })
   const { setError, resetField } = form
   const { iniciar, restante, activa: bloqueado } = useCuentaRegresiva()
+  const [verClave, setVerClave] = useState(false)
 
   const llamada = useCallback(
     async (signal: AbortSignal, credenciales: Credenciales) => {
@@ -61,24 +63,46 @@ export default function FormularioLogin({ onIngreso }: FormularioLoginProps) {
           <CampoTexto
             name="cedula"
             etiqueta="Cédula de identidad"
+            iconoEtiqueta="badge"
+            icono="person"
             requerido
             inputMode="numeric"
             autoComplete="username"
             maxLength={10}
             placeholder="10 dígitos"
+            className="h-14 text-body-lg"
           />
           <div className="flex flex-col gap-space-xs">
             <CampoTexto
               name="password"
               etiqueta="Contraseña"
+              iconoEtiqueta="lock"
+              icono="lock"
               requerido
-              type="password"
+              type={verClave ? 'text' : 'password'}
               autoComplete="current-password"
+              placeholder="Ingrese su contraseña"
+              className="h-14 text-body-lg"
+              accion={
+                <button
+                  type="button"
+                  onClick={() => setVerClave((v) => !v)}
+                  aria-label={verClave ? 'Ocultar la contraseña' : 'Mostrar la contraseña'}
+                  aria-pressed={verClave}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+                >
+                  <Icon
+                    nombre={verClave ? 'visibility' : 'visibility_off'}
+                    className="text-[22px]"
+                  />
+                </button>
+              }
             />
             <Link
               to="/recuperar"
-              className="self-end text-label-md text-primary-container underline"
+              className="flex items-center gap-1.5 self-end text-label-md text-primary-container underline"
             >
+              <Icon nombre="help" className="text-[20px] no-underline" />
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
@@ -90,6 +114,8 @@ export default function FormularioLogin({ onIngreso }: FormularioLoginProps) {
           cargando={cargando}
           textoCargando="Ingresando..."
           disabled={bloqueado}
+          icono="login"
+          className="h-14 text-body-lg"
         >
           Iniciar sesión
         </Button>
