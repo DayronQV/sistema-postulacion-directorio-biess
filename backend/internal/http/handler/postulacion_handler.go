@@ -235,9 +235,11 @@ type postulacionResponse struct {
 	Elegible bool `json:"elegible"` // solo lectura: lo calcula el servidor
 	// Solo lectura: los marca el administrador (Fase de Méritos). estado_visible es el
 	// estado que ve el postulante; "Evaluación Técnica" si superó la Fase de Méritos.
-	SuperoMerito  bool      `json:"supero_merito"`
-	EstadoVisible string    `json:"estado_visible"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	SuperoMerito  bool   `json:"supero_merito"`
+	EstadoVisible string `json:"estado_visible"`
+	// Solo lectura: si hoy se puede guardar y enviar (fase Postulación, EF-13).
+	PeriodoAbierto bool      `json:"periodo_abierto"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 func (d formularioDTO) dominio() domain.Formulario {
@@ -327,10 +329,11 @@ func respuesta(p domain.Postulacion) postulacionResponse {
 				removido:   removidoDTO(f.Inhabilidades.Removido),
 			},
 		},
-		Elegible:      f.Elegible,
-		SuperoMerito:  p.SuperoMerito,
-		EstadoVisible: domain.EstadoVisible(p.Estado, p.SuperoMerito),
-		UpdatedAt:     p.ActualizadaEn,
+		Elegible:       f.Elegible,
+		SuperoMerito:   p.SuperoMerito,
+		EstadoVisible:  domain.EstadoVisible(p.Estado, p.SuperoMerito),
+		PeriodoAbierto: p.PeriodoAbierto,
+		UpdatedAt:      p.ActualizadaEn,
 	}
 	if pareja := p.Personal.Pareja; pareja != nil {
 		r.InformacionPersonal.Pareja = &parejaDTO{NombresApellidos: pareja.NombresApellidos, Cedula: pareja.Cedula}

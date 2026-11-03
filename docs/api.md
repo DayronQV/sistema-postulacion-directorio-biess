@@ -92,12 +92,15 @@ Forma de `PUT /postulacion`:
 
 **Fase de Méritos.** La respuesta incluye `supero_merito` (lo marca el administrador con `PUT /admin/postulaciones/{id}/merito`) y `estado_visible`, el estado que ve el postulante: `Borrador`, `Enviada`, `Cerrada` o `Evaluación Técnica` (enviada y con la Fase de Méritos superada). Ambos son de solo lectura: `PUT` los ignora.
 
+**Periodo de postulación.** La respuesta incluye `periodo_abierto` (solo lectura): `true` si la fase Postulación está publicada, con el formulario habilitado y dentro de sus fechas. Fuera del periodo, crear la postulación (`GET /postulacion` cuando aún no existe), `PUT /postulacion`, `POST /postulacion/cargo/validar`, `POST /postulacion/enviar`, `POST /postulacion/documentos` y `DELETE /postulacion/documentos/{id}` responden `403` "El periodo de postulación no está habilitado"; leer una postulación existente y descargar sus documentos sigue funcionando.
+
 ## Administración (requiere rol `analista` o `administrador`)
 | Método y ruta | Descripción |
 | --- | --- |
 | `POST /admin/auth/login` | `{ usuario, password }` → `{ token, expires_in, usuario, rol }` (`expires_in` en segundos; mismo bloqueo por intentos: `401` "sus credenciales de ingreso son incorrectas", `429 LOCKED` al tercer fallo). Público |
 | `GET /admin/sesion` | `{ usuario, rol }` del token. Todas las rutas `/admin/*` salvo el login exigen token de `analista` o `administrador` (`401` sin token, `403` con token de postulante); las de escritura, solo `administrador` (`403` para el analista) |
-| `GET /admin/fases` · `PUT /admin/fases/{id}` | Ver y publicar las fases; habilitar el formulario EF-12 |
+| `GET /admin/fases` | `[{ id, nombre, orden, publicada, habilita_formulario, fecha_inicio, fecha_fin }]` en orden (`Postulación`, `Méritos`, `Evaluación`). Las fechas son RFC 3339 o `null` (sin límite por ese lado) |
+| `PUT /admin/fases/{id}` | `{ publicada, habilita_formulario, fecha_inicio, fecha_fin }` → la fase actualizada. Reemplaza el estado de la fase: `publicada` y `habilita_formulario` son **obligatorios** (un cuerpo vacío o incompleto es `400`, para no cerrar el periodo sin querer) y una fecha ausente o `null` significa sin fecha. Solo `administrador` (`403` para el analista); `404` si no existe. `400` con `fields`: `publicada` y `habilita_formulario` obligatorios; `habilita_formulario` solo en la fase Postulación y con `publicada: true`; `fecha_fin` no anterior a `fecha_inicio`. Habilitar la fase Postulación abre el formulario EF-12 (ver *Periodo de postulación*) |
 | `GET /admin/dashboard` | `{ por_cargo: { afiliados, jubilados, empleador } }` |
 | `GET /admin/postulaciones?cargo=&estado=` | Nómina de postulantes, paginada |
 | `GET /admin/postulaciones/{id}` | Formulario íntegro, con duración de experiencias |

@@ -75,6 +75,9 @@ func seccionesIncompletas(p domain.Postulacion) map[string]string {
 // fecha y manda el formulario al correo del postulante, todo en una transacción: si el
 // correo falla, la postulación sigue en borrador y se puede reintentar.
 func (s *PostulacionService) Enviar(ctx context.Context, postulanteID string) (domain.Postulacion, error) {
+	if err := s.verificarPeriodo(ctx); err != nil {
+		return domain.Postulacion{}, err
+	}
 	actual, err := s.Obtener(ctx, postulanteID)
 	if err != nil {
 		return domain.Postulacion{}, err
