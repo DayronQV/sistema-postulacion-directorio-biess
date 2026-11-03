@@ -22,10 +22,14 @@ func adminRoutes(c *container) apihttp.RouteRegistrar {
 	meritos := handler.NewAdminPostulacionHandler(
 		service.NewAdminPostulacionService(postgres.NewPostulacionRepo(c.db)),
 	)
+	dashboard := handler.NewAdminDashboardHandler(
+		service.NewDashboardService(postgres.NewPostulacionRepo(c.db)),
+	)
 	evaluacion := handler.NewEvaluacionAdminHandler(
 		service.NewEvaluacionAdminService(postgres.NewEvaluacionRepo(c.db)),
 	)
 	return apihttp.AdminRoutes(handler.NewAdminAuthHandler(login), c.tokens,
+		dashboard.Rutas,
 		meritos.Rutas,
 		apihttp.EvaluacionAdminModulo(evaluacion),
 	)

@@ -5,6 +5,7 @@ export const RUTA_LOGIN = '/login'
 export const RUTA_FORMULARIO = '/postulacion'
 // Panel de administración (EF-13) y su login.
 export const RUTA_ADMIN = '/admin'
+export const RUTA_ADMIN_DASHBOARD = '/admin/dashboard'
 export const RUTA_LOGIN_ADMIN = '/admin/login'
 
 // Página principal de cada rol, a la que se manda a quien ya tiene sesión y abre un login

@@ -98,7 +98,7 @@ Forma de `PUT /postulacion`:
 | `POST /admin/auth/login` | `{ usuario, password }` → `{ token, expires_in, usuario, rol }` (`expires_in` en segundos; mismo bloqueo por intentos: `401` "sus credenciales de ingreso son incorrectas", `429 LOCKED` al tercer fallo). Público |
 | `GET /admin/sesion` | `{ usuario, rol }` del token. Todas las rutas `/admin/*` salvo el login exigen token de `analista` o `administrador` (`401` sin token, `403` con token de postulante); las de escritura, solo `administrador` (`403` para el analista) |
 | `GET /admin/fases` · `PUT /admin/fases/{id}` | Ver y publicar las fases; habilitar el formulario EF-12 |
-| `GET /admin/dashboard` | `{ por_cargo: { afiliados, jubilados, empleador } }` |
+| `GET /admin/dashboard` | `{ por_cargo: { afiliados, jubilados, empleador }, por_estado: { borrador, enviada, cerrada }, total }` |
 | `GET /admin/postulaciones?cargo=&estado=` | Nómina de postulantes, paginada |
 | `GET /admin/postulaciones/{id}` | Formulario íntegro, con duración de experiencias |
 | `GET /admin/postulaciones/{id}/documentos/{docId}` | Descarga de certificados |

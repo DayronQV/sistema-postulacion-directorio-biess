@@ -36,12 +36,20 @@ func moduloDePrueba(lectura, escritura *gin.RouterGroup) {
 }
 
 func newAdminRouter(login *fakeAdminLogin) *gin.Engine {
+	return newAdminRouterConLogin(login, moduloDePrueba)
+}
+
+func newAdminRouterConModulos(modulos ...apihttp.ModuloAdmin) *gin.Engine {
+	return newAdminRouterConLogin(&fakeAdminLogin{}, modulos...)
+}
+
+func newAdminRouterConLogin(login *fakeAdminLogin, modulos ...apihttp.ModuloAdmin) *gin.Engine {
 	return apihttp.NewRouter(apihttp.Deps{
 		Config: config.Config{RequestTimeout: time.Second},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Health: handler.NewHealthHandler(),
 		Modules: []apihttp.RouteRegistrar{
-			apihttp.AdminRoutes(handler.NewAdminAuthHandler(login), emisorPrueba, moduloDePrueba),
+			apihttp.AdminRoutes(handler.NewAdminAuthHandler(login), emisorPrueba, modulos...),
 		},
 	})
 }
