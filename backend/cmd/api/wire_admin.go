@@ -25,7 +25,9 @@ func adminRoutes(c *container) apihttp.RouteRegistrar {
 		postgres.NewDocumentoRepo(c.db),
 		seccionesPostulacion(c)...,
 	)
-	meritos := handler.NewAdminPostulacionHandler(postulacionAdmin).ConConsultas(postulacionAdmin)
+	meritos := handler.NewAdminPostulacionHandler(postulacionAdmin).
+		ConConsultas(postulacionAdmin).
+		ConMatriz(service.NewMatrizService(postulaciones))
 	fases := handler.NewAdminFasesHandler(service.NewFaseService(postgres.NewFasesRepo(c.db)))
 	dashboard := handler.NewAdminDashboardHandler(
 		service.NewDashboardService(postgres.NewPostulacionRepo(c.db)),

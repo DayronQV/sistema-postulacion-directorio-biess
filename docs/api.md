@@ -105,7 +105,7 @@ Forma de `PUT /postulacion`:
 | `GET /admin/postulaciones?cargo=&estado=&elegible=&pagina=` | Nómina paginada (`20` por página): `{ items, total, pagina, por_pagina }`. Cada fila incluye `id`, `codigo`, `cedula`, `nombres`, `apellidos`, `cargo`, `estado` y `elegible` |
 | `GET /admin/postulaciones/{id}` | Formulario íntegro, con duración individual y total de experiencias |
 | `GET /admin/postulaciones/{id}/documentos/{docId}` | Descarga un certificado solo si pertenece a esa postulación; en otro caso, `404` |
-| `GET /admin/matriz?formato=xlsx\|pdf` | Cuadro comparativo de postulantes |
+| `GET /admin/matriz?formato=xlsx\|pdf&cargo=&estado=&elegible=` | Descarga el cuadro comparativo en Excel o PDF. Los filtros son opcionales y usan las mismas reglas de la nómina |
 | `PUT /admin/postulaciones/{id}/merito` | `{ supero: bool }` → `{ id, supero_merito, estado_visible }`. Marca si superó la Fase de Méritos. Solo `administrador` (`403` para el analista) y solo postulaciones `enviada` (`409` si no; `404` si no existe). |
 
 ## Evaluación teórica
