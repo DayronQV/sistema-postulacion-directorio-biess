@@ -18,9 +18,10 @@ import (
 )
 
 type fakeFasesUseCase struct {
-	id      int
-	cambios service.CambiosFase
-	err     error
+	id       int
+	cambios  service.CambiosFase
+	err      error
+	llamadas int // veces que se llamó a Actualizar
 }
 
 func (f *fakeFasesUseCase) Listar(context.Context) ([]domain.Fase, error) {
@@ -32,6 +33,7 @@ func (f *fakeFasesUseCase) Listar(context.Context) ([]domain.Fase, error) {
 
 func (f *fakeFasesUseCase) Actualizar(_ context.Context, id int, c service.CambiosFase) (domain.Fase, error) {
 	f.id, f.cambios = id, c
+	f.llamadas++
 	if f.err != nil {
 		return domain.Fase{}, f.err
 	}
@@ -131,5 +133,49 @@ func TestFases_ErroresConElFormatoDeLaApi(t *testing.T) {
 				t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
 			}
 		})
+	}
+}
+
+// Un PUT vacío o incompleto no debe apagar la publicación ni el formulario sin querer: los dos
+// interruptores son obligatorios y el servicio ni siquiera se llama.
+func TestFases_ElPutExigeLosDosInterruptores(t *testing.T) {
+	admin := tokenParaRol(t, domain.RolAdministrador)
+	casos := []struct {
+		nombre, cuerpo string
+		campos         []string
+	}{
+		{"cuerpo vacío", `{}`, []string{"publicada", "habilita_formulario"}},
+		{"solo fechas", `{"fecha_inicio":"2026-11-01T00:00:00Z"}`, []string{"publicada", "habilita_formulario"}},
+		{"falta habilita_formulario", `{"publicada":true}`, []string{"habilita_formulario"}},
+		{"falta publicada", `{"habilita_formulario":true}`, []string{"publicada"}},
+		{"nulos", `{"publicada":null,"habilita_formulario":null}`, []string{"publicada", "habilita_formulario"}},
+	}
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			f := &fakeFasesUseCase{}
+			w := pedirAdmin(newFasesRouter(f), "PUT", "/api/v1/admin/fases/1", admin, c.cuerpo)
+			e := decodeError(t, w)
+			if w.Code != 400 || e.Code != "VALIDATION_ERROR" {
+				t.Fatalf("respuesta = %d %s", w.Code, w.Body.String())
+			}
+			for _, campo := range c.campos {
+				if e.Fields[campo] == "" {
+					t.Errorf("falta %q en fields: %v", campo, e.Fields)
+				}
+			}
+			if f.llamadas != 0 {
+				t.Fatal("el servicio no debe llamarse con un cuerpo incompleto")
+			}
+		})
+	}
+}
+
+// false explícito es un valor válido: se puede cerrar la fase a propósito.
+func TestFases_UnFalseExplicitoSiSeAcepta(t *testing.T) {
+	f := &fakeFasesUseCase{}
+	w := pedirAdmin(newFasesRouter(f), "PUT", "/api/v1/admin/fases/1",
+		tokenParaRol(t, domain.RolAdministrador), `{"publicada":false,"habilita_formulario":false}`)
+	if w.Code != 200 || f.llamadas != 1 || f.cambios.Publicada || f.cambios.HabilitaFormulario {
+		t.Fatalf("respuesta = %d %s, llamadas = %d", w.Code, w.Body.String(), f.llamadas)
 	}
 }

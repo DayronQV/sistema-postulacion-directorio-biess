@@ -29,11 +29,13 @@ func NewAdminFasesHandler(fases FasesUseCase) *AdminFasesHandler {
 	return &AdminFasesHandler{fases: fases}
 }
 
-// Las fechas llegan como texto RFC 3339 (o null) y se leen aquí, para responder 400 con
-// el campo si vienen mal formadas.
+// PUT reemplaza el estado de la fase. Los dos interruptores son obligatorios (por eso son
+// punteros): un cuerpo vacío o incompleto no debe apagar la publicación ni el formulario sin
+// querer. Las fechas son opcionales: ausente o null es sin fecha. Llegan como texto RFC 3339
+// y se leen aquí, para responder 400 con el campo si vienen mal formadas.
 type faseRequest struct {
-	Publicada          bool    `json:"publicada"`
-	HabilitaFormulario bool    `json:"habilita_formulario"`
+	Publicada          *bool   `json:"publicada"`
+	HabilitaFormulario *bool   `json:"habilita_formulario"`
 	FechaInicio        *string `json:"fecha_inicio"`
 	FechaFin           *string `json:"fecha_fin"`
 }
@@ -95,16 +97,21 @@ func (h *AdminFasesHandler) Actualizar(c *gin.Context) {
 		return
 	}
 	fields := map[string]string{}
+	if req.Publicada == nil {
+		fields["publicada"] = "Campo obligatorio"
+	}
+	if req.HabilitaFormulario == nil {
+		fields["habilita_formulario"] = "Campo obligatorio"
+	}
 	cambios := service.CambiosFase{
-		Publicada:          req.Publicada,
-		HabilitaFormulario: req.HabilitaFormulario,
-		FechaInicio:        fechaOpcional(req.FechaInicio, "fecha_inicio", fields),
-		FechaFin:           fechaOpcional(req.FechaFin, "fecha_fin", fields),
+		FechaInicio: fechaOpcional(req.FechaInicio, "fecha_inicio", fields),
+		FechaFin:    fechaOpcional(req.FechaFin, "fecha_fin", fields),
 	}
 	if len(fields) > 0 {
 		middleware.Fail(c, domain.Validation("Datos inválidos", fields))
 		return
 	}
+	cambios.Publicada, cambios.HabilitaFormulario = *req.Publicada, *req.HabilitaFormulario
 	f, err := h.fases.Actualizar(c.Request.Context(), id, cambios)
 	if err != nil {
 		middleware.Fail(c, err)
