@@ -20,7 +20,6 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
-	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/mailer"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/postgres"
 	redisrepo "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/redis"
 )
@@ -41,8 +40,9 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 
-	// Un MAILER inválido se detecta aquí, antes de conectarse a las bases de datos.
-	correo, err := mailer.New(cfg.Mailer, logger)
+	// Un MAILER inválido (o Mailjet sin claves o sin remitente) se detecta aquí, antes de
+	// conectarse a las bases de datos.
+	correo, err := correoDesdeConfig(cfg, logger)
 	if err != nil {
 		return err
 	}
