@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import AppRoutes from '@/routes'
+import * as adminEvaluacion from '@/services/adminEvaluacion'
 import * as servicio from '@/services/postulacion'
 import { cerrarSesion, expirarSesion, iniciarSesion } from '@/store/sesion'
 
@@ -106,5 +107,51 @@ describe('AppRoutes: fin de la sesión', () => {
     await userEvent.click(screen.getByRole('button', { name: /Cerrar sesión/ }))
     expect(tituloLogin()).toBeInTheDocument()
     expect(screen.queryByText('Su sesión expiró')).not.toBeInTheDocument()
+  })
+})
+
+describe('AppRoutes: evaluación teórica del panel', () => {
+  const rutas = [
+    '/admin/evaluacion/banco',
+    '/admin/evaluacion/configuracion',
+    '/admin/evaluacion/resultados',
+  ]
+  const tokenConRol = (rol: string) => `x.${btoa(JSON.stringify({ rol }))}.y`
+
+  beforeEach(() => {
+    vi.spyOn(adminEvaluacion, 'listarPreguntas').mockResolvedValue({
+      items: [],
+      total: 0,
+      pagina: 1,
+      por_pagina: 20,
+    })
+    vi.spyOn(adminEvaluacion, 'obtenerConfig').mockResolvedValue({
+      duracion_minutos: 30,
+      num_preguntas: 10,
+      total_banco: 0,
+      configurada: false,
+    })
+    vi.spyOn(adminEvaluacion, 'listarResultados').mockResolvedValue([])
+  })
+
+  it.each(rutas)('el analista no entra a %s', (ruta) => {
+    iniciarSesion(tokenConRol('analista'), 600)
+    renderEn(ruta)
+    expect(
+      screen.getByRole('heading', { level: 1, name: /Concurso de Méritos y Oposición/ }),
+    ).toBeInTheDocument()
+    expect(adminEvaluacion.listarPreguntas).not.toHaveBeenCalled()
+    expect(adminEvaluacion.obtenerConfig).not.toHaveBeenCalled()
+    expect(adminEvaluacion.listarResultados).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['/admin/evaluacion/banco', /^Banco de preguntas$/],
+    ['/admin/evaluacion/configuracion', /^Configuración de la evaluación$/],
+    ['/admin/evaluacion/resultados', /^Resultados de la evaluación$/],
+  ])('el administrador entra a %s', async (ruta, titulo) => {
+    iniciarSesion(tokenConRol('administrador'), 600)
+    renderEn(ruta)
+    expect(await screen.findByRole('heading', { level: 1, name: titulo })).toBeInTheDocument()
   })
 })
