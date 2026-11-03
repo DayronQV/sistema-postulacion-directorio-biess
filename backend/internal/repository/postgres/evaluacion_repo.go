@@ -183,3 +183,121 @@ SET inicia_en = EXCLUDED.inicia_en,
 	}
 	return nil
 }
+
+// --- Intentos de la evaluación (domain.IntentosEvaluacion) ---
+
+var _ domain.IntentosEvaluacion = (*EvaluacionRepo)(nil)
+
+// preguntaIntentoJSON es cómo se guarda una pregunta del intento en eval_intentos.preguntas.
+type preguntaIntentoJSON struct {
+	PreguntaID int   `json:"pregunta_id"`
+	Orden      []int `json:"orden"`
+}
+
+func preguntasAJSON(ps []domain.PreguntaDelIntento) ([]byte, error) {
+	items := make([]preguntaIntentoJSON, len(ps))
+	for i, p := range ps {
+		items[i] = preguntaIntentoJSON{PreguntaID: p.PreguntaID, Orden: p.Orden}
+	}
+	return json.Marshal(items)
+}
+
+func preguntasDesdeJSON(datos []byte) ([]domain.PreguntaDelIntento, error) {
+	var items []preguntaIntentoJSON
+	if err := json.Unmarshal(datos, &items); err != nil {
+		return nil, err
+	}
+	ps := make([]domain.PreguntaDelIntento, len(items))
+	for i, it := range items {
+		ps[i] = domain.PreguntaDelIntento{PreguntaID: it.PreguntaID, Orden: it.Orden}
+	}
+	return ps, nil
+}
+
+// PreguntasParaSorteo devuelve el id y la cantidad de opciones de cada pregunta del banco,
+// sin traer los textos ni la respuesta correcta.
+func (r *EvaluacionRepo) PreguntasParaSorteo(ctx context.Context) ([]domain.PreguntaSorteable, error) {
+	rows, err := r.db.Query(ctx, `SELECT id, jsonb_array_length(opciones) FROM eval_preguntas ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("listando las preguntas para el sorteo: %w", err)
+	}
+	defer rows.Close()
+	var ps []domain.PreguntaSorteable
+	for rows.Next() {
+		var p domain.PreguntaSorteable
+		if err := rows.Scan(&p.ID, &p.NumOpciones); err != nil {
+			return nil, fmt.Errorf("leyendo una pregunta del sorteo: %w", err)
+		}
+		ps = append(ps, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("recorriendo las preguntas del sorteo: %w", err)
+	}
+	return ps, nil
+}
+
+// PostulacionDelPostulante devuelve el estado de la postulación y si superó la Fase de Méritos.
+func (r *EvaluacionRepo) PostulacionDelPostulante(ctx context.Context, postulanteID string) (domain.PostulacionEvaluacion, bool, error) {
+	var p domain.PostulacionEvaluacion
+	err := r.db.QueryRow(ctx,
+		`SELECT id::text, estado, supero_merito FROM postulaciones WHERE postulante_id = $1`, postulanteID,
+	).Scan(&p.ID, &p.Estado, &p.SuperoMerito)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.PostulacionEvaluacion{}, false, nil
+	}
+	if err != nil {
+		return domain.PostulacionEvaluacion{}, false, fmt.Errorf("consultando la postulación para la evaluación: %w", err)
+	}
+	return p, true, nil
+}
+
+// CrearIntento inserta el intento si la postulación no tiene uno. La restricción UNIQUE de
+// postulacion_id hace que dos llamadas simultáneas no creen dos: la que pierde recibe el
+// intento ya guardado.
+func (r *EvaluacionRepo) CrearIntento(ctx context.Context, i domain.IntentoEvaluacion) (domain.IntentoEvaluacion, bool, error) {
+	preguntas, err := preguntasAJSON(i.Preguntas)
+	if err != nil {
+		return domain.IntentoEvaluacion{}, false, fmt.Errorf("codificando las preguntas del intento: %w", err)
+	}
+	err = r.db.QueryRow(ctx, `
+INSERT INTO eval_intentos (postulacion_id, preguntas, inicio, cierre)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (postulacion_id) DO NOTHING
+RETURNING id::text`, i.PostulacionID, preguntas, i.Inicio, i.Cierre).Scan(&i.ID)
+	if err == nil {
+		return i, true, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return domain.IntentoEvaluacion{}, false, fmt.Errorf("creando el intento de evaluación: %w", err)
+	}
+	existente, ok, err := r.ObtenerIntento(ctx, i.PostulacionID)
+	if err != nil {
+		return domain.IntentoEvaluacion{}, false, err
+	}
+	if !ok {
+		return domain.IntentoEvaluacion{}, false, fmt.Errorf("el intento de la postulación %s desapareció mientras se creaba", i.PostulacionID)
+	}
+	return existente, false, nil
+}
+
+// ObtenerIntento devuelve el intento de la postulación; false si no tiene.
+func (r *EvaluacionRepo) ObtenerIntento(ctx context.Context, postulacionID string) (domain.IntentoEvaluacion, bool, error) {
+	var (
+		i         domain.IntentoEvaluacion
+		preguntas []byte
+	)
+	err := r.db.QueryRow(ctx, `
+SELECT id::text, postulacion_id::text, preguntas, inicio, cierre, finalizado_at, nota::float8
+FROM eval_intentos WHERE postulacion_id = $1`, postulacionID,
+	).Scan(&i.ID, &i.PostulacionID, &preguntas, &i.Inicio, &i.Cierre, &i.FinalizadoEn, &i.Nota)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.IntentoEvaluacion{}, false, nil
+	}
+	if err != nil {
+		return domain.IntentoEvaluacion{}, false, fmt.Errorf("leyendo el intento de evaluación: %w", err)
+	}
+	if i.Preguntas, err = preguntasDesdeJSON(preguntas); err != nil {
+		return domain.IntentoEvaluacion{}, false, fmt.Errorf("decodificando las preguntas del intento %s: %w", i.ID, err)
+	}
+	return i, true, nil
+}

@@ -134,5 +134,14 @@ Una pregunta es `{ enunciado, opciones: [texto, ...], respuesta_correcta }`, con
 - `GET /admin/evaluacion/config` → `{ inicia_en, duracion_minutos, num_preguntas, total_banco, configurada }`. Mientras no se configure: `inicia_en: null`, 30 minutos, 10 preguntas y `configurada: false`.
 - `PUT /admin/evaluacion/config` con `{ inicia_en, duracion_minutos, num_preguntas }` → `200` con la misma forma. `inicia_en` en RFC 3339 con zona horaria (por ejemplo `2026-11-20T09:00:00-05:00`) y siempre se responde en UTC; la duración va de 1 a 480 minutos. `422` si `num_preguntas` supera las preguntas del banco (`fields.num_preguntas` dice cuántas hay).
 
+### Evaluación del postulante (solo `postulante`)
+Las rutas `/evaluacion/*` exigen token de postulante (`401` sin token, `403` con token de analista o administrador). Todas las horas van en UTC y el tiempo restante lo calcula el servidor.
+
+- `POST /evaluacion/iniciar` (sin cuerpo) → `{ total_preguntas, inicio, cierre, tiempo_restante_segundos }`. `201` si crea el examen y `200` si el postulante ya tenía uno en curso (devuelve el mismo, con el tiempo que le queda).
+  - `403` si no tiene la postulación enviada, si no superó la Fase de Méritos o si la evaluación no tiene fecha configurada (`FORBIDDEN`). Solo se puede iniciar dentro de la **ventana de inicio**, que va desde `inicia_en` hasta `inicia_en` más `duracion_minutos`: antes de la hora de inicio es `403` y `fields.inicia_en` dice cuándo empieza; después de cerrada la ventana es `403` "El plazo para iniciar la evaluación terminó" y `fields.cierra_en` dice cuándo cerró. Quien empieza dentro de la ventana tiene su tiempo completo (la hora de cierre de su examen es su inicio más la duración, aunque pase de la ventana), y quien ya empezó conserva su examen.
+  - Hay un **solo intento por postulante**: uno ya terminado o vencido no se reabre (`409`). `422` si el banco no tiene las preguntas que pide la configuración.
+  - El sorteo toma `num_preguntas` preguntas distintas del banco, en orden aleatorio, y cada pregunta con sus opciones en orden aleatorio (`crypto/rand`), distinto para cada postulante. La hora de cierre es el inicio más `duracion_minutos`.
+- `GET /evaluacion/pregunta/{n}` (n desde 1) → `{ numero, total, id, enunciado, opciones, cierre, tiempo_restante_segundos }`. Las opciones vienen en el orden que le tocó al postulante y **nunca** incluye la respuesta correcta. `404` si no ha iniciado la evaluación o `n` no existe en su examen; `409` si el examen ya terminó o se agotó el tiempo.
+
 ## Utilidad
 `GET /health` → `200 { "status": "ok" }` (sin prefijo `/api/v1`).
