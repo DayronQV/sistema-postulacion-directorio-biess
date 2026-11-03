@@ -21,20 +21,21 @@ const (
 // (desde 0) de la opción correcta dentro de Opciones.
 //
 // Esta es la vista del administrador: trae la respuesta correcta. Lo que ve el postulante
-// es PreguntaPublica, que no la incluye.
+// es PreguntaPublica, que no la incluye. El dominio no conoce el formato JSON: cada handler
+// arma su propia respuesta.
 type Pregunta struct {
-	ID                int      `json:"id"`
-	Enunciado         string   `json:"enunciado"`
-	Opciones          []string `json:"opciones"`
-	RespuestaCorrecta int      `json:"respuesta_correcta"`
+	ID                int
+	Enunciado         string
+	Opciones          []string
+	RespuestaCorrecta int
 }
 
 // PreguntaPublica es lo único de una pregunta que se envía al postulante: la respuesta
 // correcta nunca sale del servidor.
 type PreguntaPublica struct {
-	ID        int      `json:"id"`
-	Enunciado string   `json:"enunciado"`
-	Opciones  []string `json:"opciones"`
+	ID        int
+	Enunciado string
+	Opciones  []string
 }
 
 // Publica devuelve la pregunta sin la respuesta correcta.

@@ -207,6 +207,9 @@ func TestEvaluacionAdmin_CrearPreguntaSuelta(t *testing.T) {
 	if m["id"] != float64(1) || m["enunciado"] != "¿Capital de Ecuador?" || m["respuesta_correcta"] != float64(1) {
 		t.Fatalf("cuerpo = %v", m)
 	}
+	if len(m) != 4 {
+		t.Fatalf("la pregunta del administrador tiene exactamente id, enunciado, opciones y respuesta_correcta: %v", m)
+	}
 	if len(b.preguntas) != 1 {
 		t.Fatal("no se guardó")
 	}
