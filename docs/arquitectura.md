@@ -30,8 +30,8 @@ frontend/
     services/                # único lugar con llamadas a la API
     store/                   # estado global (sesión)
 db/
-  schema.sql                 # DDL
-  seed_catalogos.sql         # países, provincias y cantones
+  schema.sql                 # script único: DDL y semilla de la división política
+  seed_admin.sql             # usuarios de prueba del panel (solo desarrollo)
 docker-compose.yml
 ```
 
@@ -114,4 +114,4 @@ JWT firmado, expiración corta, enviado como `Authorization: Bearer`. Contraseñ
 - Sesión: el token JWT se guarda en `sessionStorage` (no en `localStorage`), así que vive solo en la pestaña: al cerrarla o abrir otra se pide login de nuevo. La sesión se cierra sola al vencer `expires_in` o ante un `401`. El rol se lee del claim `rol` solo para mostrar u ocultar pantallas; el servidor valida siempre.
 
 ## Datos de prueba (semilla)
-Un puñado de cédulas válidas en el Registro Civil simulado: al menos una ecuatoriana, una casada y una **extranjera** (para probar el cierre de la postulación). Se cargan desde `db/seed_catalogos.sql` o desde el propio adaptador `mock`.
+Un puñado de cédulas válidas en el Registro Civil simulado: al menos una ecuatoriana, una casada y una **extranjera** (para probar el cierre de la postulación). Se definen en el propio adaptador `mock` (`backend/internal/integration/registrocivil/mock.go`).

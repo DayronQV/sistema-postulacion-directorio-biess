@@ -62,9 +62,7 @@ jobs:
 
       - name: Cargar esquema y semilla
         working-directory: .
-        run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/seed_catalogos.sql
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
 
       - name: go vet
         run: go vet ./...

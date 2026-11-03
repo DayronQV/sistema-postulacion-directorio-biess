@@ -13,7 +13,7 @@ import (
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
 )
 
-// Estas pruebas usan la semilla real de db/seed_catalogos.sql: los ids se buscan por
+// Estas pruebas usan la semilla real de la división política de db/schema.sql: los ids se buscan por
 // nombre, no se escriben a mano.
 
 func newServiceDomicilio(pool *pgxpool.Pool) *service.PostulacionService {

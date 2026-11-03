@@ -22,7 +22,6 @@ services:
       # trae contraseñas públicas de desarrollo. Los usuarios de administración de
       # producción se crean aparte, con contraseñas propias.
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./db/seed_catalogos.sql:/docker-entrypoint-initdb.d/02-seed_catalogos.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
