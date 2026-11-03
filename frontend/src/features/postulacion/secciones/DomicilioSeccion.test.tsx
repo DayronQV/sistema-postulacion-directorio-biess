@@ -10,6 +10,8 @@ import {
   type Postulacion,
 } from '@/services/postulacion'
 import DomicilioSeccion from './DomicilioSeccion'
+import ContenedorToasts from '@/components/ui/ContenedorToasts'
+import { reiniciarToasts } from '@/store/toasts'
 
 vi.mock('@/services/catalogos')
 vi.mock('@/services/postulacion')
@@ -64,6 +66,9 @@ function postulacion(sobre: Partial<Postulacion> = {}): Postulacion {
 }
 
 beforeEach(() => {
+  // El aviso de guardado es un toast: se monta su contenedor y se limpia entre pruebas.
+  reiniciarToasts()
+  render(<ContenedorToasts />)
   vi.mocked(listarPaises).mockResolvedValue([
     { id: 52, nombre: 'Ecuador' },
     { id: 40, nombre: 'Colombia' },

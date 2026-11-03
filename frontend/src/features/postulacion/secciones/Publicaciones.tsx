@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Campo from '@/components/form/Campo'
 import DocumentoUpload from '@/components/form/DocumentoUpload'
 import Alert from '@/components/ui/Alert'
+import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
 import Button from '@/components/ui/Button'
 import DateInput from '@/components/ui/DateInput'
 import Input from '@/components/ui/Input'
@@ -101,6 +102,7 @@ export default function Publicaciones({
   const [errores, setErrores] = useState<ReturnType<typeof erroresDe>>({})
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
+  useAvisoDeGuardado(guardado, 'La información se guardó correctamente.')
   // Hay cambios que todavía no se guardaron: la respuesta Sí/No o filas eliminadas. Agregar o
   // editar una fila la guarda al momento. Solo entonces se ofrece "Guardar información", y
   // con "Sí" solo si queda alguna fila: sin filas no hay nada que guardar hasta agregar una.
@@ -328,7 +330,6 @@ export default function Publicaciones({
         </>
       )}
 
-      {guardado && <Alert tipo="success">La información se guardó correctamente.</Alert>}
       {errorGuardar && (
         <Alert tipo="error" titulo={errorGuardar.message}>
           {erroresServidor.length > 0 && (

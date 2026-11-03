@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import type { z } from 'zod'
 import { CampoSelect, CampoTexto } from '@/components/form/campos'
 import Alert from '@/components/ui/Alert'
+import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Modal, { ModalConfirmacion } from '@/components/ui/Modal'
@@ -60,6 +61,7 @@ export default function Familiares({ valoresIniciales, onGuardar }: FamiliaresPr
   const [porEliminar, setPorEliminar] = useState<number | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
+  useAvisoDeGuardado(guardado, 'La información de familiares se guardó.')
   // Hay cambios que todavía no se guardaron: la respuesta Sí/No o filas eliminadas. Agregar o
   // editar una fila la guarda al momento. Solo entonces se ofrece "Guardar información", y
   // con "Sí" solo si queda alguna fila: sin filas no hay nada que guardar hasta agregar una.
@@ -173,7 +175,6 @@ export default function Familiares({ valoresIniciales, onGuardar }: FamiliaresPr
             )}
           </Alert>
         )}
-        {guardado && <Alert tipo="success">La información de familiares se guardó.</Alert>}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p id={preguntaId} className="text-body-bold text-on-surface">

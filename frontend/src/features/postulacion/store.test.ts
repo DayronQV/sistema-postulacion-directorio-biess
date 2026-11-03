@@ -10,6 +10,7 @@ import {
 } from './store'
 import { useFormulario } from './store'
 import { renderHook } from '@testing-library/react'
+import { reiniciarToasts, useToasts } from '@/store/toasts'
 
 vi.mock('@/services/postulacion')
 const obtener = vi.mocked(servicio.obtenerPostulacion)
@@ -26,6 +27,7 @@ function estado() {
 }
 
 beforeEach(() => {
+  reiniciarToasts()
   reiniciarFormulario()
   obtener.mockReset()
   guardar.mockReset()
@@ -56,6 +58,22 @@ describe('store de la postulación', () => {
     expect(estado().seccionesConCambios).toEqual([])
   })
 
+  it('al guardar una sección muestra un toast de éxito', async () => {
+    obtener.mockResolvedValue(post())
+    await cargarPostulacion()
+    guardar.mockResolvedValue(post({ cargo: 'jubilados' }))
+
+    await guardarSeccion('cargo', { cargo: 'jubilados' })
+
+    const avisos = renderHook(() => useToasts()).result.current
+    expect(avisos).toEqual([
+      expect.objectContaining({
+        tipo: 'success',
+        mensaje: 'La información se guardó correctamente.',
+      }),
+    ])
+  })
+
   it('si el servidor rechaza, deja el error y conserva los cambios sin guardar', async () => {
     obtener.mockResolvedValue(post())
     await cargarPostulacion()
@@ -68,6 +86,8 @@ describe('store de la postulación', () => {
     expect(estado().errorGuardado?.message).toBe('Cargo no elegible')
     expect(estado().seccionesConCambios).toEqual(['cargo'])
     expect(estado().postulacion).not.toHaveProperty('cargo')
+    // Sin éxito no hay toast.
+    expect(renderHook(() => useToasts()).result.current).toHaveLength(0)
   })
 
   it('enviar deja la postulación en estado enviada y limpia los cambios pendientes', async () => {
