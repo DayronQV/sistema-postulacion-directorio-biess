@@ -1,0 +1,338 @@
+import { useEffect, useRef, useState } from 'react'
+import Campo from '@/components/form/Campo'
+import DocumentoUpload from '@/components/form/DocumentoUpload'
+import Alert from '@/components/ui/Alert'
+import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
+import Button from '@/components/ui/Button'
+import DateInput from '@/components/ui/DateInput'
+import Input from '@/components/ui/Input'
+import Select from '@/components/ui/Select'
+import TablaFilas from '@/components/ui/TablaFilas'
+import { fechaLocalISO } from '@/features/auth/esquemas'
+import { eliminarDocumento, type DocumentoSubido } from '@/services/documentos'
+import { ApiError } from '@/services/errores'
+import type { Capacitacion as CapacitacionDatos, TipoCapacitacion } from '@/services/postulacion'
+
+// Iguales que domain.MaxCapacitaciones y domain.MaxHorasCapacitacion en el servidor.
+export const MAX_CAPACITACIONES = 50
+export const MAX_HORAS = 10000
+
+export interface CapacitacionProps {
+  valor: CapacitacionDatos[]
+  onGuardar: (capacitaciones: CapacitacionDatos[]) => Promise<void> | void
+}
+
+type FilaEditor = Omit<CapacitacionDatos, 'documento_id'> & { documento: DocumentoSubido | null }
+
+const tipos = [
+  { valor: 'curso', etiqueta: 'Curso' },
+  { valor: 'seminario', etiqueta: 'Seminario' },
+  { valor: 'taller', etiqueta: 'Taller' },
+] as const
+
+const etiquetaTipo = Object.fromEntries(tipos.map((t) => [t.valor, t.etiqueta]))
+
+const vacia = (): FilaEditor => ({
+  tipo: '' as TipoCapacitacion,
+  nombre: '',
+  institucion: '',
+  fecha_inicio: '',
+  fecha_fin: '',
+  horas: 0,
+  documento: null,
+})
+
+// La API solo devuelve documento_id: el nombre es descriptivo y el tamaño 0 indica a
+// FileUpload que no lo muestre. El respaldo es opcional (documento_id admite NULL).
+function alEditor(fila: CapacitacionDatos): FilaEditor {
+  return {
+    ...fila,
+    documento: fila.documento_id
+      ? {
+          documento_id: fila.documento_id,
+          nombre: `respaldo-${fila.nombre || 'capacitacion'}.pdf`,
+          tamano_bytes: 0,
+        }
+      : null,
+  }
+}
+
+function alDominio(fila: FilaEditor): CapacitacionDatos {
+  return {
+    tipo: fila.tipo,
+    nombre: fila.nombre.trim(),
+    institucion: fila.institucion.trim(),
+    fecha_inicio: fila.fecha_inicio,
+    fecha_fin: fila.fecha_fin,
+    horas: fila.horas,
+    documento_id: fila.documento?.documento_id ?? '',
+  }
+}
+
+// Borra PDF que ya no usa ninguna fila. Un fallo (por ejemplo 409 si sigue en uso) se
+// ignora: lo peor es que el archivo quede guardado.
+function descartar(ids: string[]) {
+  for (const id of ids) eliminarDocumento(new AbortController().signal, id).catch(() => undefined)
+}
+
+function erroresDe(fila: FilaEditor) {
+  const errores: Partial<Record<keyof FilaEditor, string>> = {}
+  if (!fila.tipo) errores.tipo = 'Seleccione el tipo de evento'
+  if (!fila.nombre.trim()) errores.nombre = 'Campo obligatorio'
+  if (!fila.institucion.trim()) errores.institucion = 'Campo obligatorio'
+  if (!fila.fecha_inicio) errores.fecha_inicio = 'Ingrese la fecha inicial'
+  else if (fila.fecha_inicio > fechaLocalISO())
+    errores.fecha_inicio = 'La fecha no puede ser futura'
+  if (!fila.fecha_fin) errores.fecha_fin = 'Ingrese la fecha final'
+  else if (fila.fecha_fin > fechaLocalISO()) errores.fecha_fin = 'La fecha no puede ser futura'
+  else if (fila.fecha_inicio && fila.fecha_fin < fila.fecha_inicio)
+    errores.fecha_fin = 'La fecha final no puede ser anterior a la inicial'
+  if (!Number.isInteger(fila.horas) || fila.horas <= 0)
+    errores.horas = 'Ingrese un número de horas mayor a cero'
+  else if (fila.horas > MAX_HORAS) errores.horas = `Máximo ${MAX_HORAS} horas`
+  return errores
+}
+
+export default function Capacitacion({ valor, onGuardar }: CapacitacionProps) {
+  const [filas, setFilas] = useState(valor)
+  // undefined: editor cerrado; null: agregando; número: editando esa fila.
+  const [indice, setIndice] = useState<number | null>()
+  const [borrador, setBorrador] = useState(vacia())
+  const [errores, setErrores] = useState<ReturnType<typeof erroresDe>>({})
+  const [guardando, setGuardando] = useState(false)
+  const [guardado, setGuardado] = useState(false)
+  useAvisoDeGuardado(guardado, 'La información se guardó correctamente.')
+  // Hay cambios en la lista que todavía no se guardaron (hoy, solo filas eliminadas).
+  // Agregar o editar una fila la guarda al momento. Solo entonces se ofrece
+  // "Guardar información".
+  const [pendiente, setPendiente] = useState(false)
+  const [errorGuardar, setErrorGuardar] = useState<ApiError | null>(null)
+  // PDF subidos en esta pantalla y todavía no guardados (ver Formacion).
+  const subidos = useRef(new Set<string>())
+
+  useEffect(
+    () => () => {
+      const pendientes = [...subidos.current]
+      subidos.current.clear()
+      descartar(pendientes)
+    },
+    [],
+  )
+
+  function abrir(fila?: CapacitacionDatos) {
+    setIndice(fila ? filas.indexOf(fila) : null)
+    setBorrador(fila ? alEditor(fila) : vacia())
+    setErrores({})
+    setGuardado(false)
+  }
+
+  // Guarda la lista en el servidor. Devuelve false si falla, y entonces la lista en pantalla
+  // no cambia.
+  async function guardar(lista: CapacitacionDatos[]): Promise<boolean> {
+    setGuardando(true)
+    setGuardado(false)
+    setErrorGuardar(null)
+    try {
+      await onGuardar(lista)
+      const usados = new Set(lista.map((fila) => fila.documento_id))
+      const sobrantes = [...subidos.current].filter((id) => !usados.has(id))
+      subidos.current.clear()
+      descartar(sobrantes)
+      setFilas(lista)
+      setPendiente(false)
+      setGuardado(true)
+      return true
+    } catch (error) {
+      setErrorGuardar(
+        error instanceof ApiError
+          ? error
+          : new ApiError(0, 'UNKNOWN', 'No se pudo guardar la capacitación.'),
+      )
+      return false
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  // "Guardar" del formulario: valida, agrega o actualiza la fila y guarda la lista. Si el
+  // servidor la rechaza, el formulario sigue abierto con lo que escribió la persona.
+  async function guardarFila() {
+    const encontrados = erroresDe(borrador)
+    setErrores(encontrados)
+    if (Object.keys(encontrados).length > 0) return
+    const fila = alDominio(borrador)
+    const lista =
+      indice === null
+        ? [...filas, fila]
+        : filas.map((actual, posicion) => (posicion === indice ? fila : actual))
+    if (await guardar(lista)) setIndice(undefined)
+  }
+
+  const actualizar = <K extends keyof FilaEditor>(campo: K, valorCampo: FilaEditor[K]) =>
+    setBorrador((actual) => ({ ...actual, [campo]: valorCampo }))
+
+  const erroresServidor = errorGuardar?.fields
+    ? Object.entries(errorGuardar.fields).filter(([campo]) => campo.startsWith('capacitaciones'))
+    : []
+
+  return (
+    <section className="flex flex-col gap-5" aria-labelledby="capacitacion-titulo">
+      <div>
+        <h2 id="capacitacion-titulo" className="text-headline-sm text-primary">
+          Capacitación
+        </h2>
+        <p className="text-body-md text-on-surface-variant">
+          Registre sus cursos, seminarios y talleres.
+        </p>
+      </div>
+
+      <TablaFilas
+        titulo="Eventos registrados"
+        columnas={[
+          { clave: 'tipo', titulo: 'Tipo', render: (fila) => etiquetaTipo[fila.tipo] },
+          { clave: 'nombre', titulo: 'Nombre' },
+          { clave: 'institucion', titulo: 'Institución' },
+          { clave: 'fecha_inicio', titulo: 'Desde' },
+          { clave: 'fecha_fin', titulo: 'Hasta' },
+          { clave: 'horas', titulo: 'Horas' },
+        ]}
+        filas={filas}
+        obtenerClave={(fila) => filas.indexOf(fila)}
+        onAgregar={filas.length >= MAX_CAPACITACIONES ? undefined : () => abrir()}
+        onEditar={abrir}
+        onEliminar={(fila) => {
+          setFilas((actuales) => actuales.filter((actual) => actual !== fila))
+          setIndice(undefined)
+          setGuardado(false)
+          setPendiente(true)
+        }}
+        textoAgregar="Agregar capacitación"
+        deshabilitado={guardando}
+      />
+
+      {indice !== undefined && (
+        <div className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low p-4 md:grid-cols-2">
+          <Campo id="capacitacion-tipo" etiqueta="Tipo de evento" requerido error={errores.tipo}>
+            <Select
+              id="capacitacion-tipo"
+              opciones={[...tipos]}
+              placeholder="Seleccione..."
+              value={borrador.tipo}
+              onChange={(e) => actualizar('tipo', e.target.value as TipoCapacitacion)}
+              invalido={Boolean(errores.tipo)}
+            />
+          </Campo>
+          <Campo
+            id="capacitacion-nombre"
+            etiqueta="Nombre del evento"
+            requerido
+            error={errores.nombre}
+          >
+            <Input
+              id="capacitacion-nombre"
+              value={borrador.nombre}
+              onChange={(e) => actualizar('nombre', e.target.value)}
+              invalido={Boolean(errores.nombre)}
+            />
+          </Campo>
+          <Campo
+            id="capacitacion-institucion"
+            etiqueta="Institución"
+            requerido
+            error={errores.institucion}
+          >
+            <Input
+              id="capacitacion-institucion"
+              value={borrador.institucion}
+              onChange={(e) => actualizar('institucion', e.target.value)}
+              invalido={Boolean(errores.institucion)}
+            />
+          </Campo>
+          <Campo id="capacitacion-horas" etiqueta="Número de horas" requerido error={errores.horas}>
+            <Input
+              id="capacitacion-horas"
+              type="number"
+              min={1}
+              max={MAX_HORAS}
+              step={1}
+              value={borrador.horas || ''}
+              onChange={(e) => actualizar('horas', Number(e.target.value))}
+              invalido={Boolean(errores.horas)}
+            />
+          </Campo>
+          <Campo
+            id="capacitacion-inicio"
+            etiqueta="Fecha de inicio"
+            requerido
+            error={errores.fecha_inicio}
+          >
+            <DateInput
+              id="capacitacion-inicio"
+              max={fechaLocalISO()}
+              value={borrador.fecha_inicio}
+              onChange={(e) => actualizar('fecha_inicio', e.target.value)}
+              invalido={Boolean(errores.fecha_inicio)}
+            />
+          </Campo>
+          <Campo
+            id="capacitacion-fin"
+            etiqueta="Fecha de finalización"
+            requerido
+            error={errores.fecha_fin}
+          >
+            <DateInput
+              id="capacitacion-fin"
+              min={borrador.fecha_inicio || undefined}
+              max={fechaLocalISO()}
+              value={borrador.fecha_fin}
+              onChange={(e) => actualizar('fecha_fin', e.target.value)}
+              invalido={Boolean(errores.fecha_fin)}
+            />
+          </Campo>
+          <div className="md:col-span-2">
+            <DocumentoUpload
+              tipo="capacitacion"
+              maxMb={2}
+              valor={borrador.documento}
+              onChange={(documento) => {
+                if (documento) subidos.current.add(documento.documento_id)
+                actualizar('documento', documento)
+              }}
+              etiqueta="Documento de respaldo (PDF, máximo 2 MB, opcional)"
+              eliminarEnServidor={false}
+            />
+          </div>
+          <div className="flex justify-end gap-3 md:col-span-2">
+            <Button variante="secondary" disabled={guardando} onClick={() => setIndice(undefined)}>
+              Cancelar
+            </Button>
+            <Button onClick={guardarFila} cargando={guardando} textoCargando="Guardando...">
+              Guardar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {errorGuardar && (
+        <Alert tipo="error" titulo={errorGuardar.message}>
+          {erroresServidor.length > 0 && (
+            <ul className="list-disc pl-4">
+              {erroresServidor.map(([campo, mensaje]) => (
+                <li key={campo}>
+                  {campo}: {mensaje}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Alert>
+      )}
+      {indice === undefined && pendiente && (
+        <div className="flex justify-end">
+          <Button onClick={() => guardar(filas)} cargando={guardando} textoCargando="Guardando...">
+            Guardar información
+          </Button>
+        </div>
+      )}
+    </section>
+  )
+}

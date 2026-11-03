@@ -1,0 +1,103 @@
+import { Navigate, Route, Routes } from 'react-router-dom'
+import LayoutPrivado from '@/components/layout/LayoutPrivado'
+import LayoutAcceso from '@/components/layout/LayoutAcceso'
+import LayoutPublico from '@/components/layout/LayoutPublico'
+import Componentes from '@/pages/Componentes'
+import FormularioPostulacion from '@/pages/FormularioPostulacion'
+import ImprimirPostulacion from '@/pages/ImprimirPostulacion'
+import Evaluacion from '@/pages/Evaluacion'
+import Inicio from '@/pages/Inicio'
+import Login from '@/pages/Login'
+import Recuperar from '@/pages/Recuperar'
+import Registro from '@/pages/Registro'
+import Restablecer from '@/pages/Restablecer'
+import LayoutAdmin from '@/features/admin/LayoutAdmin'
+import LoginAdmin from '@/pages/admin/LoginAdmin'
+import Fases from '@/pages/admin/Fases'
+import PanelAdmin from '@/pages/admin/PanelAdmin'
+import Dashboard from '@/pages/admin/Dashboard'
+import PostulacionDetalle from '@/pages/admin/PostulacionDetalle'
+import Postulaciones from '@/pages/admin/Postulaciones'
+import EvaluacionBanco from '@/pages/admin/EvaluacionBanco'
+import EvaluacionConfiguracion from '@/pages/admin/EvaluacionConfiguracion'
+import EvaluacionResultados from '@/pages/admin/EvaluacionResultados'
+import RutaInvitado from './RutaInvitado'
+import RutaProtegida from './RutaProtegida'
+import {
+  RUTA_ADMIN,
+  RUTA_ADMIN_DASHBOARD,
+  RUTA_EVALUACION,
+  RUTA_FORMULARIO,
+  RUTA_LOGIN,
+  RUTA_LOGIN_ADMIN,
+} from './rutas'
+
+export default function AppRoutes() {
+  return (
+    <Routes>
+      {/* Pantallas públicas con el diseño institucional de acceso */}
+      <Route element={<LayoutAcceso />}>
+        <Route path="/" element={<Inicio />} />
+        {/* Solo sin sesión: con sesión abierta se va a la página principal */}
+        <Route element={<RutaInvitado />}>
+          <Route path="/registro" element={<Registro />} />
+          <Route path={RUTA_LOGIN} element={<Login />} />
+          <Route path={RUTA_LOGIN_ADMIN} element={<LoginAdmin />} />
+        </Route>
+        <Route path="/recuperar" element={<Recuperar />} />
+        <Route path="/restablecer" element={<Restablecer />} />
+      </Route>
+
+      {/* Muestra interna de componentes: solo en desarrollo */}
+      {import.meta.env.DEV && (
+        <Route element={<LayoutPublico />}>
+          <Route path="/componentes" element={<Componentes />} />
+        </Route>
+      )}
+
+      {/* Rutas privadas del postulante: todas dentro de RutaProtegida. Un analista o un
+          administrador no entra a ellas (el servidor también responde 403). */}
+      <Route element={<RutaProtegida roles={['postulante']} />}>
+        {/* Vista imprimible: sin menús, solo el documento */}
+        <Route path="/postulacion/imprimir" element={<ImprimirPostulacion />} />
+        <Route element={<LayoutPrivado />}>
+          <Route path={RUTA_FORMULARIO} element={<FormularioPostulacion />} />
+          <Route path={RUTA_EVALUACION} element={<Evaluacion />} />
+        </Route>
+      </Route>
+
+      {/* Panel de administración (EF-13): solo analistas y administradores; sin sesión,
+          al login del panel. Cada módulo agrega aquí su ruta y su ítem en features/admin/menu.ts */}
+      <Route
+        element={
+          <RutaProtegida roles={['analista', 'administrador']} redirigirA={RUTA_LOGIN_ADMIN} />
+        }
+      >
+        <Route element={<LayoutAdmin />}>
+          <Route path={RUTA_ADMIN} element={<PanelAdmin />} />
+          <Route path={`${RUTA_ADMIN}/fases`} element={<Fases />} />
+          <Route path={RUTA_ADMIN_DASHBOARD} element={<Dashboard />} />
+          <Route path={`${RUTA_ADMIN}/postulaciones`} element={<Postulaciones />} />
+          <Route path={`${RUTA_ADMIN}/postulaciones/:id`} element={<PostulacionDetalle />} />
+          {/* La evaluación teórica (EF-14) es solo del administrador: el analista no entra. */}
+          <Route
+            element={<RutaProtegida roles={['administrador']} redirigirA={RUTA_LOGIN_ADMIN} />}
+          >
+            <Route path={`${RUTA_ADMIN}/evaluacion/banco`} element={<EvaluacionBanco />} />
+            <Route
+              path={`${RUTA_ADMIN}/evaluacion/configuracion`}
+              element={<EvaluacionConfiguracion />}
+            />
+            <Route
+              path={`${RUTA_ADMIN}/evaluacion/resultados`}
+              element={<EvaluacionResultados />}
+            />
+          </Route>
+        </Route>
+      </Route>
+
+      {/* Una URL desconocida no muestra una página en blanco */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}

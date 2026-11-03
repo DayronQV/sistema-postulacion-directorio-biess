@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    @apply m-0 bg-background font-sans text-body-md text-on-surface antialiased;
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  user-select: none;
+  /* Los iconos son cuadrados: un cuadro de 1 em recorta el nombre escrito mientras la fuente
+     no ha cargado y evita que esa palabra ensanche el icono y mueva el diseño. */
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+}
+
+/* Impresión del formulario final: hoja A4 con márgenes */
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+/* Aparición suave de los avisos flotantes (toasts). Sin movimiento si la persona lo desactivó. */
+@keyframes toast-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast-entrada {
+    animation: toast-entrada 0.2s ease-out;
+  }
+}

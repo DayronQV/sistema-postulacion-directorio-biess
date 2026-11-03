@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Concurso del Directorio del BIESS">
+  <title>Concurso del Directorio del BIESS</title>
+  <defs>
+    <clipPath id="redondeado">
+      <rect width="64" height="64" rx="14" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#redondeado)">
+    <rect width="64" height="64" fill="#00264d" />
+    <!-- Franjas de la bandera: amarillo, azul y rojo -->
+    <rect y="53" width="64" height="6" fill="#fcd116" />
+    <rect y="59" width="64" height="2.5" fill="#2f6fc4" />
+    <rect y="61.5" width="64" height="2.5" fill="#d52b1e" />
+    <!-- Edificio institucional: frontón, tres columnas gruesas (se leen bien a 16 px) y base -->
+    <polygon points="32,7 55,21 9,21" fill="#ffffff" />
+    <rect x="14" y="25" width="8" height="19" rx="1.5" fill="#ffffff" />
+    <rect x="28" y="25" width="8" height="19" rx="1.5" fill="#ffffff" />
+    <rect x="42" y="25" width="8" height="19" rx="1.5" fill="#ffffff" />
+    <rect x="9" y="46" width="46" height="5" rx="1.5" fill="#ffffff" />
+  </g>
+</svg>

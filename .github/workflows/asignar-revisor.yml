@@ -1,0 +1,36 @@
+name: Asignar revisor
+
+# Pide la revisión del PR a la persona que le toca según quien lo abre:
+#   Dayron -> José -> Luis -> Estalin -> Gualter -> Dayron
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  asignar:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pedir la revisión según el autor
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOR: ${{ github.event.pull_request.user.login }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          case "$AUTOR" in
+            DayronQV)      REVISOR=Joseepc18 ;;
+            Joseepc18)     REVISOR=LuisAnchundia ;;
+            LuisAnchundia) REVISOR=Cranell237 ;;
+            Cranell237)    REVISOR=gualter302 ;;
+            gualter302)    REVISOR=DayronQV ;;
+            *)
+              echo "No hay revisor definido para $AUTOR; no se pide revisión."
+              exit 0
+              ;;
+          esac
+          echo "PR #$PR de $AUTOR: se pide la revisión a $REVISOR."
+          gh api -X POST "repos/$REPO/pulls/$PR/requested_reviewers" -f "reviewers[]=$REVISOR"
