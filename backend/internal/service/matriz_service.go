@@ -1,13 +1,21 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/phpdave11/gofpdf"
+	"github.com/johnfercher/maroto/v2"
+	"github.com/johnfercher/maroto/v2/pkg/components/col"
+	"github.com/johnfercher/maroto/v2/pkg/components/row"
+	"github.com/johnfercher/maroto/v2/pkg/components/text"
+	"github.com/johnfercher/maroto/v2/pkg/config"
+	"github.com/johnfercher/maroto/v2/pkg/consts/align"
+	"github.com/johnfercher/maroto/v2/pkg/consts/fontstyle"
+	"github.com/johnfercher/maroto/v2/pkg/consts/orientation"
+	"github.com/johnfercher/maroto/v2/pkg/core"
+	"github.com/johnfercher/maroto/v2/pkg/props"
 	"github.com/xuri/excelize/v2"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
@@ -49,6 +57,12 @@ func NewMatrizService(repo domain.MatrizPostulaciones) *MatrizService {
 	return &MatrizService{repo: repo, ahora: time.Now}
 }
 
+// ConReloj reemplaza el reloj (para las pruebas).
+func (s *MatrizService) ConReloj(ahora func() time.Time) *MatrizService {
+	s.ahora = ahora
+	return s
+}
+
 // Exportar valida los filtros, consulta las filas y genera el formato solicitado.
 func (s *MatrizService) Exportar(ctx context.Context, in FiltroMatrizInput) (ArchivoMatriz, error) {
 	formato := strings.ToLower(strings.TrimSpace(in.Formato))
@@ -66,7 +80,8 @@ func (s *MatrizService) Exportar(ctx context.Context, in FiltroMatrizInput) (Arc
 	if err != nil {
 		return ArchivoMatriz{}, err
 	}
-	fecha := s.ahora()
+	// El servidor corre en UTC; la fecha del nombre y la del PDF van en hora de Ecuador.
+	fecha := s.ahora().In(zonaEcuador)
 	if formato == FormatoMatrizXLSX {
 		contenido, err := generarMatrizXLSX(filas)
 		if err != nil {
@@ -143,6 +158,18 @@ func generarMatrizXLSX(filas []domain.FilaMatrizAdmin) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Los años de experiencia se muestran con dos decimales (NumFmt 2 = "0.00") sin perder
+	// el valor numérico, para que la columna se pueda ordenar y filtrar.
+	estiloAnios, err := libro.NewStyle(&excelize.Style{
+		NumFmt:    2,
+		Alignment: &excelize.Alignment{Vertical: "center"},
+		Border: []excelize.Border{
+			{Type: "bottom", Color: "D7E3EA", Style: 1},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	for columna, cabecera := range cabecerasMatriz {
 		celda, _ := excelize.CoordinatesToCellName(columna+1, 1)
@@ -171,6 +198,9 @@ func generarMatrizXLSX(filas []domain.FilaMatrizAdmin) ([]byte, error) {
 		if err := libro.SetCellStyle(hoja, "A2", fmt.Sprintf("J%d", ultimaFila), estiloDatos); err != nil {
 			return nil, err
 		}
+		if err := libro.SetCellStyle(hoja, "H2", fmt.Sprintf("H%d", ultimaFila), estiloAnios); err != nil {
+			return nil, err
+		}
 	}
 	if err := libro.AutoFilter(hoja, fmt.Sprintf("A1:J%d", ultimaFila), []excelize.AutoFilterOptions{}); err != nil {
 		return nil, err
@@ -191,67 +221,76 @@ func generarMatrizXLSX(filas []domain.FilaMatrizAdmin) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// La tabla del PDF usa una grilla de 24 columnas para repartir el ancho de la hoja horizontal
+// entre las diez columnas de la matriz (la suma de anchosMatrizPDF debe ser 24).
+const gridMatrizPDF = 24
+
+var anchosMatrizPDF = []int{3, 2, 4, 2, 2, 2, 3, 2, 2, 2}
+
+// generarMatrizPDF arma la matriz en A4 horizontal con maroto, la misma librería del reporte de
+// la evaluación: encabezado institucional con la fecha de generación, la cabecera de la tabla
+// repetida en cada página y filas alternadas cuya altura crece si un nombre no cabe en una línea.
 func generarMatrizPDF(filas []domain.FilaMatrizAdmin, fecha time.Time) ([]byte, error) {
-	pdf := gofpdf.New("L", "mm", "A4", "")
-	pdf.SetMargins(8, 8, 8)
-	pdf.SetAutoPageBreak(true, 11)
-	pdf.SetTitle("Matriz comparativa de postulantes", true)
-	pdf.SetAuthor("BIESS", true)
-	pdf.AliasNbPages("")
-	traducir := pdf.UnicodeTranslatorFromDescriptor("")
-	anchos := []float64{24, 24, 44, 22, 18, 17, 42, 30, 30, 30}
+	cfg := config.NewBuilder().
+		WithOrientation(orientation.Horizontal).
+		WithMaxGridSize(gridMatrizPDF).
+		WithLeftMargin(10).WithTopMargin(10).WithRightMargin(10).
+		WithTitle("Matriz comparativa de postulantes", true).
+		WithCreator("Sistema de postulación al Directorio del BIESS", true).
+		WithPageNumber(props.PageNumber{Pattern: "Página {current} de {total}", Place: props.RightBottom, Size: 8, Color: colorGris}).
+		Build()
+	m := maroto.New(cfg)
 
-	pdf.SetHeaderFunc(func() {
-		pdf.SetTextColor(27, 73, 101)
-		pdf.SetFont("Arial", "B", 13)
-		pdf.CellFormat(0, 7, traducir("BIESS - Matriz comparativa de postulantes"), "", 1, "C", false, 0, "")
-		pdf.SetFont("Arial", "", 8)
-		pdf.SetTextColor(70, 70, 70)
-		pdf.CellFormat(0, 5, traducir("Generado el "+fecha.Format("02/01/2006 15:04")), "", 1, "R", false, 0, "")
-		pdf.Ln(1)
-		filaPDF(pdf, cabecerasMatriz, anchos, traducir, true)
-	})
-	pdf.SetFooterFunc(func() {
-		pdf.SetY(-8)
-		pdf.SetFont("Arial", "", 7)
-		pdf.SetTextColor(90, 90, 90)
-		pdf.CellFormat(0, 5, fmt.Sprintf("Página %d/{nb}", pdf.PageNo()), "", 0, "C", false, 0, "")
-	})
-
-	pdf.AddPage()
+	if err := m.RegisterHeader(encabezadoMatriz(fecha)...); err != nil {
+		return nil, fmt.Errorf("armando el encabezado de la matriz: %w", err)
+	}
 	if len(filas) == 0 {
-		pdf.SetFont("Arial", "I", 9)
-		pdf.SetTextColor(70, 70, 70)
-		pdf.CellFormat(0, 10, traducir("No hay postulantes con los filtros seleccionados."), "", 1, "C", false, 0, "")
-	} else {
-		for _, fila := range filas {
-			valores := valoresMatrizPDF(fila)
-			filaPDF(pdf, valores, anchos, traducir, false)
+		m.AddRows(text.NewRow(12, "No hay postulantes con los filtros seleccionados.",
+			props.Text{Top: 4, Size: 9, Style: fontstyle.Italic, Color: colorGris, Align: align.Center}))
+	}
+	for i, f := range filas {
+		fila := filaMatrizPDF(valoresMatrizPDF(f), props.Text{Size: 8})
+		if i%2 == 1 {
+			fila.WithStyle(&props.Cell{BackgroundColor: colorFila})
 		}
+		m.AddRows(fila)
 	}
 
-	var buffer bytes.Buffer
-	if err := pdf.Output(&buffer); err != nil {
+	doc, err := m.Generate()
+	if err != nil {
 		return nil, err
 	}
-	return buffer.Bytes(), nil
+	return doc.GetBytes(), nil
 }
 
-func filaPDF(pdf *gofpdf.Fpdf, valores []string, anchos []float64, traducir func(string) string, cabecera bool) {
-	si := 7.0
-	if cabecera {
-		pdf.SetFillColor(27, 73, 101)
-		pdf.SetTextColor(255, 255, 255)
-		pdf.SetFont("Arial", "B", 6.5)
-	} else {
-		pdf.SetFillColor(245, 248, 250)
-		pdf.SetTextColor(35, 35, 35)
-		pdf.SetFont("Arial", "", 6.5)
+func encabezadoMatriz(fecha time.Time) []core.Row {
+	return []core.Row{
+		row.New(20).WithStyle(&props.Cell{BackgroundColor: colorAzul}).Add(
+			col.New(gridMatrizPDF).Add(
+				text.New("BIESS · Concurso Público de Méritos y Oposición — Directorio", props.Text{Top: 4, Size: 9, Color: colorBlanco, Align: align.Center}),
+				text.New("Matriz comparativa de postulantes", props.Text{Top: 10, Size: 14, Style: fontstyle.Bold, Color: colorBlanco, Align: align.Center}),
+			),
+		),
+		text.NewRow(8, "Generado el "+fechaHora(fecha)+" (hora de Ecuador)", props.Text{Top: 2, Size: 8, Color: colorGris, Align: align.Right}),
+		filaMatrizPDF(cabecerasMatriz, props.Text{Size: 7.5, Style: fontstyle.Bold, Color: colorBlanco}).
+			WithStyle(&props.Cell{BackgroundColor: colorAzul}),
 	}
+}
+
+// filaMatrizPDF reparte los valores en las columnas de la tabla. Los textos largos (nombres y
+// nivel académico) van a la izquierda y el resto centrado.
+func filaMatrizPDF(valores []string, base props.Text) core.Row {
+	columnas := make([]core.Col, len(valores))
 	for i, valor := range valores {
-		pdf.CellFormat(anchos[i], si, traducir(limitarTexto(valor, 34)), "1", 0, "C", true, 0, "")
+		p := base
+		p.Top, p.Bottom, p.Left, p.Right = 1.5, 1.5, 1, 1
+		p.Align = align.Center
+		if i == 2 || i == 6 {
+			p.Align = align.Left
+		}
+		columnas[i] = text.NewCol(anchosMatrizPDF[i], valor, p)
 	}
-	pdf.Ln(si)
+	return row.New().Add(columnas...)
 }
 
 func valoresMatriz(f domain.FilaMatrizAdmin) []any {
@@ -320,12 +359,4 @@ func etiquetaSiNo(valor bool) string {
 		return "Sí"
 	}
 	return "No"
-}
-
-func limitarTexto(valor string, maximo int) string {
-	runas := []rune(valor)
-	if len(runas) <= maximo {
-		return valor
-	}
-	return string(runas[:maximo-1]) + "…"
 }

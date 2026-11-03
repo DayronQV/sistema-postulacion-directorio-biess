@@ -8,7 +8,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/johnfercher/maroto/v2 v2.4.4
-	github.com/phpdave11/gofpdf v1.4.3
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/xuri/excelize/v2 v2.11.0
 	golang.org/x/crypto v0.57.0
@@ -43,6 +42,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pdfcpu/pdfcpu v0.16.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
+	github.com/phpdave11/gofpdf v1.4.3 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.59.0 // indirect
 	github.com/richardlehane/mscfb v1.0.7 // indirect
