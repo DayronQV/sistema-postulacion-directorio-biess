@@ -24,6 +24,8 @@ type fakeConsultasPostulacion struct {
 	documentoID   string
 	detalle       domain.Postulacion
 	documento     domain.Documento
+	matrizFiltro  service.FiltroMatrizInput
+	matriz        service.ArchivoMatriz
 	err           error
 }
 
@@ -42,8 +44,13 @@ func (f *fakeConsultasPostulacion) DescargarDocumento(_ context.Context, postula
 	return f.documento, f.err
 }
 
+func (f *fakeConsultasPostulacion) Exportar(_ context.Context, filtro service.FiltroMatrizInput) (service.ArchivoMatriz, error) {
+	f.matrizFiltro = filtro
+	return f.matriz, f.err
+}
+
 func newConsultasRouter(f *fakeConsultasPostulacion) *gin.Engine {
-	h := handler.NewAdminPostulacionHandler(&fakeMerito{}).ConConsultas(f)
+	h := handler.NewAdminPostulacionHandler(&fakeMerito{}).ConConsultas(f).ConMatriz(f)
 	return apihttp.NewRouter(apihttp.Deps{
 		Config: config.Config{RequestTimeout: time.Second},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -52,6 +59,26 @@ func newConsultasRouter(f *fakeConsultasPostulacion) *gin.Engine {
 			apihttp.AdminRoutes(handler.NewAdminAuthHandler(&fakeAdminLogin{}), emisorPrueba, h.Rutas),
 		},
 	})
+}
+
+func TestMatrizAdmin_DescargaConFiltrosParaAmbosRoles(t *testing.T) {
+	for _, rol := range []domain.Rol{domain.RolAnalista, domain.RolAdministrador} {
+		f := &fakeConsultasPostulacion{matriz: service.ArchivoMatriz{
+			Nombre: "matriz-postulantes.xlsx", ContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			Contenido: []byte("xlsx-prueba"),
+		}}
+		ruta := "/api/v1/admin/matriz?formato=xlsx&cargo=afiliados&estado=enviada&elegible=true"
+		w := pedirAdmin(newConsultasRouter(f), "GET", ruta, tokenParaRol(t, rol), "")
+		if w.Code != 200 || w.Body.String() != "xlsx-prueba" ||
+			w.Header().Get("Content-Type") != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+			!strings.Contains(w.Header().Get("Content-Disposition"), "attachment") {
+			t.Fatalf("rol %s: respuesta = %d, cabeceras=%v, cuerpo=%q", rol, w.Code, w.Header(), w.Body.String())
+		}
+		if f.matrizFiltro.Formato != "xlsx" || f.matrizFiltro.Cargo != "afiliados" ||
+			f.matrizFiltro.Estado != "enviada" || f.matrizFiltro.Elegible != "true" {
+			t.Fatalf("filtro = %+v", f.matrizFiltro)
+		}
+	}
 }
 
 func TestNominaAdmin_ListaConFiltrosParaAmbosRoles(t *testing.T) {

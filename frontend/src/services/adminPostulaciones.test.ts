@@ -1,6 +1,7 @@
 import type { InternalAxiosRequestConfig } from 'axios'
 import {
   descargarDocumentoAdmin,
+  descargarMatrizAdmin,
   listarPostulacionesAdmin,
   marcarMerito,
   obtenerPostulacionAdmin,
@@ -82,6 +83,35 @@ describe('servicio de postulaciones del panel', () => {
     expect(peticiones[0]).toMatchObject({
       method: 'get',
       url: '/admin/postulaciones/p%201/documentos/d%201',
+      responseType: 'blob',
+    })
+  })
+
+  it('descarga la matriz con el formato y los filtros activos', async () => {
+    const peticiones: InternalAxiosRequestConfig[] = []
+    const archivo = new Blob(['xlsx'])
+    http.defaults.adapter = (config) => {
+      peticiones.push(config)
+      return Promise.resolve({
+        status: 200,
+        statusText: '',
+        headers: { 'content-disposition': 'attachment; filename="matriz.xlsx"' },
+        config,
+        data: archivo,
+      })
+    }
+
+    await expect(
+      descargarMatrizAdmin(new AbortController().signal, 'xlsx', {
+        cargo: 'afiliados',
+        estado: 'enviada',
+        elegible: 'true',
+        pagina: 3,
+      }),
+    ).resolves.toEqual({ contenido: archivo, nombre: 'matriz.xlsx' })
+    expect(peticiones[0]).toMatchObject({
+      method: 'get',
+      url: '/admin/matriz?formato=xlsx&cargo=afiliados&estado=enviada&elegible=true',
       responseType: 'blob',
     })
   })
