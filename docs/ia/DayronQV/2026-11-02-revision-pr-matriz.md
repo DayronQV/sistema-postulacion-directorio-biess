@@ -6,7 +6,35 @@
 
 ## Prompt
 ```
-ya esta mergiado mi PR, entonces revisa el pr de gualter y corrgie en el pr y haz commit por mi
+Actúa como desarrollador backend Go sénior, revisando como dueño del repositorio
+el Pull Request de un compañero de equipo.
+
+Contexto: el PR #113 (rama gualter302/feat/41-exportar-matriz) implementa la issue
+#41 (exportar la matriz comparativa de postulantes en Excel y PDF). Mi PR #115, que
+cierra la issue #114 (maroto v2 como única librería de PDF del proyecto), ya se
+mergeó a develop.
+
+Hazme lo siguiente:
+1. Trae develop a la rama del PR y resuelve cualquier conflicto en go.mod/go.sum
+   con `go mod tidy`.
+2. Revisa el código contra los criterios de aceptación de la issue #41: columnas
+   mínimas, filtros, formato del Excel, diseño del PDF horizontal, botones de
+   descarga con loader, y el formato de error de la API.
+3. Si el PDF no usa maroto, reescríbelo para que la use, con un estilo consistente
+   con el reporte de evaluación que ya existe en el proyecto.
+4. Corrige cualquier otro problema de datos o de reglas de negocio que encuentres
+   (por ejemplo, formato numérico o zonas horarias) y agrega las pruebas que falten.
+5. Corre toda la batería de pruebas del backend contra una base de datos limpia,
+   incluida cualquier prueba de integración que el autor no haya podido correr, más
+   mutaciones manuales sobre la lógica nueva.
+6. Corre lint, pruebas y build del frontend.
+7. Prueba la descarga real de ambos formatos contra un servidor temporal, con y sin
+   filtros, y los casos de error.
+8. Haz los commits de las correcciones en mi nombre, en inglés y con Conventional
+   Commits, sin mencionar IA ni agregar coautoría, y publica la revisión en el PR
+   como si la hubiera escrito yo, empezando con un saludo al autor.
+9. Deja constancia de la sesión en docs/ia/DayronQV/ con la plantilla del equipo, y
+   actualiza mi docs/decisiones.md local.
 ```
 
 ## Resultado
