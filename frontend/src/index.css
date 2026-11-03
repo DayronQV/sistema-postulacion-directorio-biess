@@ -26,6 +26,11 @@
   word-wrap: normal;
   direction: ltr;
   user-select: none;
+  /* Los iconos son cuadrados: un cuadro de 1 em recorta el nombre escrito mientras la fuente
+     no ha cargado y evita que esa palabra ensanche el icono y mueva el diseño. */
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
 }
 
 /* Impresión del formulario final: hoja A4 con márgenes */
