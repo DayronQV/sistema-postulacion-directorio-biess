@@ -10,9 +10,10 @@ import (
 )
 
 // evaluacionRoutes cablea la evaluación teórica del postulante (EF-14): el repositorio hace
-// de banco de preguntas y de intentos, el sorteo usa crypto/rand y el reloj es time.Now.
+// de banco de preguntas y de intentos, las fases dicen cuándo se puede rendir, el sorteo usa
+// crypto/rand y el reloj es time.Now.
 func evaluacionRoutes(c *container) apihttp.RouteRegistrar {
 	repo := postgres.NewEvaluacionRepo(c.db)
-	evaluacion := service.NewEvaluacionService(repo, repo, service.BarajadorCrypto{}, time.Now)
+	evaluacion := service.NewEvaluacionService(repo, repo, postgres.NewFasesRepo(c.db), service.BarajadorCrypto{}, time.Now)
 	return apihttp.EvaluacionRoutes(handler.NewEvaluacionHandler(evaluacion), c.tokens)
 }
