@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -14,7 +15,7 @@ import (
 const (
 	MsgEvaluacionSinPostulacion = "Debe tener una postulación enviada para rendir la evaluación"
 	MsgEvaluacionSinMerito      = "Aún no está habilitado para la evaluación: debe superar la Fase de Méritos"
-	MsgEvaluacionSinFecha       = "La evaluación todavía no tiene fecha programada"
+	MsgEvaluacionNoPublicada    = "La evaluación todavía no está habilitada"
 	MsgEvaluacionNoComienza     = "La evaluación aún no ha comenzado"
 	MsgEvaluacionPlazoVencido   = "El plazo para iniciar la evaluación terminó"
 	MsgEvaluacionBancoCorto     = "La evaluación no se puede iniciar: el banco no tiene las preguntas que pide la configuración"
@@ -69,24 +70,28 @@ type PreguntaEvaluacion struct {
 type EvaluacionService struct {
 	banco     domain.BancoEvaluacion
 	intentos  domain.IntentosEvaluacion
+	fases     domain.Fases
 	barajador domain.Barajador
 	ahora     func() time.Time
 }
 
-// NewEvaluacionService crea el servicio con sus dependencias inyectadas. ahora es el reloj
-// (time.Now en producción).
-func NewEvaluacionService(banco domain.BancoEvaluacion, intentos domain.IntentosEvaluacion, barajador domain.Barajador, ahora func() time.Time) *EvaluacionService {
-	return &EvaluacionService{banco: banco, intentos: intentos, barajador: barajador, ahora: ahora}
+// NewEvaluacionService crea el servicio con sus dependencias inyectadas. fases es la tabla de
+// fases del concurso (la fase Evaluación fija cuándo se puede rendir el examen) y ahora es el
+// reloj (time.Now en producción).
+func NewEvaluacionService(banco domain.BancoEvaluacion, intentos domain.IntentosEvaluacion, fases domain.Fases, barajador domain.Barajador, ahora func() time.Time) *EvaluacionService {
+	return &EvaluacionService{banco: banco, intentos: intentos, fases: fases, barajador: barajador, ahora: ahora}
 }
 
 // Iniciar deja al postulante comenzar la evaluación. Devuelve su sesión y true si la creó
 // esta llamada; si ya tenía una vigente, devuelve la misma (false).
 //
-// Reglas: solo con la postulación enviada y la Fase de Méritos superada, y dentro de la
-// ventana de inicio, que va desde la fecha y hora configuradas hasta esa hora más la duración
-// del examen; fuera de ella, 403. Hay un solo intento por postulante: uno que ya
-// terminó o venció no se reabre (409). El sorteo toma las preguntas que pide la
-// configuración, en orden aleatorio, y cada pregunta con sus opciones en orden aleatorio.
+// Reglas: solo con la postulación enviada y la Fase de Méritos superada, y mientras la fase
+// Evaluación esté publicada y la hora esté entre su fecha de inicio y su fecha de fin (sin
+// fecha en un lado, no hay límite por ese lado); si no, 403. La hora de cierre del examen de
+// cada postulante es la menor entre su inicio más la duración y la fecha de fin de la fase:
+// quien empieza cerca del cierre solo tiene el tiempo que queda. Hay un solo intento por
+// postulante: uno que ya terminó o venció no se reabre (409). El sorteo toma las preguntas que
+// pide la configuración, en orden aleatorio, y cada pregunta con sus opciones en orden aleatorio.
 func (s *EvaluacionService) Iniciar(ctx context.Context, postulanteID string) (SesionEvaluacion, bool, error) {
 	post, ok, err := s.intentos.PostulacionDelPostulante(ctx, postulanteID)
 	if err != nil {
@@ -110,39 +115,54 @@ func (s *EvaluacionService) Iniciar(ctx context.Context, postulanteID string) (S
 		return sesion, false, err
 	}
 
+	fase, err := s.fases.PorNombre(ctx, domain.FaseEvaluacion)
+	if errors.Is(err, domain.ErrNotFound) {
+		return SesionEvaluacion{}, false, domain.Forbidden(MsgEvaluacionNoPublicada)
+	}
+	if err != nil {
+		return SesionEvaluacion{}, false, err
+	}
+	if !fase.Publicada {
+		return SesionEvaluacion{}, false, domain.Forbidden(MsgEvaluacionNoPublicada)
+	}
+	if fase.FechaInicio != nil && ahora.Before(*fase.FechaInicio) {
+		return SesionEvaluacion{}, false, &domain.Error{
+			Base: domain.ErrForbidden, Message: MsgEvaluacionNoComienza,
+			Fields: map[string]string{"inicia_en": fase.FechaInicio.UTC().Format(time.RFC3339)},
+		}
+	}
+	// En la fecha de fin exacta ya no queda tiempo: el examen cierra en ese instante.
+	if fase.FechaFin != nil && !ahora.Before(*fase.FechaFin) {
+		return SesionEvaluacion{}, false, &domain.Error{
+			Base: domain.ErrForbidden, Message: MsgEvaluacionPlazoVencido,
+			Fields: map[string]string{"cierra_en": fase.FechaFin.UTC().Format(time.RFC3339)},
+		}
+	}
+
+	// Duración y número de preguntas: lo configurado, o los valores por defecto que muestra el
+	// panel mientras no se configure.
 	cfg, configurada, err := s.banco.ObtenerConfig(ctx)
 	if err != nil {
 		return SesionEvaluacion{}, false, err
 	}
-	if !configurada || cfg.IniciaEn == nil {
-		return SesionEvaluacion{}, false, domain.Forbidden(MsgEvaluacionSinFecha)
-	}
-	if ahora.Before(*cfg.IniciaEn) {
-		return SesionEvaluacion{}, false, &domain.Error{
-			Base: domain.ErrForbidden, Message: MsgEvaluacionNoComienza,
-			Fields: map[string]string{"inicia_en": cfg.IniciaEn.UTC().Format(time.RFC3339)},
-		}
-	}
-
-	// La ventana para empezar dura lo que dura el examen: quien entra dentro de ella tiene su
-	// tiempo completo desde que empieza, pero nadie puede empezar días después.
-	limite := cfg.IniciaEn.Add(time.Duration(cfg.DuracionMinutos) * time.Minute)
-	if !ahora.Before(limite) {
-		return SesionEvaluacion{}, false, &domain.Error{
-			Base: domain.ErrForbidden, Message: MsgEvaluacionPlazoVencido,
-			Fields: map[string]string{"cierra_en": limite.UTC().Format(time.RFC3339)},
-		}
+	if !configurada {
+		cfg = domain.ConfigEvaluacion{DuracionMinutos: DuracionMinutosPorDefecto, NumPreguntas: NumPreguntasPorDefecto}
 	}
 
 	preguntas, err := s.sortear(ctx, cfg.NumPreguntas)
 	if err != nil {
 		return SesionEvaluacion{}, false, err
 	}
+	// El examen dura la duración configurada, pero nunca pasa de la fecha de fin de la fase.
+	cierre := ahora.Add(time.Duration(cfg.DuracionMinutos) * time.Minute)
+	if fase.FechaFin != nil && fase.FechaFin.Before(cierre) {
+		cierre = fase.FechaFin.Truncate(time.Microsecond)
+	}
 	intento, creado, err := s.intentos.CrearIntento(ctx, domain.IntentoEvaluacion{
 		PostulacionID: post.ID,
 		Preguntas:     preguntas,
 		Inicio:        ahora,
-		Cierre:        ahora.Add(time.Duration(cfg.DuracionMinutos) * time.Minute),
+		Cierre:        cierre,
 	})
 	if err != nil {
 		return SesionEvaluacion{}, false, err

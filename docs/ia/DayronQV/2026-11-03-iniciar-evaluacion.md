@@ -29,3 +29,13 @@ terminado): revísala para cumplirla exactamente.
 
 ## Para qué se usó
 Construir el inicio de la evaluación con su sorteo y la consulta de preguntas, con sus pruebas, y documentar el contrato en `docs/api.md`.
+
+## Segundo prompt (versión redactada)
+```
+El PR de las fases del concurso trajo la fase Evaluación, con publicada, fecha de inicio y
+fecha de fin, pero el examen no la usa: lee su propia fecha de inicio de la configuración.
+Haz que el examen use la fase Evaluación: solo se puede iniciar con la fase publicada y entre
+sus fechas, y la hora de cierre de cada examen es la menor entre su inicio más la duración y la
+fecha de fin de la fase. La configuración conserva la duración y el número de preguntas.
+Agrega las pruebas y comprueba que fallan si se quita cada regla.
+```

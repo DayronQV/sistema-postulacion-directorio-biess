@@ -72,12 +72,17 @@ type escenarioEval struct {
 	svc      *service.EvaluacionService
 	banco    *fakeBanco
 	intentos *fakeExamenes
+	fases    *fakeFases
 	reloj    *time.Time
 }
 
+// finVentana es el fin de la fase Evaluación: dos horas después del inicio.
+var finVentana = inicioExamen.Add(2 * time.Hour)
+
 // nuevoEscenario arma un banco de n preguntas de 4 opciones, una evaluación de 30 minutos que
-// pide `pide` preguntas y empieza en inicioExamen, y un postulante "p1" con la postulación
-// enviada y la Fase de Méritos superada. El reloj marca la hora de inicio.
+// pide `pide` preguntas, la fase Evaluación publicada de inicioExamen a finVentana, y un
+// postulante "p1" con la postulación enviada y la Fase de Méritos superada. El reloj marca la
+// hora de inicio.
 func nuevoEscenario(n, pide int, barajador domain.Barajador) escenarioEval {
 	banco := &fakeBanco{}
 	for i := 0; i < n; i++ {
@@ -85,8 +90,10 @@ func nuevoEscenario(n, pide int, barajador domain.Barajador) escenarioEval {
 			Enunciado: fmt.Sprintf("Pregunta %d", i+1), Opciones: []string{"A", "B", "C", "D"}, RespuestaCorrecta: 0,
 		}})
 	}
-	inicia := inicioExamen
-	banco.cfg = &domain.ConfigEvaluacion{IniciaEn: &inicia, DuracionMinutos: 30, NumPreguntas: pide}
+	banco.cfg = &domain.ConfigEvaluacion{DuracionMinutos: 30, NumPreguntas: pide}
+	fases := nuevasFases()
+	inicio, fin := inicioExamen, finVentana
+	fases.fases[2].Publicada, fases.fases[2].FechaInicio, fases.fases[2].FechaFin = true, &inicio, &fin
 	intentos := &fakeExamenes{
 		banco:         banco,
 		postulaciones: map[string]domain.PostulacionEvaluacion{"p1": {ID: "post-1", Estado: domain.EstadoEnviada, SuperoMerito: true}},
@@ -94,10 +101,13 @@ func nuevoEscenario(n, pide int, barajador domain.Barajador) escenarioEval {
 	}
 	reloj := inicioExamen
 	return escenarioEval{
-		svc: service.NewEvaluacionService(banco, intentos, barajador, func() time.Time { return reloj }), banco: banco, intentos: intentos,
-		reloj: &reloj,
+		svc:   service.NewEvaluacionService(banco, intentos, fases, barajador, func() time.Time { return reloj }),
+		banco: banco, intentos: intentos, fases: fases, reloj: &reloj,
 	}
 }
+
+// evaluacion devuelve la fase Evaluación del escenario, para cambiarla en cada prueba.
+func (e escenarioEval) evaluacion() *domain.Fase { return &e.fases.fases[2] }
 
 func (e escenarioEval) con(f func()) escenarioEval {
 	f()
@@ -139,23 +149,27 @@ func TestIniciar_SoloConPostulacionEnviadaYMeritosSuperados(t *testing.T) {
 	})
 }
 
-// Criterio de la issue #43: no se puede iniciar fuera del horario.
-func TestIniciar_SoloDentroDeLaVentanaDeInicio(t *testing.T) {
+// Criterio de la issue #43: no se puede iniciar fuera del horario. El horario lo fija la fase
+// Evaluación: publicada y entre su fecha de inicio y su fecha de fin.
+func TestIniciar_SoloConLaFaseEvaluacionPublicadaYDentroDeSusFechas(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("sin fecha configurada", func(t *testing.T) {
+	t.Run("fase sin publicar", func(t *testing.T) {
 		e := nuevoEscenario(10, 5, desplazado{})
-		e.banco.cfg = nil
+		e.evaluacion().Publicada = false
 		_, _, err := e.svc.Iniciar(ctx, "p1")
-		esperaError(t, err, domain.ErrForbidden, service.MsgEvaluacionSinFecha)
+		esperaError(t, err, domain.ErrForbidden, service.MsgEvaluacionNoPublicada)
+		if len(e.intentos.intentos) != 0 {
+			t.Fatal("no debe crearse ningún intento")
+		}
 	})
-	t.Run("configuración sin fecha de inicio", func(t *testing.T) {
+	t.Run("sin la fase Evaluación en la base", func(t *testing.T) {
 		e := nuevoEscenario(10, 5, desplazado{})
-		e.banco.cfg.IniciaEn = nil
+		e.fases.fases = e.fases.fases[:2]
 		_, _, err := e.svc.Iniciar(ctx, "p1")
-		esperaError(t, err, domain.ErrForbidden, service.MsgEvaluacionSinFecha)
+		esperaError(t, err, domain.ErrForbidden, service.MsgEvaluacionNoPublicada)
 	})
-	t.Run("un segundo antes", func(t *testing.T) {
+	t.Run("un segundo antes del inicio", func(t *testing.T) {
 		e := nuevoEscenario(10, 5, desplazado{})
 		*e.reloj = inicioExamen.Add(-time.Second)
 		_, _, err := e.svc.Iniciar(ctx, "p1")
@@ -168,27 +182,23 @@ func TestIniciar_SoloDentroDeLaVentanaDeInicio(t *testing.T) {
 			t.Fatal("no debe crearse ningún intento")
 		}
 	})
-	t.Run("a la hora exacta", func(t *testing.T) {
+	t.Run("a la hora exacta de inicio", func(t *testing.T) {
 		e := nuevoEscenario(10, 5, desplazado{})
 		if _, creado, err := e.svc.Iniciar(ctx, "p1"); err != nil || !creado {
 			t.Fatalf("a la hora exacta debe poder iniciar: creado = %v, err = %v", creado, err)
 		}
 	})
-	t.Run("dentro de la ventana, con su tiempo completo", func(t *testing.T) {
+	t.Run("un segundo antes del fin", func(t *testing.T) {
 		e := nuevoEscenario(10, 5, desplazado{})
-		*e.reloj = inicioExamen.Add(29*time.Minute + 59*time.Second)
-		s, creado, err := e.svc.Iniciar(ctx, "p1")
-		if err != nil || !creado {
-			t.Fatalf("un segundo antes del límite debe poder iniciar: creado = %v, err = %v", creado, err)
-		}
-		if s.TiempoRestante != 30*time.Minute {
-			t.Fatalf("quien entra dentro de la ventana tiene su tiempo completo: %v", s.TiempoRestante)
+		*e.reloj = finVentana.Add(-time.Second)
+		if _, creado, err := e.svc.Iniciar(ctx, "p1"); err != nil || !creado {
+			t.Fatalf("un segundo antes del fin todavía debe poder iniciar: creado = %v, err = %v", creado, err)
 		}
 	})
 	for nombre, despues := range map[string]time.Duration{
-		"justo al cerrar la ventana": 30 * time.Minute,
-		"horas después":              5 * time.Hour,
-		"días después":               72 * time.Hour,
+		"justo en la fecha de fin": 2 * time.Hour,
+		"horas después del fin":    5 * time.Hour,
+		"días después del fin":     72 * time.Hour,
 	} {
 		t.Run(nombre, func(t *testing.T) {
 			e := nuevoEscenario(10, 5, desplazado{})
@@ -196,26 +206,130 @@ func TestIniciar_SoloDentroDeLaVentanaDeInicio(t *testing.T) {
 			_, _, err := e.svc.Iniciar(ctx, "p1")
 			esperaError(t, err, domain.ErrForbidden, service.MsgEvaluacionPlazoVencido)
 			var de *domain.Error
-			if !errors.As(err, &de) || de.Fields["cierra_en"] != "2026-11-20T14:30:00Z" {
-				t.Fatalf("el error debe decir cuándo cerró la ventana: %+v", de)
+			if !errors.As(err, &de) || de.Fields["cierra_en"] != "2026-11-20T16:00:00Z" {
+				t.Fatalf("el error debe decir cuándo cerró: %+v", de)
 			}
 			if len(e.intentos.intentos) != 0 {
 				t.Fatal("no debe crearse ningún intento")
 			}
 		})
 	}
-	t.Run("quien ya empezó dentro de la ventana sigue con su examen después", func(t *testing.T) {
+	t.Run("sin fechas no hay límite", func(t *testing.T) {
 		e := nuevoEscenario(10, 5, desplazado{})
-		*e.reloj = inicioExamen.Add(20 * time.Minute)
-		if _, _, err := e.svc.Iniciar(ctx, "p1"); err != nil {
-			t.Fatal(err)
-		}
-		*e.reloj = inicioExamen.Add(40 * time.Minute) // la ventana ya cerró, su examen sigue abierto
-		s, creado, err := e.svc.Iniciar(ctx, "p1")
-		if err != nil || creado || s.TiempoRestante != 10*time.Minute {
-			t.Fatalf("debe devolver su examen con lo que le queda: %+v, creado = %v, err = %v", s, creado, err)
+		e.evaluacion().FechaInicio, e.evaluacion().FechaFin = nil, nil
+		*e.reloj = inicioExamen.Add(-100 * 24 * time.Hour)
+		if _, creado, err := e.svc.Iniciar(ctx, "p1"); err != nil || !creado {
+			t.Fatalf("sin fechas debe poder iniciar: creado = %v, err = %v", creado, err)
 		}
 	})
+	t.Run("solo fecha de inicio: sin límite por el otro lado", func(t *testing.T) {
+		e := nuevoEscenario(10, 5, desplazado{})
+		e.evaluacion().FechaFin = nil
+		*e.reloj = inicioExamen.Add(30 * 24 * time.Hour)
+		s, creado, err := e.svc.Iniciar(ctx, "p1")
+		if err != nil || !creado || s.TiempoRestante != 30*time.Minute {
+			t.Fatalf("sin fecha de fin debe poder iniciar con su tiempo completo: %+v, creado = %v, err = %v", s, creado, err)
+		}
+	})
+	t.Run("solo fecha de fin: sin límite por el otro lado", func(t *testing.T) {
+		e := nuevoEscenario(10, 5, desplazado{})
+		e.evaluacion().FechaInicio = nil
+		*e.reloj = inicioExamen.Add(-100 * time.Hour)
+		if _, creado, err := e.svc.Iniciar(ctx, "p1"); err != nil || !creado {
+			t.Fatalf("sin fecha de inicio debe poder iniciar: creado = %v, err = %v", creado, err)
+		}
+	})
+}
+
+// La hora de cierre de cada examen es la menor entre su inicio más la duración y la fecha de
+// fin de la fase: ventana de 14:00 a 16:00 y examen de una hora.
+func TestIniciar_ElExamenNuncaPasaDelFinDeLaFase(t *testing.T) {
+	casos := []struct {
+		nombre   string
+		inicia   time.Duration // después de inicioExamen
+		cierraEn time.Duration
+		restante time.Duration
+	}{
+		{"a la hora de apertura", 0, time.Hour, time.Hour},
+		{"con la hora completa todavía", 50 * time.Minute, 110 * time.Minute, time.Hour},
+		{"justo cuando la hora completa llega al fin", 60 * time.Minute, 2 * time.Hour, time.Hour},
+		{"quedan 40 minutos", 80 * time.Minute, 2 * time.Hour, 40 * time.Minute},
+		{"quedan 10 minutos", 110 * time.Minute, 2 * time.Hour, 10 * time.Minute},
+	}
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			e := nuevoEscenario(10, 5, desplazado{})
+			e.banco.cfg.DuracionMinutos = 60
+			*e.reloj = inicioExamen.Add(c.inicia)
+			s, creado, err := e.svc.Iniciar(context.Background(), "p1")
+			if err != nil || !creado {
+				t.Fatalf("creado = %v, err = %v", creado, err)
+			}
+			if !s.Cierre.Equal(inicioExamen.Add(c.cierraEn)) || s.TiempoRestante != c.restante {
+				t.Fatalf("cierre = %v (restante %v), se esperaba %v (restante %v)", s.Cierre, s.TiempoRestante, inicioExamen.Add(c.cierraEn), c.restante)
+			}
+			if !e.intentos.intentos["post-1"].Cierre.Equal(s.Cierre) {
+				t.Fatal("lo guardado debe ser igual a lo devuelto")
+			}
+		})
+	}
+}
+
+// Quien ya empezó conserva su examen hasta su hora de cierre, aunque la fase se cierre o se
+// despublique después; un examen que se acortó por el fin de la fase vence en ese instante.
+func TestIniciar_QuienYaEmpezoConservaSuExamen(t *testing.T) {
+	ctx := context.Background()
+	e := nuevoEscenario(10, 5, desplazado{})
+	*e.reloj = inicioExamen.Add(100 * time.Minute) // le tocarían 30 min, pero la fase cierra a los 120
+	s, creado, err := e.svc.Iniciar(ctx, "p1")
+	if err != nil || !creado || s.TiempoRestante != 20*time.Minute {
+		t.Fatalf("se acorta al fin de la fase: %+v, creado = %v, err = %v", s, creado, err)
+	}
+
+	*e.reloj = inicioExamen.Add(110 * time.Minute)
+	e.evaluacion().Publicada = false // el administrador despublica la fase
+	s, creado, err = e.svc.Iniciar(ctx, "p1")
+	if err != nil || creado || s.TiempoRestante != 10*time.Minute {
+		t.Fatalf("debe devolver su examen con lo que le queda: %+v, creado = %v, err = %v", s, creado, err)
+	}
+	if _, err := e.svc.Pregunta(ctx, "p1", 1); err != nil {
+		t.Fatalf("también puede seguir viendo sus preguntas: %v", err)
+	}
+
+	*e.reloj = inicioExamen.Add(120 * time.Minute) // llegó el fin de la fase
+	_, _, err = e.svc.Iniciar(ctx, "p1")
+	esperaError(t, err, domain.ErrConflict, service.MsgEvaluacionTerminada)
+	_, err = e.svc.Pregunta(ctx, "p1", 1)
+	esperaError(t, err, domain.ErrConflict, service.MsgEvaluacionTerminada)
+}
+
+// Mientras la evaluación no se configure se usan los valores por defecto que muestra el panel.
+func TestIniciar_SinConfigurarUsaLosValoresPorDefecto(t *testing.T) {
+	e := nuevoEscenario(12, 5, desplazado{})
+	e.banco.cfg = nil
+	s, creado, err := e.svc.Iniciar(context.Background(), "p1")
+	if err != nil || !creado {
+		t.Fatalf("creado = %v, err = %v", creado, err)
+	}
+	if s.TotalPreguntas != service.NumPreguntasPorDefecto || s.TiempoRestante != time.Duration(service.DuracionMinutosPorDefecto)*time.Minute {
+		t.Fatalf("debe usar los valores por defecto: %+v", s)
+	}
+}
+
+func TestIniciar_LasHorasSeGuardanConPrecisionDeMicrosegundos(t *testing.T) {
+	e := nuevoEscenario(10, 4, desplazado{})
+	*e.reloj = inicioExamen.Add(123_456_789 * time.Nanosecond)
+	s, _, err := e.svc.Iniciar(context.Background(), "p1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	esperado := inicioExamen.Add(123_456 * time.Microsecond)
+	if !s.Inicio.Equal(esperado) || !s.Cierre.Equal(esperado.Add(30*time.Minute)) {
+		t.Fatalf("las horas deben quedar en microsegundos: %+v", s)
+	}
+	if !e.intentos.intentos["post-1"].Cierre.Equal(s.Cierre) {
+		t.Fatal("lo devuelto al crear debe ser igual a lo guardado")
+	}
 }
 
 func TestIniciar_BancoConMenosPreguntasQueLaConfiguracionEs422(t *testing.T) {
@@ -246,22 +360,6 @@ func TestIniciar_CreaElIntentoConElSorteoYLaHoraDeCierre(t *testing.T) {
 		if p.PreguntaID != e.banco.preguntas[k+1].ID || !slices.Equal(p.Orden, []int{1, 2, 3, 0}) {
 			t.Fatalf("pregunta %d del examen = %+v", k+1, p)
 		}
-	}
-}
-
-func TestIniciar_LasHorasSeGuardanConPrecisionDeMicrosegundos(t *testing.T) {
-	e := nuevoEscenario(10, 4, desplazado{})
-	*e.reloj = inicioExamen.Add(123_456_789 * time.Nanosecond)
-	s, _, err := e.svc.Iniciar(context.Background(), "p1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	esperado := inicioExamen.Add(123_456 * time.Microsecond)
-	if !s.Inicio.Equal(esperado) || !s.Cierre.Equal(esperado.Add(30*time.Minute)) {
-		t.Fatalf("las horas deben quedar en microsegundos: %+v", s)
-	}
-	if !e.intentos.intentos["post-1"].Cierre.Equal(s.Cierre) {
-		t.Fatal("lo devuelto al crear debe ser igual a lo guardado")
 	}
 }
 
