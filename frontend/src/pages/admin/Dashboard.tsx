@@ -111,11 +111,11 @@ export default function Dashboard() {
               className="grid gap-space-md sm:grid-cols-2 lg:grid-cols-4"
             >
               <Card titulo="Total">
-                <p className="text-display-sm text-primary">{datos.total}</p>
+                <p className="text-display text-primary">{datos.total}</p>
               </Card>
               {Object.entries(datos.por_estado).map(([estado, valor]) => (
                 <Card key={estado} titulo={etiquetasEstado[estado as keyof typeof etiquetasEstado]}>
-                  <p className="text-display-sm text-primary">{valor}</p>
+                  <p className="text-display text-primary">{valor}</p>
                 </Card>
               ))}
             </section>
