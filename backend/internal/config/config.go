@@ -21,7 +21,11 @@ type Config struct {
 	JWTTTL             time.Duration // JWT_TTL_MINUTES
 	RequestTimeout     time.Duration // REQUEST_TIMEOUT_SECONDS
 	CORSAllowedOrigins []string      // CORS_ALLOWED_ORIGIN (uno o varios, separados por coma)
-	Mailer             string        // MAILER: adaptador de correo ("log" por defecto)
+	Mailer             string        // MAILER: adaptador de correo ("log" por defecto, "mailjet" en producción)
+	MailjetAPIKey      string        // MAILJET_API_KEY: solo con MAILER=mailjet
+	MailjetSecretKey   string        // MAILJET_SECRET_KEY: solo con MAILER=mailjet
+	MailFrom           string        // MAIL_FROM: remitente verificado en Mailjet
+	MailFromName       string        // MAIL_FROM_NAME: nombre del remitente
 	PadronArchivo      string        // PADRON_ARCHIVO: personas de los simuladores (vacío = ciudadanos de prueba)
 }
 
@@ -85,6 +89,16 @@ func fromEnv(get func(string) string) (Config, error) {
 	cfg.Mailer = strings.ToLower(strings.TrimSpace(get("MAILER")))
 	if cfg.Mailer == "" {
 		cfg.Mailer = "log"
+	}
+
+	// Las claves y el remitente se validan al crear el adaptador (mailer.NewMailjet), y
+	// solo si MAILER=mailjet: en desarrollo pueden faltar.
+	cfg.MailjetAPIKey = strings.TrimSpace(get("MAILJET_API_KEY"))
+	cfg.MailjetSecretKey = strings.TrimSpace(get("MAILJET_SECRET_KEY"))
+	cfg.MailFrom = strings.TrimSpace(get("MAIL_FROM"))
+	cfg.MailFromName = strings.TrimSpace(get("MAIL_FROM_NAME"))
+	if cfg.MailFromName == "" {
+		cfg.MailFromName = "Concurso Directorio BIESS"
 	}
 
 	cfg.PadronArchivo = strings.TrimSpace(get("PADRON_ARCHIVO"))

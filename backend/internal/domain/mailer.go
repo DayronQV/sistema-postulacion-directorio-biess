@@ -25,7 +25,7 @@ type Mensaje struct {
 
 // Mailer es el puerto para enviar correos (recuperación de contraseña, envío de la
 // postulación, resultado de la evaluación). Hoy se simula escribiendo en el log
-// (internal/integration/mailer); en producción se cambia por un adaptador SMTP sin
+// (internal/integration/mailer); en producción se envía de verdad por Mailjet, sin
 // tocar los servicios que lo usan.
 type Mailer interface {
 	// Enviar valida el mensaje y lo envía. Un mensaje inválido devuelve un error que

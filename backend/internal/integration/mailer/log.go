@@ -1,5 +1,5 @@
-// Package mailer contiene los adaptadores del puerto domain.Mailer. Hoy existe el
-// simulador (Log); el adaptador SMTP de producción se agrega en la issue #52.
+// Package mailer contiene los adaptadores del puerto domain.Mailer: el simulador (Log),
+// para desarrollo, y Mailjet, que envía correos reales en producción.
 package mailer
 
 import (

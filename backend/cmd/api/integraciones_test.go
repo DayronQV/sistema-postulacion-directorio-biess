@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/mailer"
 )
 
 var logDescartado = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -49,6 +51,36 @@ func TestIntegracionesConArchivoSoloConoceASuGente(t *testing.T) {
 	}
 	if calidad, _ := historial.ConsultarCalidad(context.Background(), "1713579249"); !calidad.EsJubilado || calidad.EsAfiliado {
 		t.Errorf("calidad = %+v, se esperaba solo jubilado", calidad)
+	}
+}
+
+func TestCorreoDesdeConfigConMailerLogNoNecesitaClaves(t *testing.T) {
+	if m, err := correoDesdeConfig(config.Config{Mailer: "log"}, logDescartado); err != nil {
+		t.Errorf("MAILER=log no necesita nada más: %v", err)
+	} else if _, ok := m.(*mailer.Log); !ok {
+		t.Errorf("MAILER=log devolvió %T", m)
+	}
+}
+
+func TestCorreoDesdeConfigPasaLasClavesYElRemitenteAMailjet(t *testing.T) {
+	cfg := config.Config{Mailer: "mailjet", MailjetAPIKey: "k", MailjetSecretKey: "s", MailFrom: "concurso@gmail.com", MailFromName: "Concurso BIESS"}
+	m, err := correoDesdeConfig(cfg, logDescartado)
+	if err != nil {
+		t.Fatalf("con claves y remitente válidos debe arrancar: %v", err)
+	}
+	if _, ok := m.(*mailer.Mailjet); !ok {
+		t.Errorf("MAILER=mailjet devolvió %T", m)
+	}
+	for nombre, cambiar := range map[string]func(*config.Config){
+		"sin MAILJET_API_KEY":    func(c *config.Config) { c.MailjetAPIKey = "" },
+		"sin MAILJET_SECRET_KEY": func(c *config.Config) { c.MailjetSecretKey = "" },
+		"sin MAIL_FROM":          func(c *config.Config) { c.MailFrom = "" },
+	} {
+		c := cfg
+		cambiar(&c)
+		if _, err := correoDesdeConfig(c, logDescartado); err == nil {
+			t.Errorf("%s no debe arrancar", nombre)
+		}
 	}
 }
 

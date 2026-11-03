@@ -86,11 +86,15 @@ Se definen en el `.env` de la raíz (copia de `.env.example`, que no se sube al 
 | `JWT_TTL_MINUTES` | Minutos que dura la sesión | `60` |
 | `REQUEST_TIMEOUT_SECONDS` | Tiempo máximo de cada petición a la API | `10` |
 | `CORS_ALLOWED_ORIGIN` | Orígenes del frontend autorizados, separados por coma; el primero también arma los enlaces de los correos | `http://localhost:5173` |
-| `MAILER` | Adaptador de correo; `log` escribe los correos en el log del backend en vez de enviarlos | `log` |
+| `MAILER` | Adaptador de correo: `log` escribe los correos en el log del backend en vez de enviarlos (desarrollo); `mailjet` los envía de verdad por la API de Mailjet (producción) | `log` |
+| `MAILJET_API_KEY`, `MAILJET_SECRET_KEY` | Claves de la API de Mailjet (**obligatorias con `MAILER=mailjet`**) | vacías |
+| `MAIL_FROM` | Remitente de los correos, verificado en Mailjet (**obligatorio con `MAILER=mailjet`**) | `tu.correo@gmail.com` |
+| `MAIL_FROM_NAME` | Nombre que ve el destinatario como remitente | `Concurso Directorio BIESS` |
+| `PADRON_ARCHIVO` | Archivo JSON con las personas que reconocen los simuladores del Registro Civil y del IESS; vacío = las cédulas de prueba (ver `backend/internal/integration/padron/padron.example.json`) | vacía |
 | `VITE_API_URL` | URL de la API que usa el frontend (Vite) | `http://localhost:8080/api/v1` |
 | `DOMINIO` | Solo producción (`docker-compose.prod.yml`): dominio público sin `https://`, para el certificado HTTPS | `postulacion.example.com` |
 
-Las variables con valor por defecto (`API_PORT`, `JWT_TTL_MINUTES`, `REQUEST_TIMEOUT_SECONDS`, `CORS_ALLOWED_ORIGIN`, `MAILER`) pueden omitirse. En producción, el compose arma `DATABASE_URL`, `REDIS_ADDR`, `CORS_ALLOWED_ORIGIN` y `VITE_API_URL` por su cuenta; ver los comentarios de `.env.example`.
+Las variables con valor por defecto (`API_PORT`, `JWT_TTL_MINUTES`, `REQUEST_TIMEOUT_SECONDS`, `CORS_ALLOWED_ORIGIN`, `MAILER`, `MAIL_FROM_NAME`, `PADRON_ARCHIVO`) pueden omitirse. En producción, el compose arma `DATABASE_URL`, `REDIS_ADDR`, `CORS_ALLOWED_ORIGIN` y `VITE_API_URL` por su cuenta; ver los comentarios de `.env.example`.
 
 ## Script SQL
 `db/schema.sql` es el script único de la base de datos: crea todas las tablas y, al final, carga la división política (194 países, 24 provincias y 199 cantones). Se puede ejecutar de una vez en una base vacía, sin Docker:

@@ -3,8 +3,10 @@ package main
 import (
 	"log/slog"
 
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/config"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/historiallaboral"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/mailer"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/registrocivil"
 )
 
@@ -25,4 +27,13 @@ func integraciones(archivo string, logger *slog.Logger) (domain.RegistroCivil, d
 	}
 	logger.Info("simuladores con las personas del archivo de padrón", "archivo", archivo)
 	return registro, historial, nil
+}
+
+// correoDesdeConfig crea el adaptador de correo que pide MAILER: el simulador que escribe
+// en el log o Mailjet, con las claves y el remitente de la configuración.
+func correoDesdeConfig(cfg config.Config, logger *slog.Logger) (domain.Mailer, error) {
+	return mailer.New(cfg.Mailer, mailer.MailjetConfig{
+		APIKey: cfg.MailjetAPIKey, SecretKey: cfg.MailjetSecretKey,
+		Remitente: cfg.MailFrom, NombreRemitente: cfg.MailFromName,
+	}, logger)
 }

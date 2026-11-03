@@ -11,24 +11,29 @@ import (
 
 // Adaptadores disponibles, los valores de la variable MAILER.
 const (
-	AdaptadorLog  = "log"
-	AdaptadorSMTP = "smtp"
+	AdaptadorLog     = "log"
+	AdaptadorMailjet = "mailjet"
+	AdaptadorSMTP    = "smtp"
 )
 
 // New elige el adaptador según el valor de MAILER ("log" si está vacío). Lo llama
-// main.go una sola vez, así los servicios no deciden con `if` qué adaptador usar.
+// main.go una sola vez, así los servicios no deciden con `if` qué adaptador usar. mailjet
+// solo se usa si MAILER=mailjet.
 //
-// Un valor desconocido o un adaptador que todavía no existe falla al arrancar, no al
-// enviar el primer correo.
-func New(adaptador string, logger *slog.Logger) (domain.Mailer, error) {
+// Un valor desconocido, un adaptador que no existe o una configuración incompleta falla
+// al arrancar, no al enviar el primer correo.
+func New(adaptador string, mailjet MailjetConfig, logger *slog.Logger) (domain.Mailer, error) {
 	switch strings.ToLower(strings.TrimSpace(adaptador)) {
 	case "", AdaptadorLog:
 		return NewLog(logger), nil
+	case AdaptadorMailjet:
+		return NewMailjet(mailjet, logger)
 	case AdaptadorSMTP:
-		// Punto de extensión: aquí se crea el adaptador SMTP en la issue #52.
-		return nil, fmt.Errorf("MAILER=%s todavía no está disponible (issue #52); use MAILER=%s", AdaptadorSMTP, AdaptadorLog)
+		// El servidor de producción no puede abrir conexiones SMTP salientes (DigitalOcean
+		// bloquea los puertos 25, 465 y 587); por eso el correo real va por una API HTTPS.
+		return nil, fmt.Errorf("MAILER=%s no está disponible: el servidor bloquea SMTP; use MAILER=%s", AdaptadorSMTP, AdaptadorMailjet)
 	default:
-		return nil, fmt.Errorf("MAILER=%q no es válido; las opciones son %q y %q", adaptador, AdaptadorLog, AdaptadorSMTP)
+		return nil, fmt.Errorf("MAILER=%q no es válido; las opciones son %q y %q", adaptador, AdaptadorLog, AdaptadorMailjet)
 	}
 }
 

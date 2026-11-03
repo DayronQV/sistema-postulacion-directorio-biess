@@ -113,6 +113,32 @@ func TestFromEnvMailer(t *testing.T) {
 	}
 }
 
+func TestFromEnvCorreoMailjet(t *testing.T) {
+	cfg, err := fromEnv(env(validEnv()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MailjetAPIKey != "" || cfg.MailjetSecretKey != "" || cfg.MailFrom != "" || cfg.MailFromName != "Concurso Directorio BIESS" {
+		t.Errorf("valores por defecto del correo incorrectos: %+v", cfg)
+	}
+
+	e := validEnv()
+	e["MAILJET_API_KEY"] = " publica "
+	e["MAILJET_SECRET_KEY"] = " secreta "
+	e["MAIL_FROM"] = " concurso@gmail.com "
+	e["MAIL_FROM_NAME"] = " BIESS "
+	cfg, err = fromEnv(env(e))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MailjetAPIKey != "publica" || cfg.MailjetSecretKey != "secreta" {
+		t.Errorf("las claves de Mailjet deben leerse sin espacios: %+v", cfg)
+	}
+	if cfg.MailFrom != "concurso@gmail.com" || cfg.MailFromName != "BIESS" {
+		t.Errorf("las variables del correo deben leerse sin espacios: %+v", cfg)
+	}
+}
+
 func TestFromEnvPadronArchivo(t *testing.T) {
 	cfg, err := fromEnv(env(validEnv()))
 	if err != nil {

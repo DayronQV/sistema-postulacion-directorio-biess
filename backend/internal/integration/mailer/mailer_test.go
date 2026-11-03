@@ -112,7 +112,7 @@ func TestNewEligeElAdaptadorPorConfiguracion(t *testing.T) {
 
 	// Vacío, "log" y cualquier combinación de mayúsculas o espacios dan el simulador.
 	for _, valor := range []string{"", "log", "LOG", " Log "} {
-		m, err := mailer.New(valor, logger)
+		m, err := mailer.New(valor, mailer.MailjetConfig{}, logger)
 		if err != nil {
 			t.Errorf("New(%q): %v", valor, err)
 			continue
@@ -126,14 +126,14 @@ func TestNewEligeElAdaptadorPorConfiguracion(t *testing.T) {
 func TestNewFallaAlArrancarConUnValorNoDisponible(t *testing.T) {
 	logger, _ := logEnMemoria()
 
-	// SMTP existe como opción pero todavía no está implementado (issue #52).
-	_, err := mailer.New("smtp", logger)
-	if err == nil || !strings.Contains(err.Error(), "#52") {
-		t.Errorf("MAILER=smtp debe explicar que aún no está disponible (#52), got %v", err)
+	// SMTP no se puede usar en el servidor (puertos bloqueados): se pide usar Mailjet.
+	_, err := mailer.New("smtp", mailer.MailjetConfig{}, logger)
+	if err == nil || !strings.Contains(err.Error(), "mailjet") {
+		t.Errorf("MAILER=smtp debe explicar que se use mailjet, got %v", err)
 	}
 
 	// Un valor desconocido lista las opciones válidas.
-	_, err = mailer.New("sendgrid", logger)
+	_, err = mailer.New("sendgrid", mailer.MailjetConfig{}, logger)
 	if err == nil || !strings.Contains(err.Error(), "sendgrid") || !strings.Contains(err.Error(), "log") {
 		t.Errorf("un valor desconocido debe mencionar el valor y las opciones, got %v", err)
 	}
