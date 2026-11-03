@@ -257,22 +257,10 @@ export default function Domicilio({
           />
         </fieldset>
 
-        <div className="flex flex-wrap justify-end gap-3">
-          <Button
-            variante="secondary"
-            icono="refresh"
-            disabled={guardando}
-            onClick={() => form.reset()}
-          >
-            Limpiar
-          </Button>
-          <Button
-            type="submit"
-            icono="arrow_forward"
-            cargando={guardando}
-            textoCargando="Guardando..."
-          >
-            Continuar
+        {/* "Guardar", como pide el requerimiento (1.2.13) y como el resto de secciones. */}
+        <div className="flex justify-end">
+          <Button type="submit" icono="save" cargando={guardando} textoCargando="Guardando...">
+            Guardar
           </Button>
         </div>
       </form>

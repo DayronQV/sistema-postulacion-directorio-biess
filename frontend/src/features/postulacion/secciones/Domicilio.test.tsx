@@ -241,7 +241,7 @@ describe('Domicilio: contacto y validaciones', () => {
     const { user, onGuardar } = montar()
     await paisListo()
 
-    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(await screen.findByText('Seleccione el país', { selector: 'p' })).toBeInTheDocument()
     expect(screen.getByText('Ingrese su teléfono celular')).toBeInTheDocument()
@@ -256,7 +256,7 @@ describe('Domicilio: contacto y validaciones', () => {
     await user.type(screen.getByLabelText(/^Ciudad\*$/), 'Medellín')
     await user.type(screen.getByLabelText(/^Teléfono celular/), celular)
 
-    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(
       await screen.findByText('El celular debe tener 10 dígitos y empezar con 09'),
@@ -273,7 +273,7 @@ describe('Domicilio: contacto y validaciones', () => {
     await user.type(screen.getByLabelText(/^Teléfono celular/), '0999999999')
     await user.type(screen.getByLabelText(/^Correo electrónico 2/), 'ana@correo')
 
-    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(await screen.findByText('Correo electrónico no válido')).toBeInTheDocument()
     expect(onGuardar).not.toHaveBeenCalled()
@@ -286,7 +286,7 @@ describe('Domicilio: contacto y validaciones', () => {
     await waitFor(() => expect(provincia()).toBeInTheDocument())
     await user.type(screen.getByLabelText(/^Teléfono celular/), '0999999999')
 
-    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(await screen.findAllByText('Campo obligatorio')).toHaveLength(2)
     expect(onGuardar).not.toHaveBeenCalled()
@@ -298,7 +298,7 @@ describe('Domicilio: contacto y validaciones', () => {
     await user.selectOptions(pais(), 'Colombia')
     await user.type(screen.getByLabelText(/^Teléfono celular/), '0999999999')
 
-    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(await screen.findAllByText('Campo obligatorio')).toHaveLength(2)
     expect(onGuardar).not.toHaveBeenCalled()
@@ -316,7 +316,7 @@ describe('Domicilio: contacto y validaciones', () => {
     await user.type(screen.getByLabelText(/^Correo electrónico 2/), ' otro@correo.com ')
     await user.type(screen.getByLabelText(/^Calle principal/), 'Av. Amazonas')
 
-    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(onGuardar).toHaveBeenCalledTimes(1))
     expect(onGuardar).toHaveBeenCalledWith({
@@ -338,7 +338,7 @@ describe('Domicilio: contacto y validaciones', () => {
     await user.type(screen.getByLabelText(/^Ciudad\*$/), 'Medellín')
     await user.type(screen.getByLabelText(/^Teléfono celular/), '0999999999')
 
-    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(onGuardar).toHaveBeenCalledTimes(1))
     expect(onGuardar).toHaveBeenCalledWith({
