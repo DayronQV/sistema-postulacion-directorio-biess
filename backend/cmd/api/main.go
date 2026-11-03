@@ -77,6 +77,8 @@ func run(logger *slog.Logger) error {
 		cfg: cfg, logger: logger, db: pool, redis: rdb, tokens: tokens, mailer: correo,
 		historial: historiallaboral.NewMock(),
 	}
+	iniciarCierreAutomatico(ctx, c)
+
 	router := apihttp.NewRouter(apihttp.Deps{
 		Config:  cfg,
 		Logger:  logger,

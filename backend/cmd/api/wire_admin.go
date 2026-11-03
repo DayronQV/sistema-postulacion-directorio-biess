@@ -40,5 +40,6 @@ func adminRoutes(c *container) apihttp.RouteRegistrar {
 		meritos.Rutas,
 		fases.Rutas,
 		apihttp.EvaluacionAdminModulo(evaluacion),
+		apihttp.EvaluacionResultadosModulo(handler.NewEvaluacionResultadosHandler(nuevaEvaluacion(c))),
 	)
 }

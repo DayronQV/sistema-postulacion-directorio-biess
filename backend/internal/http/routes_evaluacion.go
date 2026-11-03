@@ -18,6 +18,18 @@ func EvaluacionRoutes(h *handler.EvaluacionHandler, tokens domain.TokenIssuer) R
 		)
 		evaluacion.POST("/iniciar", h.Iniciar)
 		evaluacion.GET("/pregunta/:n", h.Pregunta)
+		evaluacion.PUT("/respuesta/:n", h.GuardarRespuesta)
+		evaluacion.POST("/finalizar", h.Finalizar)
+	}
+}
+
+// EvaluacionResultadosModulo registra los resultados de la evaluación en el panel, bajo
+// /api/v1/admin/evaluacion/resultados. Solo el administrador, como el resto del módulo.
+func EvaluacionResultadosModulo(h *handler.EvaluacionResultadosHandler) ModuloAdmin {
+	return func(_, escritura *gin.RouterGroup) {
+		resultados := escritura.Group("/evaluacion/resultados")
+		resultados.GET("", h.Listar)
+		resultados.GET("/:id/reporte", h.Reporte)
 	}
 }
 

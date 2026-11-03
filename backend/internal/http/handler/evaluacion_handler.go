@@ -17,6 +17,8 @@ import (
 type EvaluacionUseCase interface {
 	Iniciar(ctx context.Context, postulanteID string) (service.SesionEvaluacion, bool, error)
 	Pregunta(ctx context.Context, postulanteID string, n int) (service.PreguntaEvaluacion, error)
+	GuardarRespuesta(ctx context.Context, postulanteID string, n int, opcion *int) error
+	Finalizar(ctx context.Context, postulanteID string) (service.ResultadoFinal, error)
 }
 
 // EvaluacionHandler atiende al postulante en la evaluación teórica.
@@ -48,6 +50,23 @@ type preguntaEvaluacionResponse struct {
 	Opciones               []string  `json:"opciones"`
 	Cierre                 time.Time `json:"cierre"`
 	TiempoRestanteSegundos int       `json:"tiempo_restante_segundos"`
+	// OpcionElegida es la opción que ya eligió (posición en Opciones, desde 0); null si todavía
+	// no respondió. Sirve para mostrarla marcada si vuelve a la pregunta. No tiene nada que ver
+	// con la respuesta correcta, que nunca se envía.
+	OpcionElegida *int `json:"opcion_elegida"`
+}
+
+type respuestaRequest struct {
+	// Posición de la opción elegida tal como se mostró (desde 0). Puntero para distinguir
+	// "no vino" de 0.
+	Opcion *int `json:"opcion"`
+}
+
+type resultadoFinalResponse struct {
+	Nota         float64   `json:"nota"`
+	Aciertos     int       `json:"aciertos"`
+	Total        int       `json:"total"`
+	FinalizadoEn time.Time `json:"finalizado_at"`
 }
 
 // segundosRestantes redondea hacia abajo y nunca devuelve un valor negativo.
@@ -106,5 +125,44 @@ func (h *EvaluacionHandler) Pregunta(c *gin.Context) {
 		Opciones:               p.Pregunta.Opciones,
 		Cierre:                 p.Cierre.UTC(),
 		TiempoRestanteSegundos: segundosRestantes(p.TiempoRestante),
+		OpcionElegida:          p.Respuesta,
+	})
+}
+
+// GuardarRespuesta atiende PUT /evaluacion/respuesta/{n}: 204 si se guardó.
+func (h *EvaluacionHandler) GuardarRespuesta(c *gin.Context) {
+	id, ok := usuarioID(c)
+	if !ok {
+		return
+	}
+	n, err := strconv.Atoi(c.Param("n"))
+	if err != nil {
+		middleware.Fail(c, domain.NotFound(service.MsgPreguntaFueraDeRango))
+		return
+	}
+	var req respuestaRequest
+	if !middleware.BindJSON(c, &req) {
+		return
+	}
+	if err := h.evaluacion.GuardarRespuesta(c.Request.Context(), id, n, req.Opcion); err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// Finalizar atiende POST /evaluacion/finalizar: califica y devuelve la nota.
+func (h *EvaluacionHandler) Finalizar(c *gin.Context) {
+	id, ok := usuarioID(c)
+	if !ok {
+		return
+	}
+	r, err := h.evaluacion.Finalizar(c.Request.Context(), id)
+	if err != nil {
+		middleware.Fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resultadoFinalResponse{
+		Nota: r.Nota, Aciertos: r.Aciertos, Total: r.Total, FinalizadoEn: r.FinalizadoEn.UTC(),
 	})
 }

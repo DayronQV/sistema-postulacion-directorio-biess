@@ -118,9 +118,9 @@ Forma de `PUT /postulacion`:
 | `POST /evaluacion/iniciar` | postulante | Sortea las preguntas únicas del postulante y fija la hora de cierre |
 | `GET /evaluacion/pregunta/{n}` · `PUT /evaluacion/respuesta/{n}` | postulante | Mostrar y guardar respuesta, una por una |
 | `POST /evaluacion/finalizar` | postulante | Califica, guarda la nota, genera el PDF y notifica |
-| `GET /admin/evaluacion/resultados` | admin | Notas y reportes PDF |
+| `GET /admin/evaluacion/resultados` · `GET /admin/evaluacion/resultados/{id}/reporte` | admin | Notas de todos los postulantes y descarga del reporte PDF de cada examen |
 
-El servidor es la autoridad del tiempo: al llegar a la hora de cierre, `finalizar` se ejecuta con las respuestas guardadas.
+El servidor es la autoridad del tiempo: al llegar a la hora de cierre, el examen se finaliza solo con las respuestas guardadas (ver *Respuestas, calificación y reporte*).
 
 ### Banco de preguntas y configuración (solo `administrador`)
 Todas las rutas `/admin/evaluacion/*` son solo para el administrador (`403` para el analista, también al leer: el listado trae la respuesta correcta). Las respuestas correctas **nunca** se envían al postulante.
@@ -147,7 +147,15 @@ Las rutas `/evaluacion/*` exigen token de postulante (`401` sin token, `403` con
   - Hay un **solo intento por postulante**: uno ya terminado o vencido no se reabre (`409`). `422` si el banco no tiene las preguntas que pide la configuración.
   - El sorteo toma `num_preguntas` preguntas distintas del banco, en orden aleatorio, y cada pregunta con sus opciones en orden aleatorio (`crypto/rand`), distinto para cada postulante. `duracion_minutos` y `num_preguntas` salen de la configuración de la evaluación (30 y 10 mientras no se configure).
   - **La hora de cierre del examen de cada postulante es la menor entre su inicio más `duracion_minutos` y la `fecha_fin` de la fase.** Ejemplo: la fase va de 10:00 a 12:00 y el examen dura 1 hora; quien inicia a las 10:00 cierra a las 11:00, quien inicia a las 11:50 cierra a las 12:00 y solo tiene 10 minutos.
-- `GET /evaluacion/pregunta/{n}` (n desde 1) → `{ numero, total, id, enunciado, opciones, cierre, tiempo_restante_segundos }`. Las opciones vienen en el orden que le tocó al postulante y **nunca** incluye la respuesta correcta. `404` si no ha iniciado la evaluación o `n` no existe en su examen; `409` si el examen ya terminó o se agotó el tiempo.
+- `GET /evaluacion/pregunta/{n}` (n desde 1) → `{ numero, total, id, enunciado, opciones, cierre, tiempo_restante_segundos, opcion_elegida }`. Las opciones vienen en el orden que le tocó al postulante y **nunca** incluye la respuesta correcta. `opcion_elegida` es la posición (desde 0) de la opción que ya marcó, o `null` si todavía no respondió: sirve para mostrarla marcada si vuelve a la pregunta. `404` si no ha iniciado la evaluación o `n` no existe en su examen; `409` si el examen ya terminó o se agotó el tiempo.
+
+### Respuestas, calificación y reporte (EF-14)
+- `PUT /evaluacion/respuesta/{n}` con `{ opcion }` (n desde 1; `opcion` es la **posición** de la opción tal como se le mostró, desde 0) → `204`. Se puede cambiar la respuesta las veces que quiera mientras el examen siga abierto. `400` con `fields.opcion` si falta o está fuera de las opciones de la pregunta, `404` si no inició el examen o `n` no existe, y `409` si el examen ya terminó o se pasó la hora de cierre. Se guarda como el índice de esa opción en el banco, para calificar sin depender del orden de cada examen.
+- `POST /evaluacion/finalizar` (sin cuerpo) → `{ nota, aciertos, total, finalizado_at }`. Califica con las respuestas guardadas: la **nota es el porcentaje de aciertos sobre 100**, con dos decimales; una pregunta sin responder cuenta como no acertada. Es idempotente: si el examen ya estaba finalizado devuelve el mismo resultado sin volver a calificar ni a enviar el correo. `404` si no inició el examen.
+- **Cierre automático:** un examen cuya hora de cierre ya pasó se finaliza solo, con las respuestas guardadas hasta ese momento y con `finalizado_at` igual a su hora de cierre. Ocurre al consultarlo, al intentar guardar una respuesta tarde, al abrir los resultados del administrador, y en una tarea del servidor que revisa **cada minuto**, así que quien cierra el navegador también recibe su nota.
+- **Reporte por correo:** al finalizar, el servidor envía al correo del postulante el reporte PDF de su resultado. Si el envío falla, la nota queda guardada y el error se registra en el log; el administrador puede descargar el reporte igual.
+- `GET /admin/evaluacion/resultados` → `{ items: [ { intento_id, codigo, cedula, nombres, apellidos, cargo, estado, inicio, cierre, finalizado_at, nota, aciertos, total_preguntas } ] }`, ordenado por apellidos y nombres. `estado` es `en_curso` o `finalizado`; `nota`, `aciertos` y `finalizado_at` son `null` mientras sigue en curso. Antes de listar finaliza los exámenes vencidos.
+- `GET /admin/evaluacion/resultados/{id}/reporte` → el PDF (`application/pdf`, descarga con `Content-Disposition: attachment`). `404` si el resultado no existe y `409` si el examen sigue en curso. El reporte lleva los datos del postulante, la nota, el detalle por pregunta (correcta, incorrecta o sin responder, **sin mostrar la respuesta correcta**) y un código de verificación con QR. Ambas rutas son solo para el administrador (`403` para el analista).
 
 ## Utilidad
 `GET /health` → `200 { "status": "ok" }` (sin prefijo `/api/v1`).
