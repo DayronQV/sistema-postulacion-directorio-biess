@@ -16,6 +16,7 @@ type DocumentoRepo struct {
 }
 
 var _ domain.Documentos = (*DocumentoRepo)(nil)
+var _ domain.DocumentosAdmin = (*DocumentoRepo)(nil)
 
 func NewDocumentoRepo(db *pgxpool.Pool) *DocumentoRepo {
 	return &DocumentoRepo{db: db}
@@ -70,6 +71,25 @@ WHERE p.postulante_id = $1 AND d.id::text = $2`, postulanteID, documentoID).Scan
 	}
 	if err != nil {
 		return domain.Documento{}, fmt.Errorf("descargando el documento: %w", err)
+	}
+	return d, nil
+}
+
+// ObtenerDePostulacion descarga un documento solo si pertenece al expediente indicado.
+// Un id ajeno responde igual que uno inexistente para no exponer otros expedientes.
+func (r *DocumentoRepo) ObtenerDePostulacion(ctx context.Context, postulacionID, documentoID string) (domain.Documento, error) {
+	var d domain.Documento
+	err := r.db.QueryRow(ctx, `
+SELECT id::text, tipo, nombre, tamano_bytes, contenido
+FROM documentos
+WHERE postulacion_id = $1 AND id::text = $2`, postulacionID, documentoID).Scan(
+		&d.ID, &d.Tipo, &d.Nombre, &d.Tamano, &d.Contenido,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Documento{}, domain.NotFound("Documento no encontrado")
+	}
+	if err != nil {
+		return domain.Documento{}, fmt.Errorf("descargando el documento de la postulación: %w", err)
 	}
 	return d, nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/registrocivil"
@@ -20,13 +21,7 @@ func postulacionRoutes(c *container) apihttp.RouteRegistrar {
 		postgres.NewPostulacionRepo(c.db),
 		registrocivil.NewMock(),
 		postgres.NewTxManager(c.db),
-		postgres.NewFamiliaresRepo(c.db),
-		postgres.NewReferenciasRepo(c.db),
-		postgres.NewFormacionRepo(c.db),
-		postgres.NewExperienciaRepo(c.db),
-		postgres.NewPublicacionesRepo(c.db),
-		postgres.NewCapacitacionesRepo(c.db),
-		postgres.NewInhabilidadesRepo(c.db),
+		seccionesPostulacion(c)...,
 	).ConCatalogos(service.NewCatalogoService(
 		postgres.NewCatalogoRepo(c.db),
 		redisrepo.NewCacheCatalogos(c.redis),
@@ -42,5 +37,19 @@ func postulacionRoutes(c *container) apihttp.RouteRegistrar {
 		postulacion(api)
 		cargo(api)
 		archivos(api)
+	}
+}
+
+// seccionesPostulacion conserva una sola lista de repositorios para la vista del
+// postulante y el detalle de solo lectura del panel administrativo.
+func seccionesPostulacion(c *container) []domain.SeccionPostulacion {
+	return []domain.SeccionPostulacion{
+		postgres.NewFamiliaresRepo(c.db),
+		postgres.NewReferenciasRepo(c.db),
+		postgres.NewFormacionRepo(c.db),
+		postgres.NewExperienciaRepo(c.db),
+		postgres.NewPublicacionesRepo(c.db),
+		postgres.NewCapacitacionesRepo(c.db),
+		postgres.NewInhabilidadesRepo(c.db),
 	}
 }

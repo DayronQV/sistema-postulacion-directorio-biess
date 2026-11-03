@@ -14,6 +14,8 @@ import LoginAdmin from '@/pages/admin/LoginAdmin'
 import Fases from '@/pages/admin/Fases'
 import PanelAdmin from '@/pages/admin/PanelAdmin'
 import Dashboard from '@/pages/admin/Dashboard'
+import PostulacionDetalle from '@/pages/admin/PostulacionDetalle'
+import Postulaciones from '@/pages/admin/Postulaciones'
 import RutaInvitado from './RutaInvitado'
 import RutaProtegida from './RutaProtegida'
 import {
@@ -63,6 +65,8 @@ export default function AppRoutes() {
           <Route path={RUTA_ADMIN} element={<PanelAdmin />} />
           <Route path={`${RUTA_ADMIN}/fases`} element={<Fases />} />
           <Route path={RUTA_ADMIN_DASHBOARD} element={<Dashboard />} />
+          <Route path={`${RUTA_ADMIN}/postulaciones`} element={<Postulaciones />} />
+          <Route path={`${RUTA_ADMIN}/postulaciones/:id`} element={<PostulacionDetalle />} />
         </Route>
       </Route>
 

@@ -19,9 +19,13 @@ func adminRoutes(c *container) apihttp.RouteRegistrar {
 		redisrepo.NewIntentos(c.redis, "admin"),
 		c.tokens,
 	)
-	meritos := handler.NewAdminPostulacionHandler(
-		service.NewAdminPostulacionService(postgres.NewPostulacionRepo(c.db)),
+	postulaciones := postgres.NewPostulacionRepo(c.db)
+	postulacionAdmin := service.NewAdminPostulacionService(postulaciones).ConConsultas(
+		postulaciones,
+		postgres.NewDocumentoRepo(c.db),
+		seccionesPostulacion(c)...,
 	)
+	meritos := handler.NewAdminPostulacionHandler(postulacionAdmin).ConConsultas(postulacionAdmin)
 	fases := handler.NewAdminFasesHandler(service.NewFaseService(postgres.NewFasesRepo(c.db)))
 	dashboard := handler.NewAdminDashboardHandler(
 		service.NewDashboardService(postgres.NewPostulacionRepo(c.db)),
