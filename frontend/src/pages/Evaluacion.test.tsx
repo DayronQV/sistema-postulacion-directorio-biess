@@ -108,6 +108,36 @@ describe('Evaluacion: instrucciones', () => {
     expect(await screen.findByText('Evaluación finalizada')).toBeInTheDocument()
     expect(screen.getByText('66.67 / 100')).toBeInTheDocument()
   })
+
+  it('si no se puede obtener el resultado lo dice en la pantalla de inicio', async () => {
+    mockIniciar.mockRejectedValueOnce(new ApiError(409, 'CONFLICT', 'Ya rindió la evaluación'))
+    mockFinalizar.mockRejectedValueOnce(new ApiError(0, 'NETWORK_ERROR', 'Sin conexión'))
+    montar()
+    await userEvent.click(screen.getByRole('button', { name: 'Iniciar Evaluación' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Ver mi resultado' }))
+
+    expect(await screen.findByText('Sin conexión')).toBeInTheDocument()
+  })
+
+  it('al retomar un examen en curso trae lo que ya respondió en las demás preguntas', async () => {
+    mockIniciar.mockResolvedValueOnce({
+      total_preguntas: TOTAL,
+      inicio: 'x',
+      cierre: 'y',
+      tiempo_restante_segundos: 300,
+      reanudado: true,
+    })
+    mockPregunta.mockImplementation(async (n: number) =>
+      pregunta(n, { opcion_elegida: n === 3 ? 0 : null }),
+    )
+    montar()
+    await iniciar()
+
+    expect(await screen.findByText('1 de 3 respondidas')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Ir a la pregunta 3 (respondida)' }),
+    ).toBeInTheDocument()
+  })
 })
 
 describe('Evaluacion: preguntas', () => {
@@ -229,6 +259,26 @@ describe('Evaluacion: finalizar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Finalizar y Calificar' }))
     await userEvent.click(screen.getByRole('button', { name: 'Finalizar' }))
     expect(await screen.findByText('Evaluación finalizada')).toBeInTheDocument()
+  })
+
+  it('espera a que se guarde la última respuesta antes de calificar', async () => {
+    let terminarGuardado = () => {}
+    mockResponder.mockReturnValueOnce(
+      new Promise<void>((resolver) => {
+        terminarGuardado = resolver
+      }),
+    )
+    montar()
+    await iniciar()
+    await userEvent.click(screen.getByRole('radio', { name: 'Opción A1' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Finalizar y Calificar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Finalizar' }))
+
+    expect(mockFinalizar).not.toHaveBeenCalled()
+    await act(async () => terminarGuardado())
+
+    expect(await screen.findByText('Evaluación finalizada')).toBeInTheDocument()
+    expect(mockFinalizar).toHaveBeenCalledTimes(1)
   })
 })
 

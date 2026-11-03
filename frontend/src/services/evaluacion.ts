@@ -29,11 +29,13 @@ export interface ResultadoExamen {
 }
 
 // POST /evaluacion/iniciar: 201 si crea el examen, 200 si ya tenía uno en curso (con el tiempo
-// que le queda). 403 si no está habilitado o fuera del horario (con `fields.inicia_en` o
-// `fields.cierra_en`), 409 si ya rindió, 422 si el banco no alcanza.
+// que le queda; `reanudado` distingue ese caso). 403 si no está habilitado o fuera del horario
+// (con `fields.inicia_en` o `fields.cierra_en`), 409 si ya rindió, 422 si el banco no alcanza.
 export async function iniciarEvaluacion(signal?: AbortSignal) {
-  const { data } = await http.post<InicioEvaluacion>('/evaluacion/iniciar', undefined, { signal })
-  return data
+  const { data, status } = await http.post<InicioEvaluacion>('/evaluacion/iniciar', undefined, {
+    signal,
+  })
+  return { ...data, reanudado: status === 200 }
 }
 
 // GET /evaluacion/pregunta/{n}: 404 si no inició o no existe; 409 si ya terminó o se agotó el tiempo.

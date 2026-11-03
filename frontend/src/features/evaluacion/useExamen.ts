@@ -40,12 +40,15 @@ export function useExamen() {
   const finalizarRef = useRef<() => Promise<void>>(async () => undefined)
   const reloj = useReloj(() => void finalizarRef.current())
   const { sincronizar, detener } = reloj
+  // Respuesta que se está guardando: finalizar la espera, para que entre en la nota.
+  const guardadoEnCurso = useRef<Promise<void> | null>(null)
 
   const finalizar = useCallback(async () => {
     if (finalizada.current) return
     setFinalizando(true)
     setErrorExamen('')
     try {
+      await guardadoEnCurso.current?.catch(() => undefined)
       const calificacion = await finalizarEvaluacion()
       finalizada.current = true
       detener()
@@ -94,6 +97,18 @@ export function useExamen() {
       sincronizar(inicio.tiempo_restante_segundos)
       setFase('examen')
       await cargarPregunta(1)
+      // Si retoma un examen en curso (recargó la página), trae lo que ya respondió en las
+      // demás preguntas, para que el avance y el aviso de "sin responder" sean correctos.
+      if (inicio.reanudado) {
+        const numeros = Array.from({ length: inicio.total_preguntas - 1 }, (_, i) => i + 2)
+        const leidas = await Promise.allSettled(numeros.map((n) => obtenerPregunta(n)))
+        const previas: Record<number, number> = {}
+        leidas.forEach((r) => {
+          if (r.status === 'fulfilled' && r.value.opcion_elegida !== null)
+            previas[r.value.numero] = r.value.opcion_elegida
+        })
+        setRespondidas((r) => ({ ...previas, ...r }))
+      }
     } catch (e) {
       setErrorInicio(comoApiError(e))
     } finally {
@@ -105,14 +120,17 @@ export function useExamen() {
     async (opcion: number) => {
       setGuardando(true)
       setErrorExamen('')
+      const guardado = guardarRespuesta(numero, opcion)
+      guardadoEnCurso.current = guardado
       try {
-        await guardarRespuesta(numero, opcion)
+        await guardado
         setRespondidas((r) => ({ ...r, [numero]: opcion }))
       } catch (e) {
         const error = comoApiError(e)
         if (error.status === 409) await finalizar()
         else setErrorExamen(error.message)
       } finally {
+        if (guardadoEnCurso.current === guardado) guardadoEnCurso.current = null
         setGuardando(false)
       }
     },

@@ -30,8 +30,16 @@ describe('servicio de evaluación (postulante)', () => {
     const inicio = await iniciarEvaluacion()
 
     expect(inicio.tiempo_restante_segundos).toBe(1800)
+    expect(inicio.reanudado).toBe(false)
     expect(peticiones[0]).toMatchObject({ method: 'post', url: '/evaluacion/iniciar' })
     expect(peticiones[0].data).toBeUndefined()
+  })
+
+  it('iniciarEvaluacion marca como reanudado el examen que ya estaba en curso (200)', async () => {
+    capturar({ total_preguntas: 10, inicio: 'a', cierre: 'b', tiempo_restante_segundos: 900 }, 200)
+    const inicio = await iniciarEvaluacion()
+
+    expect(inicio.reanudado).toBe(true)
   })
 
   it('obtenerPregunta pide GET /evaluacion/pregunta/{n}', async () => {

@@ -38,6 +38,13 @@ export default function Evaluacion() {
         />
       )}
 
+      {/* "Ver mi resultado" también puede fallar antes de entrar al examen. */}
+      {examen.fase === 'inicio' && examen.errorExamen && (
+        <Alert tipo="error" titulo="No se pudo obtener su resultado">
+          {examen.errorExamen}
+        </Alert>
+      )}
+
       {examen.fase === 'examen' && (
         <>
           <div
