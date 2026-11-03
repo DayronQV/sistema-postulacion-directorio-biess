@@ -7,7 +7,9 @@ import Card from '@/components/ui/Card'
 import Input from '@/components/ui/Input'
 import Loader from '@/components/ui/Loader'
 import { useApi } from '@/hooks/useApi'
+import { ventanaMasCortaQueElExamen } from '@/features/evaluacion/admin/ventana'
 import { guardarConfig, obtenerConfig, type ConfigEvaluacion } from '@/services/adminEvaluacion'
+import { listarFases, type Fase } from '@/services/adminFases'
 import { ApiError } from '@/services/errores'
 
 const MIN_DURACION = 1
@@ -22,10 +24,13 @@ function entero(texto: string): number | null {
 // Evaluación, en la pantalla de fases.
 export default function EvaluacionConfiguracion() {
   const { data: config, cargando, error, ejecutar } = useApi(obtenerConfig)
+  // Solo para avisar de la ventana de la fase Evaluación: si no se puede leer, no hay aviso.
+  const { data: fases, ejecutar: cargarFases } = useApi(listarFases)
 
   useEffect(() => {
     void ejecutar()
-  }, [ejecutar])
+    void cargarFases()
+  }, [ejecutar, cargarFases])
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-space-lg p-margin-mobile sm:p-margin">
@@ -48,13 +53,13 @@ export default function EvaluacionConfiguracion() {
         </Alert>
       )}
 
-      {config && <FormularioConfig config={config} />}
+      {config && <FormularioConfig config={config} fases={fases} />}
     </main>
   )
 }
 
 // Formulario con los valores que devolvió el servidor como punto de partida.
-function FormularioConfig({ config }: { config: ConfigEvaluacion }) {
+function FormularioConfig({ config, fases }: { config: ConfigEvaluacion; fases: Fase[] | null }) {
   const [duracion, setDuracion] = useState(String(config.duracion_minutos))
   const [preguntas, setPreguntas] = useState(String(config.num_preguntas))
   const [errores, setErrores] = useState<Record<string, string>>({})
@@ -63,6 +68,9 @@ function FormularioConfig({ config }: { config: ConfigEvaluacion }) {
   const [guardado, setGuardado] = useState(false)
   const [bancoTotal, setBancoTotal] = useState(config.total_banco)
   const [configurada, setConfigurada] = useState(config.configurada)
+  // Se recalcula con la duración que se está escribiendo.
+  const minutosEscritos = entero(duracion)
+  const ventana = ventanaMasCortaQueElExamen(fases, minutosEscritos)
 
   async function guardar(e: FormEvent) {
     e.preventDefault()
@@ -113,6 +121,14 @@ function FormularioConfig({ config }: { config: ConfigEvaluacion }) {
           </Alert>
         )}
         {guardado && <Alert tipo="success">Configuración guardada.</Alert>}
+        {ventana !== null && (
+          <Alert
+            tipo="warning"
+            titulo="La ventana de la fase Evaluación es más corta que el examen"
+          >
+            {`La fase Evaluación dura ${ventana} minuto${ventana === 1 ? '' : 's'} y el examen ${minutosEscritos} minutos: quien lo inicie cerca del cierre de la fase tendrá menos tiempo. Amplíe la ventana en Fases o reduzca la duración.`}
+          </Alert>
+        )}
 
         <div className="grid gap-space-md sm:grid-cols-2">
           <Campo
