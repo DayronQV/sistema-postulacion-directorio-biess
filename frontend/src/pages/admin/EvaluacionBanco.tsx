@@ -51,6 +51,12 @@ export default function EvaluacionBanco() {
     listarPreguntas(control.signal, { buscar: consulta, pagina, por_pagina: POR_PAGINA })
       .then((data) => {
         if (control.signal.aborted) return
+        // Tras eliminar la última pregunta de la última página, esa página ya no existe:
+        // se vuelve a la última que tiene preguntas.
+        if (data.items.length === 0 && data.total > 0 && pagina > 1) {
+          setPagina(Math.ceil(data.total / data.por_pagina))
+          return
+        }
         setResultado(data)
         setError('')
       })

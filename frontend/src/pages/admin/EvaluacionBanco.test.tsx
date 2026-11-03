@@ -202,4 +202,25 @@ describe('EvaluacionBanco', () => {
       por_pagina: 20,
     })
   })
+
+  it('al eliminar la última pregunta de la última página vuelve a la página anterior', async () => {
+    mockEliminar.mockResolvedValue(undefined)
+    const segunda = { ...pagina(21), pagina: 2, items: [pagina().items[0]] }
+    mockListar
+      .mockResolvedValueOnce(pagina(21))
+      .mockResolvedValueOnce(segunda)
+      .mockResolvedValueOnce({ ...segunda, total: 20, items: [] })
+      .mockResolvedValueOnce(pagina(20))
+    render(<EvaluacionBanco />)
+    await screen.findByText('21 preguntas')
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await screen.findByText('Página 2 de 2')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar la pregunta 1' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+
+    expect(await screen.findByText('20 preguntas')).toBeInTheDocument()
+    expect(screen.getByText('Página 1 de 1')).toBeInTheDocument()
+    expect(screen.queryByText(/El banco está vacío/)).not.toBeInTheDocument()
+  })
 })
