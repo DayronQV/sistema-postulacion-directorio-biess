@@ -16,6 +16,9 @@ import PanelAdmin from '@/pages/admin/PanelAdmin'
 import Dashboard from '@/pages/admin/Dashboard'
 import PostulacionDetalle from '@/pages/admin/PostulacionDetalle'
 import Postulaciones from '@/pages/admin/Postulaciones'
+import EvaluacionBanco from '@/pages/admin/EvaluacionBanco'
+import EvaluacionConfiguracion from '@/pages/admin/EvaluacionConfiguracion'
+import EvaluacionResultados from '@/pages/admin/EvaluacionResultados'
 import RutaInvitado from './RutaInvitado'
 import RutaProtegida from './RutaProtegida'
 import {
@@ -67,6 +70,15 @@ export default function AppRoutes() {
           <Route path={RUTA_ADMIN_DASHBOARD} element={<Dashboard />} />
           <Route path={`${RUTA_ADMIN}/postulaciones`} element={<Postulaciones />} />
           <Route path={`${RUTA_ADMIN}/postulaciones/:id`} element={<PostulacionDetalle />} />
+          <Route path={`${RUTA_ADMIN}/evaluacion/banco`} element={<EvaluacionBanco />} />
+          <Route
+            path={`${RUTA_ADMIN}/evaluacion/configuracion`}
+            element={<EvaluacionConfiguracion />}
+          />
+          <Route
+            path={`${RUTA_ADMIN}/evaluacion/resultados`}
+            element={<EvaluacionResultados />}
+          />
         </Route>
       </Route>
 
