@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, type Mock } from 'vitest'
-import { obtenerPostulacionAdmin } from '@/services/adminPostulaciones'
+import { descargarDocumentoAdmin, obtenerPostulacionAdmin } from '@/services/adminPostulaciones'
 import PostulacionDetalle from './PostulacionDetalle'
 
 vi.mock('@/services/adminPostulaciones', () => ({
@@ -103,4 +103,37 @@ it('muestra el formulario íntegro y los certificados', async () => {
     screen.getByText(/Tiempo total de experiencia: 5 años, 2 meses, 1 día/),
   ).toBeInTheDocument()
   expect(mockObtener).toHaveBeenCalledWith(expect.any(AbortSignal), 'p1')
+})
+
+it('descarga el certificado con su nombre y libera la URL después de iniciar la descarga', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  try {
+    mockObtener.mockResolvedValue(postulacion)
+    const pdf = new Blob(['%PDF'], { type: 'application/pdf' })
+    ;(descargarDocumentoAdmin as Mock).mockResolvedValue({ contenido: pdf, nombre: 'titulo.pdf' })
+    const crear = vi.fn(() => 'blob:certificado')
+    const revocar = vi.fn()
+    Object.assign(URL, { createObjectURL: crear, revokeObjectURL: revocar })
+    const clic = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+
+    render(
+      <MemoryRouter initialEntries={['/admin/postulaciones/p1']}>
+        <Routes>
+          <Route path="/admin/postulaciones/:id" element={<PostulacionDetalle />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Descargar PDF' }))
+
+    await waitFor(() => expect(clic).toHaveBeenCalled())
+    expect(descargarDocumentoAdmin).toHaveBeenCalledWith(expect.any(AbortSignal), 'p1', 'doc-1')
+    expect(crear).toHaveBeenCalledWith(pdf)
+    // Revocar en el mismo instante puede cortar la descarga: se libera un momento después.
+    expect(revocar).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1000)
+    expect(revocar).toHaveBeenCalledWith('blob:certificado')
+    clic.mockRestore()
+  } finally {
+    vi.useRealTimers()
+  }
 })

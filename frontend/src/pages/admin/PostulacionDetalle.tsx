@@ -95,7 +95,8 @@ export default function PostulacionDetalle() {
       enlace.href = url
       enlace.download = archivo.nombre
       enlace.click()
-      URL.revokeObjectURL(url)
+      // Revocar en el mismo instante puede cortar la descarga en algunos navegadores.
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (fallo) {
       setError(fallo instanceof ApiError ? fallo.message : 'No se pudo descargar el certificado.')
     } finally {
