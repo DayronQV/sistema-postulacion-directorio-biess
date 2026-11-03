@@ -61,6 +61,11 @@ services:
       # La URL pública del frontend: también arma los enlaces de los correos.
       CORS_ALLOWED_ORIGIN: https://${DOMINIO:-localhost}
       MAILER: ${MAILER:-log}
+      # Personas que reconocen los simuladores del Registro Civil y del IESS. El archivo no
+      # está en el repositorio: se copia al servidor (ver PADRON_ARCHIVO en .env.example).
+      PADRON_ARCHIVO: /datos/padron.json
+    volumes:
+      - ./datos-produccion/padron.json:/datos/padron.json:ro
     # Sin healthcheck propio: la imagen es distroless (sin shell ni curl). El proxy
     # comprueba GET /health del backend de forma activa (ver el Caddyfile de abajo).
 
