@@ -101,6 +101,10 @@ export default function Publicaciones({
   const [errores, setErrores] = useState<ReturnType<typeof erroresDe>>({})
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
+  // Hay cambios que todavía no se guardaron: la respuesta Sí/No o filas eliminadas. Agregar o
+  // editar una fila la guarda al momento. Solo entonces se ofrece "Guardar información", y
+  // con "Sí" solo si queda alguna fila: sin filas no hay nada que guardar hasta agregar una.
+  const [pendiente, setPendiente] = useState(false)
   const [errorGuardar, setErrorGuardar] = useState<ApiError | null>(null)
   // PDF subidos en esta pantalla y todavía no guardados (ver Formacion).
   const subidos = useRef(new Set<string>())
@@ -118,6 +122,7 @@ export default function Publicaciones({
     setTiene(nueva)
     if (!nueva) setIndice(undefined)
     setGuardado(false)
+    setPendiente(true)
   }
 
   function abrir(fila?: PublicacionAcademica) {
@@ -127,49 +132,54 @@ export default function Publicaciones({
     setGuardado(false)
   }
 
-  function aceptarFila() {
-    const encontrados = erroresDe(borrador)
-    setErrores(encontrados)
-    if (Object.keys(encontrados).length > 0) return
-    const fila = alDominio(borrador)
-    setFilas((actuales) =>
-      indice === null
-        ? [...actuales, fila]
-        : actuales.map((actual, posicion) => (posicion === indice ? fila : actual)),
-    )
-    setIndice(undefined)
-    setGuardado(false)
-  }
-
-  async function guardar() {
-    if (tiene && filas.length === 0) {
+  // Guarda la respuesta Sí/No y la lista en el servidor. Devuelve false si falla, y entonces
+  // la lista en pantalla no cambia.
+  async function guardar(lista: PublicacionAcademica[]): Promise<boolean> {
+    if (tiene && lista.length === 0) {
       setErrorGuardar(
         new ApiError(400, 'VALIDATION_ERROR', 'Agregue al menos una publicación o investigación.'),
       )
-      return
+      return false
     }
-    const enviadas = tiene ? filas : []
+    // Con "No" el servidor borra las filas: se descartan también las que quedaron ocultas.
+    const enviadas = tiene ? lista : []
     setGuardando(true)
     setGuardado(false)
     setErrorGuardar(null)
     try {
       await onGuardar(tiene, enviadas)
-      // Con "No" el servidor borró las filas: se descartan también las que quedaron ocultas.
-      if (!tiene) setFilas([])
       const usados = new Set(enviadas.map((fila) => fila.documento_id))
       const sobrantes = [...subidos.current].filter((id) => !usados.has(id))
       subidos.current.clear()
       descartar(sobrantes)
+      setFilas(enviadas)
+      setPendiente(false)
       setGuardado(true)
+      return true
     } catch (error) {
       setErrorGuardar(
         error instanceof ApiError
           ? error
           : new ApiError(0, 'UNKNOWN', 'No se pudo guardar la información.'),
       )
+      return false
     } finally {
       setGuardando(false)
     }
+  }
+
+  // "Guardar" del formulario: valida, agrega o actualiza la fila y guarda la lista. Si el
+  // servidor la rechaza, el formulario sigue abierto con lo que escribió la persona.
+  async function guardarFila() {
+    const encontrados = erroresDe(borrador)
+    setErrores(encontrados)
+    if (Object.keys(encontrados).length > 0) return
+    const fila = alDominio(borrador)
+    const lista =
+      indice === null
+        ? [...filas, fila]
+        : filas.map((actual, posicion) => (posicion === indice ? fila : actual))
+    if (await guardar(lista)) setIndice(undefined)
   }
 
   const actualizar = <K extends keyof FilaEditor>(campo: K, valorCampo: FilaEditor[K]) =>
@@ -219,6 +229,7 @@ export default function Publicaciones({
               setFilas((actuales) => actuales.filter((actual) => actual !== fila))
               setIndice(undefined)
               setGuardado(false)
+              setPendiente(true)
             }}
             textoAgregar="Agregar publicación"
             deshabilitado={guardando}
@@ -301,10 +312,16 @@ export default function Publicaciones({
                 )}
               </div>
               <div className="flex justify-end gap-3 md:col-span-2">
-                <Button variante="secondary" onClick={() => setIndice(undefined)}>
+                <Button
+                  variante="secondary"
+                  disabled={guardando}
+                  onClick={() => setIndice(undefined)}
+                >
                   Cancelar
                 </Button>
-                <Button onClick={aceptarFila}>{indice === null ? 'Agregar' : 'Actualizar'}</Button>
+                <Button onClick={guardarFila} cargando={guardando} textoCargando="Guardando...">
+                  Guardar
+                </Button>
               </div>
             </div>
           )}
@@ -325,11 +342,13 @@ export default function Publicaciones({
           )}
         </Alert>
       )}
-      <div className="flex justify-end">
-        <Button onClick={guardar} cargando={guardando} textoCargando="Guardando...">
-          Guardar información
-        </Button>
-      </div>
+      {indice === undefined && pendiente && (!tiene || filas.length > 0) && (
+        <div className="flex justify-end">
+          <Button onClick={() => guardar(filas)} cargando={guardando} textoCargando="Guardando...">
+            Guardar información
+          </Button>
+        </div>
+      )}
     </section>
   )
 }

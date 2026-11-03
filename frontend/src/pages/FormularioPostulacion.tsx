@@ -281,10 +281,13 @@ export default function FormularioPostulacion() {
 
         {/* Las secciones manejan su propio formulario: el contenedor detecta aquí lo que el
             postulante edita (texto, listas, archivos, opciones Sí/No y casillas) para el aviso
-            de cambios sin guardar. La marca se quita cuando la sección guarda (store). */}
+            de cambios sin guardar. La marca se quita cuando la sección guarda (store).
+            No se escucha `onInput`: en una lista el navegador lanza `input` antes que `change`,
+            y marcar con el primero redibuja la página y React devuelve la lista a su valor
+            anterior, así que la primera elección se perdía. `onChange` de React ya cubre texto,
+            listas, fechas y archivos. */}
         <div
           className="min-w-0 overflow-hidden rounded-3xl bg-surface-container-lowest shadow-[0_2px_14px_rgba(0,38,77,0.06)]"
-          onInput={() => marcarCambios(actual.id, true)}
           onChange={() => marcarCambios(actual.id, true)}
           onClick={(e) => {
             if ((e.target as Element).closest('[role="radio"], [role="checkbox"]')) {

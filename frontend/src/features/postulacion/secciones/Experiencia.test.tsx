@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
+import { ApiError } from '@/services/errores'
 import type { ExperienciaProfesional } from '@/services/postulacion'
 import Experiencia from './Experiencia'
 
@@ -51,11 +52,10 @@ describe('Experiencia', () => {
     })
     await escribir(/^Descripción de funciones/, 'Análisis financiero')
     await userEvent.click(screen.getByRole('button', { name: 'Adjuntar PDF de prueba' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
-    expect(screen.getByText('2 años, 2 meses y 5 días')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar información' }))
     expect(onGuardar).toHaveBeenCalledWith([analista])
+    expect(await screen.findByText('2 años, 2 meses y 5 días')).toBeInTheDocument()
   })
 
   it('muestra el tiempo de cada fila y el total', () => {
@@ -82,7 +82,71 @@ describe('Experiencia', () => {
     render(<Experiencia valor={[]} onGuardar={vi.fn()} />)
     await userEvent.click(screen.getByRole('button', { name: 'Agregar experiencia' }))
     expect(screen.getByText('0/1000')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     expect(screen.getByText('Adjunte el documento de respaldo')).toHaveAttribute('role', 'alert')
+  })
+
+  it('con el formulario abierto solo hay Cancelar y Guardar', async () => {
+    render(<Experiencia valor={[analista]} onGuardar={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar experiencia' }))
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
+    for (const sobrante of ['Agregar', 'Actualizar', 'Guardar información']) {
+      expect(screen.queryByRole('button', { name: sobrante })).not.toBeInTheDocument()
+    }
+  })
+
+  it('Guardar información solo aparece con algo pendiente (tras eliminar)', async () => {
+    const onGuardar = vi.fn()
+    render(<Experiencia valor={[analista]} onGuardar={onGuardar} />)
+    const boton = () => screen.queryByRole('button', { name: 'Guardar información' })
+    expect(boton()).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+    expect(onGuardar).not.toHaveBeenCalled()
+    // Con el formulario abierto se oculta y al cancelar vuelve.
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar experiencia' }))
+    expect(boton()).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar información' }))
+    expect(onGuardar).toHaveBeenCalledWith([])
+    await waitFor(() => expect(boton()).not.toBeInTheDocument())
+  })
+
+  it('edita una experiencia y la guarda al momento; si falla, el formulario sigue abierto', async () => {
+    const onGuardar = vi.fn().mockRejectedValue(new ApiError(500, 'INTERNAL', 'Error interno'))
+    render(<Experiencia valor={[analista]} onGuardar={onGuardar} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    await userEvent.clear(screen.getByLabelText(/^Cargo o puesto/))
+    await escribir(/^Cargo o puesto/, 'Gerente')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(onGuardar).toHaveBeenCalledWith([{ ...analista, cargo: 'Gerente' }])
+    expect(await screen.findByText('Error interno')).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Cargo o puesto/)).toHaveValue('Gerente')
+    expect(screen.getByText('Analista')).toBeInTheDocument()
+  })
+
+  it('agregar conserva las experiencias que ya estaban guardadas', async () => {
+    const onGuardar = vi.fn()
+    render(<Experiencia valor={[analista]} onGuardar={onGuardar} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar experiencia' }))
+    await userEvent.selectOptions(screen.getByLabelText(/^Tipo/), 'direccion')
+    await escribir(/^Cargo o puesto/, 'Director')
+    await escribir(/^Institución o empresa/, 'Banco')
+    await userEvent.selectOptions(screen.getByLabelText(/^Actividades relacionadas a/), 'derecho')
+    fireEvent.change(screen.getByLabelText(/^Fecha de inicio/), { target: { value: '2021-01-01' } })
+    fireEvent.change(screen.getByLabelText(/^Fecha de finalización/), {
+      target: { value: '2021-12-31' },
+    })
+    await escribir(/^Descripción de funciones/, 'Dirección')
+    await userEvent.click(screen.getByRole('button', { name: 'Adjuntar PDF de prueba' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(onGuardar).toHaveBeenCalledTimes(1)
+    const enviadas = onGuardar.mock.calls[0][0]
+    expect(enviadas).toHaveLength(2)
+    expect(enviadas[0]).toEqual(analista)
+    expect(enviadas[1]).toMatchObject({ tipo: 'direccion', cargo: 'Director' })
   })
 })

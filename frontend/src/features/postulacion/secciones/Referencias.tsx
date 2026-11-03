@@ -54,6 +54,10 @@ export default function Referencias({ valor, onGuardar }: ReferenciasProps) {
   const [errores, setErrores] = useState<ReturnType<typeof erroresDe>>({})
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
+  // Hay cambios en la lista que todavía no se guardaron (hoy, solo filas eliminadas).
+  // Agregar o editar una fila la guarda al momento. Solo entonces se ofrece
+  // "Guardar información".
+  const [pendiente, setPendiente] = useState(false)
   const [errorGuardar, setErrorGuardar] = useState<ApiError | null>(null)
   const completa = filas.length >= MAX_REFERENCIAS
 
@@ -65,42 +69,49 @@ export default function Referencias({ valor, onGuardar }: ReferenciasProps) {
     setGuardado(false)
   }
 
-  function aceptarFila() {
-    const limpia = limpiar(borrador)
-    const encontrados = erroresDe(limpia)
-    setErrores(encontrados)
-    if (Object.keys(encontrados).length > 0) return
-    setFilas((actuales) =>
-      indice === null
-        ? [...actuales, limpia]
-        : actuales.map((fila, posicion) => (posicion === indice ? limpia : fila)),
-    )
-    setIndice(undefined)
-    setGuardado(false)
-  }
-
   function eliminar(referencia: ReferenciaPersonal) {
     setFilas((actuales) => actuales.filter((fila) => fila !== referencia))
     setIndice(undefined)
     setGuardado(false)
+    setPendiente(true)
   }
 
-  async function guardar() {
+  // Guarda la lista en el servidor. Devuelve false si falla, y entonces la lista en pantalla
+  // no cambia.
+  async function guardar(lista: ReferenciaPersonal[]): Promise<boolean> {
     setGuardando(true)
     setGuardado(false)
     setErrorGuardar(null)
     try {
-      await onGuardar(filas)
+      await onGuardar(lista)
+      setFilas(lista)
+      setPendiente(false)
       setGuardado(true)
-    } catch (e) {
+      return true
+    } catch (error) {
       setErrorGuardar(
-        e instanceof ApiError
-          ? e
+        error instanceof ApiError
+          ? error
           : new ApiError(0, 'UNKNOWN', 'No se pudo guardar la información.'),
       )
+      return false
     } finally {
       setGuardando(false)
     }
+  }
+
+  // "Guardar" del formulario: valida, agrega o actualiza la fila y guarda la lista. Si el
+  // servidor la rechaza, el formulario sigue abierto con lo que escribió la persona.
+  async function guardarFila() {
+    const limpia = limpiar(borrador)
+    const encontrados = erroresDe(limpia)
+    setErrores(encontrados)
+    if (Object.keys(encontrados).length > 0) return
+    const lista =
+      indice === null
+        ? [...filas, limpia]
+        : filas.map((actual, posicion) => (posicion === indice ? limpia : actual))
+    if (await guardar(lista)) setIndice(undefined)
   }
 
   const actualizar = (campo: keyof ReferenciaPersonal, valorCampo: string) =>
@@ -174,10 +185,12 @@ export default function Referencias({ valor, onGuardar }: ReferenciasProps) {
             </Campo>
           ))}
           <div className="flex justify-end gap-3 md:col-span-2">
-            <Button variante="secondary" onClick={() => setIndice(undefined)}>
+            <Button variante="secondary" disabled={guardando} onClick={() => setIndice(undefined)}>
               Cancelar
             </Button>
-            <Button onClick={aceptarFila}>{indice === null ? 'Agregar' : 'Actualizar'}</Button>
+            <Button onClick={guardarFila} cargando={guardando} textoCargando="Guardando...">
+              Guardar
+            </Button>
           </div>
         </div>
       )}
@@ -196,11 +209,13 @@ export default function Referencias({ valor, onGuardar }: ReferenciasProps) {
           )}
         </Alert>
       )}
-      <div className="flex justify-end">
-        <Button onClick={guardar} cargando={guardando} textoCargando="Guardando...">
-          Guardar información
-        </Button>
-      </div>
+      {indice === undefined && pendiente && (
+        <div className="flex justify-end">
+          <Button onClick={() => guardar(filas)} cargando={guardando} textoCargando="Guardando...">
+            Guardar información
+          </Button>
+        </div>
+      )}
     </section>
   )
 }

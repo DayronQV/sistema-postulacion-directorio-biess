@@ -100,6 +100,10 @@ export default function Capacitacion({ valor, onGuardar }: CapacitacionProps) {
   const [errores, setErrores] = useState<ReturnType<typeof erroresDe>>({})
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
+  // Hay cambios en la lista que todavía no se guardaron (hoy, solo filas eliminadas).
+  // Agregar o editar una fila la guarda al momento. Solo entonces se ofrece
+  // "Guardar información".
+  const [pendiente, setPendiente] = useState(false)
   const [errorGuardar, setErrorGuardar] = useState<ApiError | null>(null)
   // PDF subidos en esta pantalla y todavía no guardados (ver Formacion).
   const subidos = useRef(new Set<string>())
@@ -120,40 +124,46 @@ export default function Capacitacion({ valor, onGuardar }: CapacitacionProps) {
     setGuardado(false)
   }
 
-  function aceptarFila() {
-    const encontrados = erroresDe(borrador)
-    setErrores(encontrados)
-    if (Object.keys(encontrados).length > 0) return
-    const fila = alDominio(borrador)
-    setFilas((actuales) =>
-      indice === null
-        ? [...actuales, fila]
-        : actuales.map((actual, posicion) => (posicion === indice ? fila : actual)),
-    )
-    setIndice(undefined)
-    setGuardado(false)
-  }
-
-  async function guardar() {
+  // Guarda la lista en el servidor. Devuelve false si falla, y entonces la lista en pantalla
+  // no cambia.
+  async function guardar(lista: CapacitacionDatos[]): Promise<boolean> {
     setGuardando(true)
     setGuardado(false)
     setErrorGuardar(null)
     try {
-      await onGuardar(filas)
-      const usados = new Set(filas.map((fila) => fila.documento_id))
+      await onGuardar(lista)
+      const usados = new Set(lista.map((fila) => fila.documento_id))
       const sobrantes = [...subidos.current].filter((id) => !usados.has(id))
       subidos.current.clear()
       descartar(sobrantes)
+      setFilas(lista)
+      setPendiente(false)
       setGuardado(true)
+      return true
     } catch (error) {
       setErrorGuardar(
         error instanceof ApiError
           ? error
           : new ApiError(0, 'UNKNOWN', 'No se pudo guardar la capacitación.'),
       )
+      return false
     } finally {
       setGuardando(false)
     }
+  }
+
+  // "Guardar" del formulario: valida, agrega o actualiza la fila y guarda la lista. Si el
+  // servidor la rechaza, el formulario sigue abierto con lo que escribió la persona.
+  async function guardarFila() {
+    const encontrados = erroresDe(borrador)
+    setErrores(encontrados)
+    if (Object.keys(encontrados).length > 0) return
+    const fila = alDominio(borrador)
+    const lista =
+      indice === null
+        ? [...filas, fila]
+        : filas.map((actual, posicion) => (posicion === indice ? fila : actual))
+    if (await guardar(lista)) setIndice(undefined)
   }
 
   const actualizar = <K extends keyof FilaEditor>(campo: K, valorCampo: FilaEditor[K]) =>
@@ -192,6 +202,7 @@ export default function Capacitacion({ valor, onGuardar }: CapacitacionProps) {
           setFilas((actuales) => actuales.filter((actual) => actual !== fila))
           setIndice(undefined)
           setGuardado(false)
+          setPendiente(true)
         }}
         textoAgregar="Agregar capacitación"
         deshabilitado={guardando}
@@ -290,10 +301,12 @@ export default function Capacitacion({ valor, onGuardar }: CapacitacionProps) {
             />
           </div>
           <div className="flex justify-end gap-3 md:col-span-2">
-            <Button variante="secondary" onClick={() => setIndice(undefined)}>
+            <Button variante="secondary" disabled={guardando} onClick={() => setIndice(undefined)}>
               Cancelar
             </Button>
-            <Button onClick={aceptarFila}>{indice === null ? 'Agregar' : 'Actualizar'}</Button>
+            <Button onClick={guardarFila} cargando={guardando} textoCargando="Guardando...">
+              Guardar
+            </Button>
           </div>
         </div>
       )}
@@ -312,11 +325,13 @@ export default function Capacitacion({ valor, onGuardar }: CapacitacionProps) {
           )}
         </Alert>
       )}
-      <div className="flex justify-end">
-        <Button onClick={guardar} cargando={guardando} textoCargando="Guardando...">
-          Guardar información
-        </Button>
-      </div>
+      {indice === undefined && pendiente && (
+        <div className="flex justify-end">
+          <Button onClick={() => guardar(filas)} cargando={guardando} textoCargando="Guardando...">
+            Guardar información
+          </Button>
+        </div>
+      )}
     </section>
   )
 }
