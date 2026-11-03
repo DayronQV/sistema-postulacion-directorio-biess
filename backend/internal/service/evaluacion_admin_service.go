@@ -6,7 +6,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
@@ -40,17 +39,15 @@ type PreguntaInput struct {
 	RespuestaCorrecta *int
 }
 
-// ConfigInput son los parámetros de la evaluación como llegan del cliente. IniciaEn va en
-// formato RFC 3339 (por ejemplo 2026-11-20T09:00:00-05:00).
+// ConfigInput son los parámetros del examen como llegan del cliente. El horario no va aquí:
+// lo fija la fase Evaluación.
 type ConfigInput struct {
-	IniciaEn        string
 	DuracionMinutos *int
 	NumPreguntas    *int
 }
 
 // ConfigEvaluacion es la configuración vigente más el tamaño actual del banco.
 type ConfigEvaluacion struct {
-	IniciaEn        *time.Time
 	DuracionMinutos int
 	NumPreguntas    int
 	TotalBanco      int
@@ -244,27 +241,16 @@ func (s *EvaluacionAdminService) ObtenerConfig(ctx context.Context) (ConfigEvalu
 		cfg = domain.ConfigEvaluacion{DuracionMinutos: DuracionMinutosPorDefecto, NumPreguntas: NumPreguntasPorDefecto}
 	}
 	return ConfigEvaluacion{
-		IniciaEn: cfg.IniciaEn, DuracionMinutos: cfg.DuracionMinutos, NumPreguntas: cfg.NumPreguntas,
+		DuracionMinutos: cfg.DuracionMinutos, NumPreguntas: cfg.NumPreguntas,
 		TotalBanco: total, Configurada: configurada,
 	}, nil
 }
 
-// GuardarConfig valida y guarda fecha y hora de inicio, duración y número de preguntas. El
-// número de preguntas no puede superar las que hay en el banco (422).
+// GuardarConfig valida y guarda la duración y el número de preguntas del examen. El número de
+// preguntas no puede superar las que hay en el banco (422). Cuándo se puede rendir lo fija la
+// fase Evaluación, no esta configuración.
 func (s *EvaluacionAdminService) GuardarConfig(ctx context.Context, in ConfigInput) (ConfigEvaluacion, error) {
 	rep := &reporte{}
-	var inicia time.Time
-	switch texto := strings.TrimSpace(in.IniciaEn); {
-	case texto == "":
-		rep.agregar("inicia_en", "Campo obligatorio")
-	default:
-		t, err := time.Parse(time.RFC3339, texto)
-		if err != nil {
-			rep.agregar("inicia_en", "Fecha y hora no válidas (use el formato 2026-11-20T09:00:00-05:00)")
-		} else {
-			inicia = t
-		}
-	}
 	switch d := in.DuracionMinutos; {
 	case d == nil:
 		rep.agregar("duracion_minutos", "Campo obligatorio")
@@ -290,12 +276,12 @@ func (s *EvaluacionAdminService) GuardarConfig(ctx context.Context, in ConfigInp
 			"num_preguntas": fmt.Sprintf("El banco tiene %d pregunta(s) y se piden %d", total, *in.NumPreguntas),
 		})
 	}
-	cfg := domain.ConfigEvaluacion{IniciaEn: &inicia, DuracionMinutos: *in.DuracionMinutos, NumPreguntas: *in.NumPreguntas}
+	cfg := domain.ConfigEvaluacion{DuracionMinutos: *in.DuracionMinutos, NumPreguntas: *in.NumPreguntas}
 	if err := s.banco.GuardarConfig(ctx, cfg); err != nil {
 		return ConfigEvaluacion{}, err
 	}
 	return ConfigEvaluacion{
-		IniciaEn: cfg.IniciaEn, DuracionMinutos: cfg.DuracionMinutos, NumPreguntas: cfg.NumPreguntas,
+		DuracionMinutos: cfg.DuracionMinutos, NumPreguntas: cfg.NumPreguntas,
 		TotalBanco: total, Configurada: true,
 	}, nil
 }

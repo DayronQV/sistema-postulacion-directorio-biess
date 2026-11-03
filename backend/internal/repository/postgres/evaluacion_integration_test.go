@@ -200,22 +200,20 @@ func TestEvaluacion_Configuracion(t *testing.T) {
 	if _, hay, err := repo.ObtenerConfig(ctx); err != nil || hay {
 		t.Fatalf("sin configurar: hay = %v, err = %v", hay, err)
 	}
-	inicia := time.Date(2026, 11, 20, 14, 0, 0, 0, time.UTC)
-	if err := repo.GuardarConfig(ctx, domain.ConfigEvaluacion{IniciaEn: &inicia, DuracionMinutos: 45, NumPreguntas: 8}); err != nil {
+	if err := repo.GuardarConfig(ctx, domain.ConfigEvaluacion{DuracionMinutos: 45, NumPreguntas: 8}); err != nil {
 		t.Fatal(err)
 	}
 	c, hay, err := repo.ObtenerConfig(ctx)
-	if err != nil || !hay || c.DuracionMinutos != 45 || c.NumPreguntas != 8 || c.IniciaEn == nil || !c.IniciaEn.Equal(inicia) {
+	if err != nil || !hay || c.DuracionMinutos != 45 || c.NumPreguntas != 8 {
 		t.Fatalf("config leída = %+v, hay = %v, err = %v", c, hay, err)
 	}
 
 	// Guardar de nuevo reemplaza la única fila.
-	otra := inicia.Add(24 * time.Hour)
-	if err := repo.GuardarConfig(ctx, domain.ConfigEvaluacion{IniciaEn: &otra, DuracionMinutos: 20, NumPreguntas: 3}); err != nil {
+	if err := repo.GuardarConfig(ctx, domain.ConfigEvaluacion{DuracionMinutos: 20, NumPreguntas: 3}); err != nil {
 		t.Fatal(err)
 	}
 	c, _, _ = repo.ObtenerConfig(ctx)
-	if c.DuracionMinutos != 20 || c.NumPreguntas != 3 || !c.IniciaEn.Equal(otra) {
+	if c.DuracionMinutos != 20 || c.NumPreguntas != 3 {
 		t.Fatalf("config tras reemplazar = %+v", c)
 	}
 	var filas int

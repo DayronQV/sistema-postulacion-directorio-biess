@@ -1,9 +1,6 @@
 package domain
 
-import (
-	"context"
-	"time"
-)
+import "context"
 
 // Límites del banco de preguntas y de la configuración de la evaluación teórica (EF-14).
 const (
@@ -43,10 +40,9 @@ func (p Pregunta) Publica() PreguntaPublica {
 	return PreguntaPublica{ID: p.ID, Enunciado: p.Enunciado, Opciones: p.Opciones}
 }
 
-// ConfigEvaluacion son los parámetros de la evaluación: cuándo empieza, cuánto dura y
-// cuántas preguntas se sortean por postulante. IniciaEn es nil mientras no se configure.
+// ConfigEvaluacion son los parámetros del examen: cuánto dura y cuántas preguntas se sortean
+// por postulante. Cuándo se puede rendir no está aquí: lo fija la fase Evaluación (ver Fase).
 type ConfigEvaluacion struct {
-	IniciaEn        *time.Time
 	DuracionMinutos int
 	NumPreguntas    int
 }

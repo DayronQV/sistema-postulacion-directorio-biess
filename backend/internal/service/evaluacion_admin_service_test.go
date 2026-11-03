@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
@@ -363,7 +362,7 @@ func TestEliminarPregunta(t *testing.T) {
 func int2ptr(n int) *int { return &n }
 
 func configValida() service.ConfigInput {
-	return service.ConfigInput{IniciaEn: "2026-11-20T09:00:00-05:00", DuracionMinutos: int2ptr(45), NumPreguntas: int2ptr(5)}
+	return service.ConfigInput{DuracionMinutos: int2ptr(45), NumPreguntas: int2ptr(5)}
 }
 
 func TestObtenerConfig_SinConfigurarMuestraLosValoresPorDefecto(t *testing.T) {
@@ -372,7 +371,7 @@ func TestObtenerConfig_SinConfigurarMuestraLosValoresPorDefecto(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Configurada || c.IniciaEn != nil || c.DuracionMinutos != service.DuracionMinutosPorDefecto ||
+	if c.Configurada || c.DuracionMinutos != service.DuracionMinutosPorDefecto ||
 		c.NumPreguntas != service.NumPreguntasPorDefecto || c.TotalBanco != 4 {
 		t.Fatalf("config = %+v", c)
 	}
@@ -384,11 +383,10 @@ func TestGuardarConfig_Valida(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error inesperado: %v", err)
 	}
-	esperada := time.Date(2026, 11, 20, 14, 0, 0, 0, time.UTC)
-	if !c.Configurada || c.DuracionMinutos != 45 || c.NumPreguntas != 5 || c.TotalBanco != 5 || !c.IniciaEn.Equal(esperada) {
+	if !c.Configurada || c.DuracionMinutos != 45 || c.NumPreguntas != 5 || c.TotalBanco != 5 {
 		t.Fatalf("config = %+v", c)
 	}
-	if f.cfg == nil || f.cfg.NumPreguntas != 5 || !f.cfg.IniciaEn.Equal(esperada) {
+	if f.cfg == nil || f.cfg.NumPreguntas != 5 || f.cfg.DuracionMinutos != 45 {
 		t.Fatalf("no se guardó: %+v", f.cfg)
 	}
 	// Lo guardado se lee de vuelta.
@@ -430,9 +428,6 @@ func TestGuardarConfig_Invalida(t *testing.T) {
 		cambia func(*service.ConfigInput)
 		campo  string
 	}{
-		{"sin fecha", func(c *service.ConfigInput) { c.IniciaEn = "" }, "inicia_en"},
-		{"fecha con otro formato", func(c *service.ConfigInput) { c.IniciaEn = "20/11/2026 09:00" }, "inicia_en"},
-		{"fecha sin zona horaria", func(c *service.ConfigInput) { c.IniciaEn = "2026-11-20T09:00:00" }, "inicia_en"},
 		{"sin duración", func(c *service.ConfigInput) { c.DuracionMinutos = nil }, "duracion_minutos"},
 		{"duración cero", func(c *service.ConfigInput) { c.DuracionMinutos = int2ptr(0) }, "duracion_minutos"},
 		{"duración excesiva", func(c *service.ConfigInput) { c.DuracionMinutos = int2ptr(domain.MaxDuracionMinutos + 1) }, "duracion_minutos"},
