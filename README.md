@@ -12,6 +12,27 @@ Frontend en React, TypeScript, Vite y Tailwind CSS; backend en Go con Gin; Postg
 
 Las integraciones externas (Registro Civil, Historial Laboral y correo) están simuladas detrás de una interfaz con un adaptador `mock`.
 
+## Arquitectura
+```mermaid
+flowchart LR
+    Navegador["Navegador<br/>SPA React + TypeScript"] -->|"HTTP /api/v1 (JWT)"| Handler
+
+    subgraph Backend["Backend Go + Gin"]
+        Handler["Handler<br/>HTTP y validación de entrada"] --> Service["Service<br/>reglas de negocio"]
+        Service --> Repository["Repository<br/>interfaces inyectadas"]
+    end
+
+    Repository --> PG[("PostgreSQL 16<br/>datos y transacciones")]
+    Repository --> Redis[("Redis 7<br/>intentos fallidos, bloqueo 10 min<br/>y catálogos con TTL")]
+    Service -.->|"adaptador mock"| Externos["Registro Civil<br/>Historial Laboral<br/>Correo"]
+```
+- **Frontend:** componentes en `components/`, llamadas a la API solo desde `services/`.
+- **Backend:** el handler solo traduce HTTP; el service no conoce HTTP ni SQL; el repository es una interfaz que se inyecta, así que las integraciones externas se reemplazan por un adaptador `mock`.
+- **PostgreSQL:** guarda la postulación completa en una transacción de varias tablas.
+- **Redis:** cuenta los intentos fallidos de ingreso (bloqueo de 10 minutos tras 3) y cachea los catálogos con TTL.
+
+Más detalle en [docs/arquitectura.md](docs/arquitectura.md).
+
 ## Documentación para el equipo
 - [Reglas para agentes y personas](AGENTS.md): léelo primero.
 - [Especificación condensada](docs/especificacion.md)
@@ -49,6 +70,27 @@ Si no usas Docker, necesitas PostgreSQL 16 y Redis 7 instalados; ver "Script SQL
 Si el puerto 5432 de tu máquina ya está ocupado por otro PostgreSQL, cambia `POSTGRES_PORT` y el puerto de `DATABASE_URL` en tu `.env` (por ejemplo a 5433).
 
 El proyecto no tiene migraciones: el esquema solo se carga desde cero. Si ya tenías una base de una versión anterior, recréala (se borran sus datos) con `docker compose down -v` y `docker compose up -d`.
+
+## Variables de entorno
+Se definen en el `.env` de la raíz (copia de `.env.example`, que no se sube al repositorio). El backend lista todo lo que falta o es inválido al arrancar.
+
+| Variable | Para qué sirve | Valor de ejemplo |
+| --- | --- | --- |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Usuario, clave y nombre de la base que crea `docker compose` | `biess`, `cambiar_esta_clave`, `biess` |
+| `POSTGRES_PORT` | Puerto de tu máquina para PostgreSQL | `5432` |
+| `REDIS_PORT` | Puerto de tu máquina para Redis | `6379` |
+| `DATABASE_URL` | Cadena de conexión a PostgreSQL que usa el backend (**obligatoria**; debe coincidir con las tres primeras y con `POSTGRES_PORT`) | `postgres://biess:cambiar_esta_clave@localhost:5432/biess?sslmode=disable` |
+| `REDIS_ADDR` | Dirección de Redis que usa el backend (**obligatoria**; debe coincidir con `REDIS_PORT`) | `localhost:6379` |
+| `API_PORT` | Puerto en el que escucha la API | `8080` |
+| `JWT_SECRET` | Clave con la que se firman los tokens de sesión (**obligatoria**, mínimo 32 caracteres; genera una con `openssl rand -hex 32`) | `cambiar_esto` (se rechaza hasta que lo reemplaces) |
+| `JWT_TTL_MINUTES` | Minutos que dura la sesión | `60` |
+| `REQUEST_TIMEOUT_SECONDS` | Tiempo máximo de cada petición a la API | `10` |
+| `CORS_ALLOWED_ORIGIN` | Orígenes del frontend autorizados, separados por coma; el primero también arma los enlaces de los correos | `http://localhost:5173` |
+| `MAILER` | Adaptador de correo; `log` escribe los correos en el log del backend en vez de enviarlos | `log` |
+| `VITE_API_URL` | URL de la API que usa el frontend (Vite) | `http://localhost:8080/api/v1` |
+| `DOMINIO` | Solo producción (`docker-compose.prod.yml`): dominio público sin `https://`, para el certificado HTTPS | `postulacion.example.com` |
+
+Las variables con valor por defecto (`API_PORT`, `JWT_TTL_MINUTES`, `REQUEST_TIMEOUT_SECONDS`, `CORS_ALLOWED_ORIGIN`, `MAILER`) pueden omitirse. En producción, el compose arma `DATABASE_URL`, `REDIS_ADDR`, `CORS_ALLOWED_ORIGIN` y `VITE_API_URL` por su cuenta; ver los comentarios de `.env.example`.
 
 ## Script SQL
 `db/schema.sql` es el script único de la base de datos: crea todas las tablas y, al final, carga la división política (194 países, 24 provincias y 199 cantones). Se puede ejecutar de una vez en una base vacía, sin Docker:
