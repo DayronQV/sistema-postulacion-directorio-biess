@@ -101,7 +101,7 @@ Forma de `PUT /postulacion`:
 | `GET /admin/sesion` | `{ usuario, rol }` del token. Todas las rutas `/admin/*` salvo el login exigen token de `analista` o `administrador` (`401` sin token, `403` con token de postulante); las de escritura, solo `administrador` (`403` para el analista) |
 | `GET /admin/fases` | `[{ id, nombre, orden, publicada, habilita_formulario, fecha_inicio, fecha_fin }]` en orden (`Postulación`, `Méritos`, `Evaluación`). Las fechas son RFC 3339 o `null` (sin límite por ese lado) |
 | `PUT /admin/fases/{id}` | `{ publicada, habilita_formulario, fecha_inicio, fecha_fin }` → la fase actualizada. Reemplaza el estado de la fase: `publicada` y `habilita_formulario` son **obligatorios** (un cuerpo vacío o incompleto es `400`, para no cerrar el periodo sin querer) y una fecha ausente o `null` significa sin fecha. Solo `administrador` (`403` para el analista); `404` si no existe. `400` con `fields`: `publicada` y `habilita_formulario` obligatorios; `habilita_formulario` solo en la fase Postulación y con `publicada: true`; `fecha_fin` no anterior a `fecha_inicio`. Habilitar la fase Postulación abre el formulario EF-12 (ver *Periodo de postulación*) |
-| `GET /admin/dashboard` | `{ por_cargo: { afiliados, jubilados, empleador } }` |
+| `GET /admin/dashboard` | `{ por_cargo: { afiliados, jubilados, empleador }, por_estado: { borrador, enviada, cerrada }, total }`. Cuenta todas las postulaciones: un borrador sin cargo elegido suma al `total` pero a ningún cargo |
 | `GET /admin/postulaciones?cargo=&estado=` | Nómina de postulantes, paginada |
 | `GET /admin/postulaciones/{id}` | Formulario íntegro, con duración de experiencias |
 | `GET /admin/postulaciones/{id}/documentos/{docId}` | Descarga de certificados |

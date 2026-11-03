@@ -13,9 +13,16 @@ import LayoutAdmin from '@/features/admin/LayoutAdmin'
 import LoginAdmin from '@/pages/admin/LoginAdmin'
 import Fases from '@/pages/admin/Fases'
 import PanelAdmin from '@/pages/admin/PanelAdmin'
+import Dashboard from '@/pages/admin/Dashboard'
 import RutaInvitado from './RutaInvitado'
 import RutaProtegida from './RutaProtegida'
-import { RUTA_ADMIN, RUTA_FORMULARIO, RUTA_LOGIN, RUTA_LOGIN_ADMIN } from './rutas'
+import {
+  RUTA_ADMIN,
+  RUTA_ADMIN_DASHBOARD,
+  RUTA_FORMULARIO,
+  RUTA_LOGIN,
+  RUTA_LOGIN_ADMIN,
+} from './rutas'
 
 export default function AppRoutes() {
   return (
@@ -55,6 +62,7 @@ export default function AppRoutes() {
         <Route element={<LayoutAdmin />}>
           <Route path={RUTA_ADMIN} element={<PanelAdmin />} />
           <Route path={`${RUTA_ADMIN}/fases`} element={<Fases />} />
+          <Route path={RUTA_ADMIN_DASHBOARD} element={<Dashboard />} />
         </Route>
       </Route>
 
