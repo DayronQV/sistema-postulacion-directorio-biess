@@ -70,6 +70,19 @@ func (r crearPreguntasRequest) suelta() preguntaRequest {
 	return preguntaRequest{Enunciado: r.Enunciado, Opciones: r.Opciones, RespuestaCorrecta: r.RespuestaCorrecta}
 }
 
+// preguntaResponse es una pregunta del banco tal como la ve el administrador, con la respuesta
+// correcta. Es un DTO propio del handler: el dominio no lleva etiquetas JSON.
+type preguntaResponse struct {
+	ID                int      `json:"id"`
+	Enunciado         string   `json:"enunciado"`
+	Opciones          []string `json:"opciones"`
+	RespuestaCorrecta int      `json:"respuesta_correcta"`
+}
+
+func respuestaPregunta(p domain.Pregunta) preguntaResponse {
+	return preguntaResponse{ID: p.ID, Enunciado: p.Enunciado, Opciones: p.Opciones, RespuestaCorrecta: p.RespuestaCorrecta}
+}
+
 type configRequest struct {
 	IniciaEn        string `json:"inicia_en"`
 	DuracionMinutos *int   `json:"duracion_minutos"`
@@ -144,7 +157,7 @@ func (h *EvaluacionAdminHandler) crearDesdeJSON(c *gin.Context) {
 		middleware.Fail(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, p)
+	c.JSON(http.StatusCreated, respuestaPregunta(p))
 }
 
 func (h *EvaluacionAdminHandler) crearDesdeMultipart(c *gin.Context) {
@@ -205,7 +218,11 @@ func (h *EvaluacionAdminHandler) ListarPreguntas(c *gin.Context) {
 		middleware.Fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": r.Items, "total": r.Total, "pagina": r.Pagina, "por_pagina": r.PorPagina})
+	items := make([]preguntaResponse, len(r.Items))
+	for i, p := range r.Items {
+		items[i] = respuestaPregunta(p)
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "total": r.Total, "pagina": r.Pagina, "por_pagina": r.PorPagina})
 }
 
 // enteroDeConsulta lee un parámetro entero opcional; uno que no es número responde 400.
@@ -233,7 +250,7 @@ func (h *EvaluacionAdminHandler) ActualizarPregunta(c *gin.Context) {
 		middleware.Fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, p)
+	c.JSON(http.StatusOK, respuestaPregunta(p))
 }
 
 // EliminarPregunta atiende DELETE /admin/evaluacion/preguntas/{id}.
