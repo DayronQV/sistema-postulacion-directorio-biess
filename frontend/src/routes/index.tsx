@@ -70,15 +70,20 @@ export default function AppRoutes() {
           <Route path={RUTA_ADMIN_DASHBOARD} element={<Dashboard />} />
           <Route path={`${RUTA_ADMIN}/postulaciones`} element={<Postulaciones />} />
           <Route path={`${RUTA_ADMIN}/postulaciones/:id`} element={<PostulacionDetalle />} />
-          <Route path={`${RUTA_ADMIN}/evaluacion/banco`} element={<EvaluacionBanco />} />
+          {/* La evaluación teórica (EF-14) es solo del administrador: el analista no entra. */}
           <Route
-            path={`${RUTA_ADMIN}/evaluacion/configuracion`}
-            element={<EvaluacionConfiguracion />}
-          />
-          <Route
-            path={`${RUTA_ADMIN}/evaluacion/resultados`}
-            element={<EvaluacionResultados />}
-          />
+            element={<RutaProtegida roles={['administrador']} redirigirA={RUTA_LOGIN_ADMIN} />}
+          >
+            <Route path={`${RUTA_ADMIN}/evaluacion/banco`} element={<EvaluacionBanco />} />
+            <Route
+              path={`${RUTA_ADMIN}/evaluacion/configuracion`}
+              element={<EvaluacionConfiguracion />}
+            />
+            <Route
+              path={`${RUTA_ADMIN}/evaluacion/resultados`}
+              element={<EvaluacionResultados />}
+            />
+          </Route>
         </Route>
       </Route>
 
