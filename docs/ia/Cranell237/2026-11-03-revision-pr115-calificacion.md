@@ -21,6 +21,5 @@ Corrígelos tú
   - **Cierre automático:** `FinalizarVencidos` ya no se detiene en el primer examen que falla; sigue con los demás y devuelve los errores juntos. Los resultados del administrador se muestran igual y el error se registra.
 
 ## Revisión humana
-- Qué se verificó y cómo (pruebas, ejecución): `go build`, `go vet` y `go test ./internal/...`; pruebas nuevas del servicio (respuesta confirmada antes del bloqueo, transacción al guardar, un vencido que falla no detiene a los demás, resultados aunque uno falle) y una de integración con PostgreSQL que comprueba que una respuesta espera al bloqueo y se rechaza. Las de integración las corre el CI (no había Docker en local).
+- Qué se verificó y cómo (pruebas, ejecución): `go build`, `go vet` y `go test ./internal/...`; pruebas nuevas del servicio (respuesta confirmada antes del bloqueo, transacción al guardar, un vencido que falla no detiene a los demás, resultados aunque uno falle) y una de integración con PostgreSQL que comprueba que una respuesta espera al bloqueo y se rechaza. Las de integración las corrió el CI con PostgreSQL 16 (no había Docker en local) y pasaron.
 - Qué se corrigió: lo listado arriba.
-- Pendiente: confirmar en el CI la prueba de integración de concurrencia.
