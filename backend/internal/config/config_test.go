@@ -113,6 +113,26 @@ func TestFromEnvMailer(t *testing.T) {
 	}
 }
 
+func TestFromEnvPadronArchivo(t *testing.T) {
+	cfg, err := fromEnv(env(validEnv()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PadronArchivo != "" {
+		t.Errorf("por defecto PADRON_ARCHIVO debe estar vacío, got %q", cfg.PadronArchivo)
+	}
+
+	e := validEnv()
+	e["PADRON_ARCHIVO"] = "  /datos/padron.json "
+	cfg, err = fromEnv(env(e))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PadronArchivo != "/datos/padron.json" {
+		t.Errorf("PADRON_ARCHIVO debe leerse sin espacios, got %q", cfg.PadronArchivo)
+	}
+}
+
 func TestApplyDotEnv(t *testing.T) {
 	// Registra la restauración de las variables para no contaminar otras pruebas.
 	t.Setenv("DOTENV_KEEP", "del-entorno")

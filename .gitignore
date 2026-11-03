@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# Padrón y cuentas del panel de producción: cédulas reales y claves (ver PADRON_ARCHIVO)
+datos-produccion/
 
 # Dependencias y compilados
 node_modules/

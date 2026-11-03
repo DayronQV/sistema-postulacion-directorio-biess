@@ -23,6 +23,10 @@ type container struct {
 	tokens domain.TokenIssuer // emite y valida los JWT de sesión
 	mailer domain.Mailer      // envía los correos (hoy, el simulador que escribe en el log)
 
+	// registroCivil es el Registro Civil (hoy el simulador). Lo consumen el registro, la
+	// recuperación de contraseña y la postulación.
+	registroCivil domain.RegistroCivil
+
 	// historial es el Historial Laboral del IESS (hoy el simulador). Lo consume la
 	// validación del cargo de la postulación.
 	historial domain.HistorialLaboral

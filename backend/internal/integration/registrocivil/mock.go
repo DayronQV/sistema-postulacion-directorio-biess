@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
+	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/padron"
 )
 
 // Cédulas de prueba. Los demás módulos pueden usarlas en sus pruebas. Todas son
@@ -85,8 +86,23 @@ func NewMock() *Mock {
 	return m
 }
 
+// NewDesdeArchivo crea el simulador con las personas de un archivo de padrón (ver el
+// paquete padron) en lugar de los 7 ciudadanos de prueba. Es lo que se usa en el
+// despliegue, para que solo puedan registrarse las personas del archivo.
+func NewDesdeArchivo(ruta string) (*Mock, error) {
+	registros, err := padron.Cargar(ruta)
+	if err != nil {
+		return nil, err
+	}
+	m := &Mock{ciudadanos: make(map[string]domain.Ciudadano, len(registros))}
+	for _, r := range registros {
+		m.ciudadanos[r.Ciudadano.Cedula] = r.Ciudadano
+	}
+	return m, nil
+}
+
 // ConsultarCiudadano devuelve los datos de la cédula de prueba, o un error
-// domain.ErrNotFound si no es una de las 7 del simulador.
+// domain.ErrNotFound si no es una de las 7 del simulador (o del archivo de padrón).
 func (m *Mock) ConsultarCiudadano(ctx context.Context, cedula string) (domain.Ciudadano, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.Ciudadano{}, err

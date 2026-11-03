@@ -3,7 +3,6 @@ package main
 import (
 	apihttp "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/http/handler"
-	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/integration/registrocivil"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/postgres"
 	redisrepo "github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/repository/redis"
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/service"
@@ -13,7 +12,7 @@ import (
 // Registro, login y recuperación usan contadores de intentos separados
 // (auth:*:registro:*, auth:*:login:* y auth:*:recuperar:*).
 func authRoutes(c *container) apihttp.RouteRegistrar {
-	registroCivil := registrocivil.NewMock()
+	registroCivil := c.registroCivil
 	postulantes := postgres.NewPostulanteRepo(c.db)
 	intentosLogin := redisrepo.NewIntentos(c.redis, "login")
 
