@@ -11,6 +11,7 @@ import Registro from '@/pages/Registro'
 import Restablecer from '@/pages/Restablecer'
 import LayoutAdmin from '@/features/admin/LayoutAdmin'
 import LoginAdmin from '@/pages/admin/LoginAdmin'
+import Fases from '@/pages/admin/Fases'
 import PanelAdmin from '@/pages/admin/PanelAdmin'
 import RutaInvitado from './RutaInvitado'
 import RutaProtegida from './RutaProtegida'
@@ -53,6 +54,7 @@ export default function AppRoutes() {
       >
         <Route element={<LayoutAdmin />}>
           <Route path={RUTA_ADMIN} element={<PanelAdmin />} />
+          <Route path={`${RUTA_ADMIN}/fases`} element={<Fases />} />
         </Route>
       </Route>
 

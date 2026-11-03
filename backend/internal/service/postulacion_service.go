@@ -25,7 +25,28 @@ type PostulacionService struct {
 	catalogos     domain.Catalogos        // opcional: ver ConCatalogos
 	historial     domain.HistorialLaboral // ver ConHistorialLaboral
 	mailer        domain.Mailer           // opcional: ver ConMailer
+	fases         domain.Fases            // opcional: ver ConFases
 	ahora         func() time.Time
+}
+
+// ConFases indica las fases del concurso: crear, guardar, validar el cargo y enviar una
+// postulación solo se permite con la fase Postulación publicada, con el formulario
+// habilitado y dentro de sus fechas (EF-13). Sin fases no hay restricción.
+func (s *PostulacionService) ConFases(f domain.Fases) *PostulacionService {
+	s.fases = f
+	return s
+}
+
+// verificarPeriodo responde 403 si hoy no se puede modificar una postulación.
+func (s *PostulacionService) verificarPeriodo(ctx context.Context) error {
+	abierto, err := formularioAbierto(ctx, s.fases, s.ahora())
+	if err != nil {
+		return err
+	}
+	if !abierto {
+		return domain.Forbidden(domain.MsgPeriodoCerrado)
+	}
+	return nil
 }
 
 // NewPostulacionService crea el servicio. secciones son los repositorios de las
@@ -60,6 +81,9 @@ func (s *PostulacionService) Obtener(ctx context.Context, postulanteID string) (
 		}
 	}
 	completarDuraciones(&p.Formulario)
+	if p.PeriodoAbierto, err = formularioAbierto(ctx, s.fases, s.ahora()); err != nil {
+		return domain.Postulacion{}, err
+	}
 	return p, nil
 }
 
@@ -75,6 +99,10 @@ func (s *PostulacionService) asegurar(ctx context.Context, postulanteID string) 
 		return domain.Postulacion{}, err
 	}
 
+	// Crear la postulación es parte del periodo: fuera de él, quien no la tiene no la crea.
+	if err := s.verificarPeriodo(ctx); err != nil {
+		return domain.Postulacion{}, err
+	}
 	cedula, err := s.postulaciones.CedulaDePostulante(ctx, postulanteID)
 	if err != nil {
 		return domain.Postulacion{}, err
@@ -113,6 +141,9 @@ func personalDe(c domain.Ciudadano) domain.InformacionPersonal {
 // postulación queda cerrada y se responde 422. Lo mismo ocurre si el cargo elegido no
 // cumple la calidad que informa el Historial Laboral (se valida en cada guardado).
 func (s *PostulacionService) Guardar(ctx context.Context, postulanteID string, f domain.Formulario) (domain.Postulacion, error) {
+	if err := s.verificarPeriodo(ctx); err != nil {
+		return domain.Postulacion{}, err
+	}
 	f.Familiares = limpiarFamiliares(f.Familiares)
 	f.Referencias = limpiarReferencias(f.Referencias)
 	f.Formacion = limpiarFormacion(f.Formacion)

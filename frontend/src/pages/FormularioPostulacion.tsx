@@ -59,7 +59,15 @@ export default function FormularioPostulacion() {
     return (
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-space-md p-margin-mobile sm:p-margin">
         {cargando && <Loader texto="Cargando su postulación..." />}
-        {errorCarga && (
+        {errorCarga?.code === 'FORBIDDEN' && (
+          // El periodo de postulación está cerrado y aún no tiene postulación: reintentar no
+          // sirve hasta que el BIESS lo habilite.
+          <Alert tipo="warning" titulo="El periodo de postulación no está habilitado">
+            Todavía no puede iniciar su postulación. Vuelva a ingresar cuando el BIESS habilite el
+            periodo.
+          </Alert>
+        )}
+        {errorCarga && errorCarga.code !== 'FORBIDDEN' && (
           <>
             <Alert tipo="error" titulo="No se pudo cargar la postulación">
               {errorCarga.message}
@@ -159,6 +167,13 @@ export default function FormularioPostulacion() {
           </div>
         </div>
       </header>
+
+      {postulacion.periodo_abierto === false && (
+        <Alert tipo="warning" titulo="El periodo de postulación no está habilitado">
+          Puede revisar su postulación, pero no guardar cambios ni enviarla hasta que el BIESS
+          habilite el periodo.
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 gap-space-lg lg:grid-cols-[17rem_1fr]">
         {/* Móvil: menú desplegable */}

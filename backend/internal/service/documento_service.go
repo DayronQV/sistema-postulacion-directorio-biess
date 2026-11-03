@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"strings"
+	"time"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
@@ -18,10 +19,39 @@ const (
 // DocumentoService aplica las reglas de los archivos antes de persistirlos.
 type DocumentoService struct {
 	documentos domain.Documentos
+	fases      domain.Fases // opcional: ver ConFases
+	ahora      func() time.Time
 }
 
 func NewDocumentoService(documentos domain.Documentos) *DocumentoService {
-	return &DocumentoService{documentos: documentos}
+	return &DocumentoService{documentos: documentos, ahora: time.Now}
+}
+
+// ConFases indica las fases del concurso: subir o eliminar un documento solo se permite con
+// la fase Postulación publicada, con el formulario habilitado y dentro de sus fechas, igual
+// que guardar o enviar la postulación (EF-13). Sin fases no hay restricción.
+func (s *DocumentoService) ConFases(f domain.Fases) *DocumentoService {
+	s.fases = f
+	return s
+}
+
+// ConReloj reemplaza el reloj (para las pruebas).
+func (s *DocumentoService) ConReloj(ahora func() time.Time) *DocumentoService {
+	s.ahora = ahora
+	return s
+}
+
+// verificarPeriodo responde 403 si hoy no se puede modificar la postulación, y con ella sus
+// documentos.
+func (s *DocumentoService) verificarPeriodo(ctx context.Context) error {
+	abierto, err := formularioAbierto(ctx, s.fases, s.ahora())
+	if err != nil {
+		return err
+	}
+	if !abierto {
+		return domain.Forbidden(domain.MsgPeriodoCerrado)
+	}
+	return nil
 }
 
 func limitePorTipo(tipo string) (int64, bool) {
@@ -37,6 +67,9 @@ func limitePorTipo(tipo string) (int64, bool) {
 
 // Subir valida el tipo, el contenido PDF y los límites por archivo y postulante.
 func (s *DocumentoService) Subir(ctx context.Context, postulanteID, tipo, nombre string, contenido []byte) (domain.Documento, error) {
+	if err := s.verificarPeriodo(ctx); err != nil {
+		return domain.Documento{}, err
+	}
 	tipo = strings.TrimSpace(strings.ToLower(tipo))
 	limite, valido := limitePorTipo(tipo)
 	if !valido {
@@ -71,5 +104,8 @@ func (s *DocumentoService) Descargar(ctx context.Context, postulanteID, document
 }
 
 func (s *DocumentoService) Eliminar(ctx context.Context, postulanteID, documentoID string) error {
+	if err := s.verificarPeriodo(ctx); err != nil {
+		return err
+	}
 	return s.documentos.EliminarPropioNoReferenciado(ctx, postulanteID, documentoID)
 }
