@@ -60,6 +60,10 @@ export default function Familiares({ valoresIniciales, onGuardar }: FamiliaresPr
   const [porEliminar, setPorEliminar] = useState<number | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
+  // Hay cambios que todavía no se guardaron: la respuesta Sí/No o filas eliminadas. Agregar o
+  // editar una fila la guarda al momento. Solo entonces se ofrece "Guardar información", y
+  // con "Sí" solo si queda alguna fila: sin filas no hay nada que guardar hasta agregar una.
+  const [pendiente, setPendiente] = useState(false)
   const [error, setError] = useState<ApiError | null>(null)
   const [errorLocal, setErrorLocal] = useState<string | null>(null)
 
@@ -77,46 +81,53 @@ export default function Familiares({ valoresIniciales, onGuardar }: FamiliaresPr
   const cambiarRespuesta = (valor: boolean) => {
     modificar()
     setTiene(valor)
-  }
-
-  const aceptarFila = (f: Familiar) => {
-    modificar()
-    const indice = editando?.indice ?? null
-    if (indice === null) {
-      setFilas((actual) => [...actual, conClave(f, siguienteClave.current++)])
-    } else {
-      setFilas((actual) => actual.map((fila, i) => (i === indice ? conClave(f, fila.clave) : fila)))
-    }
-    setEditando(null)
+    setPendiente(true)
   }
 
   const eliminarFila = () => {
     modificar()
     setFilas((actual) => actual.filter((_, i) => i !== porEliminar))
     setPorEliminar(null)
+    setPendiente(true)
   }
 
-  const guardar = async () => {
+  // Guarda la sección en el servidor. Devuelve false si falla, y entonces la lista en
+  // pantalla no cambia.
+  const guardar = async (lista: Fila[]): Promise<boolean> => {
     modificar()
-    if (filas.length === 0 && tiene) {
+    if (lista.length === 0 && tiene) {
       setErrorLocal('Agregue al menos un familiar')
-      return
+      return false
     }
     setGuardando(true)
     try {
-      await onGuardar({ tiene_familiares: tiene, familiares: tiene ? filas.map(sinClave) : [] })
+      await onGuardar({ tiene_familiares: tiene, familiares: tiene ? lista.map(sinClave) : [] })
       // Con "No" el servidor borra las filas: se descartan también las que quedaron ocultas.
-      if (!tiene) setFilas([])
+      setFilas(tiene ? lista : [])
+      setPendiente(false)
       setGuardado(true)
+      return true
     } catch (e) {
       setError(
         e instanceof ApiError
           ? e
           : new ApiError(0, 'UNKNOWN', 'No se pudo guardar la información.'),
       )
+      return false
     } finally {
       setGuardando(false)
     }
+  }
+
+  // "Guardar" de la ventana: agrega o actualiza la fila y guarda la sección. Si el servidor
+  // la rechaza, la ventana sigue abierta con lo que escribió la persona.
+  const guardarFila = async (f: Familiar) => {
+    const indice = editando?.indice ?? null
+    const lista =
+      indice === null
+        ? [...filas, conClave(f, siguienteClave.current++)]
+        : filas.map((fila, i) => (i === indice ? conClave(f, fila.clave) : fila))
+    if (await guardar(lista)) setEditando(null)
   }
 
   const columnas: ColumnaTabla<Fila>[] = [
@@ -199,18 +210,26 @@ export default function Familiares({ valoresIniciales, onGuardar }: FamiliaresPr
           />
         )}
 
-        <div>
-          <Button onClick={guardar} cargando={guardando} textoCargando="Guardando...">
-            Guardar información
-          </Button>
-        </div>
+        {!editando && pendiente && (!tiene || filas.length > 0) && (
+          <div>
+            <Button
+              onClick={() => guardar(filas)}
+              cargando={guardando}
+              textoCargando="Guardando..."
+            >
+              Guardar información
+            </Button>
+          </div>
+        )}
       </div>
 
       {editando && (
         <ModalFamiliar
           titulo={filaEditada ? 'Editar familiar' : 'Agregar familiar'}
           inicial={filaEditada ? sinClave(filaEditada) : familiarVacio}
-          onAceptar={aceptarFila}
+          guardando={guardando}
+          mensajeError={errorLocal ?? error?.message ?? null}
+          onGuardar={guardarFila}
           onCerrar={() => setEditando(null)}
         />
       )}
@@ -230,19 +249,29 @@ export default function Familiares({ valoresIniciales, onGuardar }: FamiliaresPr
 interface ModalFamiliarProps {
   titulo: string
   inicial: FormFamiliar
-  onAceptar: (familiar: Familiar) => void
+  guardando: boolean
+  // Error del último intento de guardar: la sección queda detrás de la ventana.
+  mensajeError: string | null
+  onGuardar: (familiar: Familiar) => void | Promise<void>
   onCerrar: () => void
 }
 
 // Formulario de una fila. Se monta al abrirlo, así cada apertura parte de sus valores.
 // No usa <form>: la sección puede ir dentro del formulario de la página y los <form>
 // no se anidan; Enter en un campo acepta la fila.
-function ModalFamiliar({ titulo, inicial, onAceptar, onCerrar }: ModalFamiliarProps) {
+function ModalFamiliar({
+  titulo,
+  inicial,
+  guardando,
+  mensajeError,
+  onGuardar,
+  onCerrar,
+}: ModalFamiliarProps) {
   const form = useForm<FormFamiliar, unknown, z.output<typeof esquemaFamiliar>>({
     resolver: zodResolver(esquemaFamiliar),
     defaultValues: inicial,
   })
-  const aceptar = form.handleSubmit(onAceptar)
+  const aceptar = form.handleSubmit(onGuardar)
 
   const alPulsar = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
@@ -258,15 +287,18 @@ function ModalFamiliar({ titulo, inicial, onAceptar, onCerrar }: ModalFamiliarPr
       onCerrar={onCerrar}
       pie={
         <>
-          <Button variante="secondary" onClick={onCerrar}>
+          <Button variante="secondary" disabled={guardando} onClick={onCerrar}>
             Cancelar
           </Button>
-          <Button onClick={() => void aceptar()}>Aceptar</Button>
+          <Button onClick={() => void aceptar()} cargando={guardando} textoCargando="Guardando...">
+            Guardar
+          </Button>
         </>
       }
     >
       <FormProvider {...form}>
         <div onKeyDown={alPulsar} className="flex flex-col gap-space-md">
+          {mensajeError && <Alert tipo="error">{mensajeError}</Alert>}
           <CampoTexto
             name="nombres_apellidos"
             etiqueta="Nombres y apellidos"
