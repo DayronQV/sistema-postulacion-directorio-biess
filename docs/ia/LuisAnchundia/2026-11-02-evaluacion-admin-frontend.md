@@ -19,5 +19,5 @@ vista de resultados con descarga de reportes PDF.)
 
 ## Revisión humana
 - Qué se verificó y cómo (pruebas, ejecución): `tsc`, `eslint`, `vitest` (527 pruebas) y `npm run build`; en el navegador contra la API real (login de administrador, alta de una pregunta, configuración con el error 422 por pedir más preguntas de las que hay) y el contrato de la carga CSV con `curl`.
-- Qué se corrigió: nada todavía.
+- Qué se corrigió: el comentario de Dayron en la issue (backend sin fecha de inicio, horario en la fase Evaluación, aviso si la ventana es más corta que el examen) se leyó después de abrir el PR. El código ya seguía `docs/api.md` en todo menos el último punto, que se agregó: la pantalla de configuración avisa, con la duración que se escribe, si la fase Evaluación dura menos que el examen.
 - Pendiente: revisión del código por la persona autora. La pantalla de resultados depende de `GET /admin/evaluacion/resultados` y del reporte PDF (PR #115 de Dayron, aún sin unir): con el backend actual responde 404; solo se probó con pruebas unitarias y el contrato de `docs/api.md`. La carga masiva con un archivo real no se probó a mano en el navegador.
