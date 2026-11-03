@@ -27,6 +27,20 @@ type fakeEvaluacion struct {
 
 	postulanteID string
 	n            int
+
+	resultado service.ResultadoFinal
+	opcion    *int
+	guardo    bool
+}
+
+func (f *fakeEvaluacion) GuardarRespuesta(_ context.Context, postulanteID string, n int, opcion *int) error {
+	f.postulanteID, f.n, f.opcion, f.guardo = postulanteID, n, opcion, true
+	return f.err
+}
+
+func (f *fakeEvaluacion) Finalizar(_ context.Context, postulanteID string) (service.ResultadoFinal, error) {
+	f.postulanteID = postulanteID
+	return f.resultado, f.err
 }
 
 func (f *fakeEvaluacion) Iniciar(_ context.Context, postulanteID string) (service.SesionEvaluacion, bool, error) {

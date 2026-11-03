@@ -10,7 +10,7 @@ Módulo de registro y postulación del Concurso Público de Méritos y Oposició
 - [Registro de uso de IA](docs/ia/README.md)
 
 ## Prerrequisitos
-- Go 1.26 o superior
+- Go 1.26.1 o superior
 - Node.js 20 o superior
 - Docker y Docker Compose (para PostgreSQL 16 y Redis 7)
 
