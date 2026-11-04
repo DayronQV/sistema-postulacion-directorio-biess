@@ -84,6 +84,15 @@ beforeEach(() => {
 })
 
 describe('Formacion', () => {
+  it('Agregar lleva la pantalla al formulario y pone el cursor en su primer campo', async () => {
+    const desplazar = vi.fn()
+    Element.prototype.scrollIntoView = desplazar
+    render(<Formacion valor={[]} onGuardar={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar formación' }))
+    expect(desplazar).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText(/^Nivel de instrucción/)).toHaveFocus()
+  })
+
   it('agrega una formación con respaldo y la guarda al momento', async () => {
     const guardar = vi.fn()
     render(<Formacion valor={[]} onGuardar={guardar} />)

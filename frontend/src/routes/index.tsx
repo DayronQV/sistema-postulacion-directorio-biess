@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import LayoutPrivado from '@/components/layout/LayoutPrivado'
 import LayoutAcceso from '@/components/layout/LayoutAcceso'
 import LayoutPublico from '@/components/layout/LayoutPublico'
 import Componentes from '@/pages/Componentes'
@@ -11,6 +10,7 @@ import Login from '@/pages/Login'
 import Recuperar from '@/pages/Recuperar'
 import Registro from '@/pages/Registro'
 import Restablecer from '@/pages/Restablecer'
+import LayoutPostulante from '@/features/postulacion/LayoutPostulante'
 import LayoutAdmin from '@/features/admin/LayoutAdmin'
 import LoginAdmin from '@/pages/admin/LoginAdmin'
 import Fases from '@/pages/admin/Fases'
@@ -60,7 +60,7 @@ export default function AppRoutes() {
       <Route element={<RutaProtegida roles={['postulante']} />}>
         {/* Vista imprimible: sin menús, solo el documento */}
         <Route path="/postulacion/imprimir" element={<ImprimirPostulacion />} />
-        <Route element={<LayoutPrivado />}>
+        <Route element={<LayoutPostulante />}>
           <Route path={RUTA_FORMULARIO} element={<FormularioPostulacion />} />
           <Route path={RUTA_EVALUACION} element={<Evaluacion />} />
         </Route>

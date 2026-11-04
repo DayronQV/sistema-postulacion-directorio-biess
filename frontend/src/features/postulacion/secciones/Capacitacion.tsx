@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import DateInput from '@/components/ui/DateInput'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import PanelEditor from '@/components/ui/PanelEditor'
 import TablaFilas from '@/components/ui/TablaFilas'
 import { fechaLocalISO } from '@/features/auth/esquemas'
 import { eliminarDocumento, type DocumentoSubido } from '@/services/documentos'
@@ -211,7 +212,10 @@ export default function Capacitacion({ valor, onGuardar }: CapacitacionProps) {
       />
 
       {indice !== undefined && (
-        <div className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low p-4 md:grid-cols-2">
+        <PanelEditor
+          clave={indice}
+          className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low p-4 md:grid-cols-2"
+        >
           <Campo id="capacitacion-tipo" etiqueta="Tipo de evento" requerido error={errores.tipo}>
             <Select
               id="capacitacion-tipo"
@@ -310,7 +314,7 @@ export default function Capacitacion({ valor, onGuardar }: CapacitacionProps) {
               Guardar
             </Button>
           </div>
-        </div>
+        </PanelEditor>
       )}
 
       {errorGuardar && (

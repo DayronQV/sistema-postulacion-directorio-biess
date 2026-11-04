@@ -70,8 +70,14 @@ export default function LayoutAcceso({ children }: LayoutAccesoProps) {
 
       <footer className="flex flex-col items-center justify-center gap-3 bg-surface-container-lowest px-margin-mobile py-space-md text-legal-code text-on-surface-variant shadow-[0_-1px_8px_rgba(0,0,0,0.04)] sm:px-margin md:flex-row">
         <div className="flex items-center gap-3">
-          <Icon nombre="verified_user" relleno className="text-[22px] text-primary-container" />
-          <span className="h-6 w-px bg-outline-variant" />
+          {/* shrink-0: en el celular el texto largo ocupa todo el ancho y, sin esto, aplasta
+              el escudo hasta cortarlo. */}
+          <Icon
+            nombre="verified_user"
+            relleno
+            className="shrink-0 text-[22px] text-primary-container"
+          />
+          <span className="h-6 w-px shrink-0 bg-outline-variant" />
           <p>
             © {new Date().getFullYear()} Banco del Instituto Ecuatoriano de Seguridad Social
             (BIESS). Sistema del Concurso de Méritos y Oposición.

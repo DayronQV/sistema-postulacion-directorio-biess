@@ -37,6 +37,15 @@ const analista: ExperienciaProfesional = {
 }
 
 describe('Experiencia', () => {
+  it('Agregar lleva la pantalla al formulario y pone el cursor en su primer campo', async () => {
+    const desplazar = vi.fn()
+    Element.prototype.scrollIntoView = desplazar
+    render(<Experiencia valor={[]} onGuardar={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar experiencia' }))
+    expect(desplazar).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText(/^Tipo/)).toHaveFocus()
+  })
+
   it('agrega una experiencia, calcula su tiempo y la guarda', async () => {
     const onGuardar = vi.fn()
     render(<Experiencia valor={[]} onGuardar={onGuardar} />)

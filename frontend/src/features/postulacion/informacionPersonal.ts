@@ -39,3 +39,12 @@ export function motivoDeBloqueo(
   if (p.estado === 'cerrada') return 'Su postulación está cerrada y ya no se puede modificar.'
   return null
 }
+
+// Nombre corto para la barra superior: primer nombre y primer apellido
+// ("Dayron Adrian" + "Quiñonez Valencia" → "Dayron Quiñonez").
+export function nombreCorto(nombres: string, apellidos: string): string {
+  return [nombres, apellidos]
+    .map((parte) => parte.trim().split(/\s+/)[0] ?? '')
+    .filter(Boolean)
+    .join(' ')
+}

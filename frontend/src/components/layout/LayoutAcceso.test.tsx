@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import LayoutAcceso from './LayoutAcceso'
@@ -33,5 +33,15 @@ describe('LayoutAcceso: enlace al acceso del personal', () => {
     expect(
       screen.queryByRole('link', { name: /Acceso del personal del BIESS/ }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('LayoutAcceso: pie de página', () => {
+  it('el escudo y la línea no se encogen: en el celular el texto largo los cortaba', () => {
+    montar('/login')
+    const pie = screen.getByRole('contentinfo')
+    const escudo = within(pie).getByText('verified_user')
+    expect(escudo).toHaveClass('shrink-0')
+    expect(escudo.nextElementSibling).toHaveClass('shrink-0')
   })
 })

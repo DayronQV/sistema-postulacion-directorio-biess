@@ -56,6 +56,13 @@ export async function cargarPostulacion(): Promise<void> {
   }
 }
 
+// Carga la postulación solo si no está cargada ni cargándose. La usa el marco del postulante
+// para mostrar su nombre en pantallas que no la piden, sin repetir la carga del formulario.
+export function cargarPostulacionSiFalta(): Promise<void> {
+  if (estado.postulacion || estado.cargando) return Promise.resolve()
+  return cargarPostulacion()
+}
+
 // Vuelve a leer la postulación sin mostrar el cargador ni tocar los cambios sin guardar. Las
 // secciones que se conectan solas a la API guardan por su cuenta: al salir de ellas se
 // refrescan el avance y las marcas de sección completa.
