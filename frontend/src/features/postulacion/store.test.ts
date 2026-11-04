@@ -3,6 +3,7 @@ import { ApiError } from '@/services/errores'
 import * as servicio from '@/services/postulacion'
 import {
   cargarPostulacion,
+  cargarPostulacionSiFalta,
   enviarFormulario,
   guardarSeccion,
   marcarCambios,
@@ -40,6 +41,21 @@ describe('store de la postulación', () => {
     await cargarPostulacion()
     expect(estado().postulacion?.codigo).toBe('A')
     expect(estado().cargando).toBe(false)
+  })
+
+  it('cargarPostulacionSiFalta carga solo si no hay postulación ni una carga en curso', async () => {
+    let resolver: (p: servicio.Postulacion) => void = () => {}
+    obtener.mockReturnValue(new Promise((r) => (resolver = r)))
+
+    const primera = cargarPostulacionSiFalta()
+    await cargarPostulacionSiFalta() // ya hay una carga en curso
+    expect(obtener).toHaveBeenCalledTimes(1)
+
+    resolver(post())
+    await primera
+    await cargarPostulacionSiFalta() // ya está cargada
+    expect(obtener).toHaveBeenCalledTimes(1)
+    expect(estado().postulacion?.codigo).toBe('A')
   })
 
   it('guarda una sección enviando el estado completo y conserva lo ya cargado', async () => {

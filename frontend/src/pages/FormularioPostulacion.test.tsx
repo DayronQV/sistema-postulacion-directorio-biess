@@ -41,7 +41,7 @@ describe('FormularioPostulacion', () => {
     expect(screen.getByText('Cargando su postulación...')).toBeInTheDocument()
 
     expect(await screen.findByText('POST-2026-0001')).toBeInTheDocument()
-    expect(screen.getByText('Borrador')).toBeInTheDocument()
+    expect(screen.getByText('En proceso')).toBeInTheDocument()
     expect(screen.getByText(/Secciones completadas:/)).toHaveTextContent('2 de 11')
     expect(screen.getByRole('progressbar', { name: 'Avance del formulario' })).toHaveAttribute(
       'aria-valuenow',
