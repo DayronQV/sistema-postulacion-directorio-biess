@@ -180,49 +180,32 @@ func TestEnviar_SiSinFilasEnFamiliaresOPublicacionesEstaIncompleta(t *testing.T)
 	}
 }
 
-func TestEnviar_ElCorreoLlevaElFormularioCompleto(t *testing.T) {
-	formulario := formularioCompleto()
-	provincia := 17
-	formulario.Domicilio.ProvinciaID = &provincia
-	formulario.Formacion = []domain.FormacionAcademica{{Titulo: "Economista", Nivel: "tercer_nivel", Tipo: "nacional", Area: "economia"}}
-	formulario.Capacitaciones = []domain.Capacitacion{{Nombre: "Riesgos", Tipo: "curso", Horas: 40}}
-	f, mailer := fixtureEnvio(t, formulario)
-	f.svc.ConCatalogos(&fakeCatalogos{
-		paises:     []domain.ItemCatalogo{{ID: 60, Nombre: "Ecuador"}},
-		provincias: map[int][]domain.ItemCatalogo{60: {{ID: 17, Nombre: "Pichincha"}}},
-		cantones:   map[int][]domain.ItemCatalogo{17: {{ID: 1701, Nombre: "Quito"}}},
-	})
+func TestEnviar_ElCorreoAgradeceYExplicaElProximoPaso(t *testing.T) {
+	f, mailer := fixtureEnvio(t, formularioCompleto())
 
-	if _, err := f.svc.Enviar(context.Background(), postulanteID); err != nil {
+	p, err := f.svc.Enviar(context.Background(), postulanteID)
+	if err != nil {
 		t.Fatalf("error inesperado: %v", err)
 	}
-	texto := mailer.enviados[0].Texto
+	msg := mailer.enviados[0]
+	if !strings.HasPrefix(msg.Texto, "Hola Carlos Andrés,") {
+		t.Errorf("el correo debe saludar por los nombres del postulante: %q", msg.Texto)
+	}
 	for _, esperado := range []string{
-		"1. INFORMACIÓN PERSONAL", "2. INFORMACIÓN DOMICILIARIA", "3. INFORMACIÓN ADICIONAL",
-		"4. SELECCIÓN DEL CARGO", "5. FORMACIÓN ACADÉMICA", "6. EXPERIENCIA PROFESIONAL",
-		"7. PUBLICACIONES", "8. CAPACITACIÓN", "9. REFERENCIAS PERSONALES", "10. INHABILIDADES",
-		"País: Ecuador", "Provincia / Estado: Pichincha", "Ciudad: Quito",
-		"Sector de Afiliados ante el Directorio del BIESS",
-		"Economista (Tercer Nivel de Grado)", "Área: Economía", "Riesgos (Curso)", "40 horas",
-		"Pregunta 1: Sí", "Pregunta 13: No", "Tiempo total de experiencia",
+		"Muchas gracias por postular", "Su código único es: " + p.Codigo,
+		"imprima el formulario de postulación", "fírmelo y entréguelo", "Le deseamos muchos éxitos",
 	} {
-		if !strings.Contains(texto, esperado) {
+		if !strings.Contains(msg.Texto, esperado) {
 			t.Errorf("el correo no incluye %q", esperado)
 		}
 	}
-	if strings.Contains(texto, "tercer_nivel") || strings.Contains(texto, "Cargo: afiliados") {
-		t.Error("el correo no debe mostrar valores internos de la API")
+	if !strings.Contains(msg.Asunto, "Gracias por postular") || !strings.Contains(msg.Asunto, p.Codigo) {
+		t.Errorf("asunto = %q", msg.Asunto)
 	}
-}
-
-func TestEnviar_SiElCatalogoFallaElCorreoSaleIgual(t *testing.T) {
-	f, mailer := fixtureEnvio(t, formularioCompleto())
-	f.svc.ConCatalogos(&fakeCatalogos{err: errors.New("redis caído")})
-
-	if _, err := f.svc.Enviar(context.Background(), postulanteID); err != nil {
-		t.Fatalf("un catálogo caído no debe impedir el envío: %v", err)
-	}
-	if len(mailer.enviados) != 1 {
-		t.Fatalf("correos = %d", len(mailer.enviados))
+	// Es un mensaje corto: el formulario completo se imprime desde el sistema.
+	for _, detalle := range []string{"INHABILIDADES", "FORMACIÓN ACADÉMICA", "Cédula", "Mendoza"} {
+		if strings.Contains(msg.Texto, detalle) {
+			t.Errorf("el correo no debe traer el detalle de la postulación (%q)", detalle)
+		}
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/DayronQV/sistema-postulacion-directorio-biess/backend/internal/domain"
 )
@@ -88,8 +87,7 @@ func (s *PostulacionService) Enviar(ctx context.Context, postulanteID string) (d
 	if faltan := seccionesIncompletas(actual); len(faltan) > 0 {
 		return domain.Postulacion{}, domain.Unprocessable(MsgPostulacionIncompleta, faltan)
 	}
-	// El correo se arma antes de bloquear la fila: consulta los catálogos geográficos.
-	correo := correoDeEnvio(actual, s.ubicacion(ctx, actual.Formulario.Domicilio))
+	correo := correoDeEnvio(actual)
 
 	err = s.tx.Ejecutar(ctx, func(ctx context.Context, tx domain.Tx) error {
 		// La fila queda bloqueada: dos envíos simultáneos no pasan los dos.
@@ -114,199 +112,29 @@ func (s *PostulacionService) Enviar(ctx context.Context, postulanteID string) (d
 	return s.Obtener(ctx, postulanteID)
 }
 
-// ubicacionCorreo son los nombres de país, provincia y ciudad del domicilio.
-type ubicacionCorreo struct {
-	pais, provincia, ciudad string
-}
-
-// ubicacion traduce los ids de catálogo del domicilio a nombres (fuera de Ecuador,
-// provincia y ciudad son texto libre). Es de mejor esfuerzo: si el catálogo no responde,
-// el correo sale igual con lo que haya, porque no debe impedir el envío.
-func (s *PostulacionService) ubicacion(ctx context.Context, d domain.Domicilio) ubicacionCorreo {
-	u := ubicacionCorreo{provincia: d.ProvinciaTexto, ciudad: d.CiudadTexto}
-	if s.catalogos == nil || d.PaisID == nil {
-		return u
-	}
-	nombre := func(items []domain.ItemCatalogo, err error, id *int) string {
-		if err != nil || id == nil {
-			return ""
-		}
-		for _, i := range items {
-			if i.ID == *id {
-				return i.Nombre
-			}
-		}
-		return ""
-	}
-	paises, err := s.catalogos.Paises(ctx)
-	u.pais = nombre(paises, err, d.PaisID)
-	if d.ProvinciaID != nil {
-		provincias, err := s.catalogos.Provincias(ctx, *d.PaisID)
-		u.provincia = nombre(provincias, err, d.ProvinciaID)
-		if d.CantonID != nil {
-			cantones, err := s.catalogos.Cantones(ctx, *d.ProvinciaID)
-			u.ciudad = nombre(cantones, err, d.CantonID)
-		}
-	}
-	return u
-}
-
-// Nombres de los cargos y etiquetas de los valores guardados, como los muestra el formulario.
-var (
-	nombresCargo = map[string]string{
-		domain.CargoAfiliados: "Miembro Principal y Alterno en Representación del Sector de Afiliados ante el Directorio del BIESS",
-		domain.CargoJubilados: "Miembro Principal y Alterno en Representación del Sector de los Jubilados ante el Directorio del BIESS",
-		domain.CargoEmpleador: "Miembro Principal y Alterno en Representación del Sector Empleador ante el Directorio del BIESS",
-	}
-	etiquetas = map[string]string{
-		"tercer_nivel": "Tercer Nivel de Grado", "especialidad": "Cuarto Nivel - Especialidad Académica",
-		"maestria": "Cuarto Nivel - Maestría Académica", "phd": "Cuarto Nivel PhD - Doctorado",
-		"nacional": "Nacional", "extranjera": "Extranjera",
-		"finanzas": "Finanzas", "mercado_capitales": "Mercado de Capitales",
-		"administracion_empresas": "Administración de Empresas", "economia": "Economía",
-		"derecho": "Derecho", "afines": "Materias afines",
-		"general": "General", "direccion": "Dirección",
-		"publicacion": "Publicación", "investigacion": "Trabajo de investigación",
-		"curso": "Curso", "seminario": "Seminario", "taller": "Taller",
-	}
-)
-
-func etiqueta(v string) string {
-	if e, ok := etiquetas[v]; ok {
-		return e
-	}
-	return valor(v)
-}
-
-func valor(v string) string {
-	if strings.TrimSpace(v) == "" {
-		return "—"
-	}
-	return v
-}
-
-func siNo(v bool) string {
-	if v {
-		return "Sí"
-	}
-	return "No"
-}
-
-// fecha convierte AAAA-MM-DD en DD/MM/AAAA; otro formato se deja tal cual.
-func fecha(iso string) string {
-	if t, err := time.Parse(time.DateOnly, iso); err == nil {
-		return t.Format("02/01/2006")
-	}
-	return valor(iso)
-}
-
-func duracion(d domain.Duracion) string {
-	return fmt.Sprintf("%d años, %d meses, %d días", d.Anios, d.Meses, d.Dias)
-}
-
-// correoDeEnvio arma el correo con el formulario completo de la postulación, sección por
-// sección (requerimiento 1.10.3: se envía con todos los campos llenos por el postulante).
-func correoDeEnvio(p domain.Postulacion, u ubicacionCorreo) domain.Mensaje {
-	f := p.Formulario
-	per := p.Personal
+// correoDeEnvio arma el correo de confirmación: agradece la postulación, recuerda el código
+// único y explica el próximo paso (imprimir el formulario que genera el sistema, firmarlo y
+// entregarlo).
+func correoDeEnvio(p domain.Postulacion) domain.Mensaje {
 	var b strings.Builder
 	linea := func(formato string, args ...any) { fmt.Fprintf(&b, formato+"\n", args...) }
-	titulo := func(t string) { linea(""); linea("%s", t) }
 
-	linea("Hola %s %s,", per.Nombres, per.Apellidos)
+	linea("Hola %s,", p.Personal.Nombres)
 	linea("")
-	linea("Recibimos su postulación al Concurso de Méritos y Oposición del Directorio del BIESS.")
-	linea("Código único: %s", p.Codigo)
-
-	titulo("1. INFORMACIÓN PERSONAL")
-	linea("- Nombres y apellidos: %s %s", per.Nombres, per.Apellidos)
-	linea("- Cédula: %s", per.Cedula)
-	linea("- Género: %s", valor(per.Genero))
-	linea("- Fecha de nacimiento: %s", per.FechaNacimiento.Format("02/01/2006"))
-	linea("- Nacionalidad: %s", valor(per.Nacionalidad))
-	linea("- Estado civil: %s", valor(string(per.EstadoCivil)))
-	if per.Pareja != nil {
-		linea("- Pareja: %s, cédula %s", per.Pareja.NombresApellidos, per.Pareja.Cedula)
-	}
-
-	d := f.Domicilio
-	titulo("2. INFORMACIÓN DOMICILIARIA Y DE CONTACTO")
-	linea("- País: %s", valor(u.pais))
-	linea("- Provincia / Estado: %s", valor(u.provincia))
-	linea("- Ciudad: %s", valor(u.ciudad))
-	linea("- Teléfono celular: %s", valor(d.TelefonoCelular))
-	linea("- Correo electrónico 1: %s", valor(per.Email))
-	linea("- Correo electrónico 2: %s", valor(d.EmailSecundario))
-	linea("- Dirección: %s %s y %s, sector %s", valor(d.CallePrincipal), valor(d.Numero),
-		valor(d.CalleSecundaria), valor(d.Sector))
-	linea("- Referencia: %s", valor(d.Referencia))
-	linea("- Teléfono de domicilio: %s", valor(d.TelefonoDomicilio))
-
-	titulo("3. INFORMACIÓN ADICIONAL")
-	linea("- ¿Tiene familiares trabajando en el IESS o BIESS?: %s", siNo(f.TieneFamiliares))
-	for i, fam := range f.Familiares {
-		linea("  %d. %s (%s), %s, %s / %s", i+1, fam.NombresApellidos, fam.Parentesco,
-			fam.Institucion, valor(fam.Area), valor(fam.Cargo))
-	}
-
-	titulo("4. SELECCIÓN DEL CARGO")
-	linea("- %s", valor(nombresCargo[f.Cargo]))
-	if f.RespaldoOrganizacion.Nombre != "" {
-		linea("- Organización que respalda: %s", f.RespaldoOrganizacion.Nombre)
-	}
-
-	titulo("5. FORMACIÓN ACADÉMICA")
-	for i, fo := range f.Formacion {
-		linea("  %d. %s (%s), %s, %s. Área: %s. SENESCYT %s del %s", i+1, fo.Titulo,
-			etiqueta(fo.Nivel), fo.Institucion, etiqueta(fo.Tipo), etiqueta(fo.Area),
-			valor(fo.SenescytNumero), fecha(fo.SenescytFecha))
-	}
-
-	titulo("6. EXPERIENCIA PROFESIONAL")
-	for i, e := range f.Experiencia {
-		linea("  %d. %s en %s (%s), del %s al %s: %s. Actividades: %s. %s", i+1, e.Cargo,
-			e.Institucion, etiqueta(e.Tipo), fecha(e.FechaInicio), fecha(e.FechaFin),
-			duracion(e.Duracion), etiqueta(e.Actividades), e.Descripcion)
-	}
-	linea("- Tiempo total de experiencia: %s", duracion(f.DuracionExperiencia))
-
-	titulo("7. PUBLICACIONES")
-	linea("- ¿Cuenta con publicaciones e investigaciones académicas?: %s", siNo(f.TienePublicaciones))
-	for i, pub := range f.Publicaciones {
-		linea("  %d. %s (%s), %s, %s. Relacionada con su ejercicio o formación: %s", i+1,
-			pub.Titulo, etiqueta(pub.Tipo), valor(pub.Medio), fecha(pub.Fecha), siNo(pub.Relacionada))
-	}
-
-	titulo("8. CAPACITACIÓN")
-	for i, c := range f.Capacitaciones {
-		linea("  %d. %s (%s), %s, del %s al %s, %d horas", i+1, c.Nombre, etiqueta(c.Tipo),
-			c.Institucion, fecha(c.FechaInicio), fecha(c.FechaFin), c.Horas)
-	}
-
-	titulo("9. REFERENCIAS PERSONALES")
-	for i, r := range f.Referencias {
-		linea("  %d. %s (%s), teléfono %s, correo %s", i+1, r.NombresApellidos, valor(r.Relacion),
-			valor(r.Telefono), valor(r.Correo))
-	}
-
-	titulo("10. INHABILIDADES")
-	for n := 1; n <= domain.TotalPreguntasInhabilidades; n++ {
-		linea("  Pregunta %d: %s", n, siNo(f.Inhabilidades.Respuestas[n]))
-	}
-	if f.Inhabilidades.Respuestas[domain.PreguntaRemovido] {
-		r := f.Inhabilidades.Removido
-		linea("  Detalle de la pregunta %d: %s, %s, %s. Motivo: %s", domain.PreguntaRemovido,
-			r.Institucion, valor(r.Cargo), fecha(r.FechaFin), r.Motivo)
-	}
-
-	titulo("CONSENTIMIENTO")
-	linea("- Aceptó el consentimiento y la declaración de los 5 numerales.")
+	linea("¡Muchas gracias por postular al Concurso de Méritos y Oposición para la selección de los Miembros del Directorio del BIESS! Nos alegra contar con su participación.")
 	linea("")
-	linea("Imprima el formulario desde el sistema, fírmelo y entréguelo con los requisitos en el lugar, fecha y horario establecidos por el IESS.")
+	linea("Recibimos su postulación correctamente. Su código único es: %s", p.Codigo)
+	linea("")
+	linea("Próximo paso: ingrese al sistema, imprima el formulario de postulación que se generó con sus datos, fírmelo y entréguelo junto con los requisitos en el lugar, fecha y horario que establezca el BIESS.")
+	linea("")
+	linea("Le deseamos muchos éxitos en el proceso.")
+	linea("")
+	linea("Atentamente,")
+	linea("Concurso Directorio BIESS")
 
 	return domain.Mensaje{
-		Para:   per.Email,
-		Asunto: "Postulación recibida " + p.Codigo,
+		Para:   p.Personal.Email,
+		Asunto: "¡Gracias por postular! Postulación " + p.Codigo + " recibida",
 		Texto:  b.String(),
 	}
 }
