@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { FormProvider, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CampoTexto } from '@/components/form/campos'
 import Alert from '@/components/ui/Alert'
 import Button from '@/components/ui/Button'
 import { aplicarErroresDeCampo } from '@/features/auth/errores'
 import { esquemaRestablecer, type FormRestablecer } from '@/features/auth/esquemas'
+import CampoClave from '@/features/auth/CampoClave'
 import IndicadorFortaleza from '@/features/auth/IndicadorFortaleza'
 import { useApi } from '@/hooks/useApi'
 import { restablecerPassword, type DatosRestablecer } from '@/services/auth'
@@ -92,21 +92,19 @@ function FormularioNuevaPassword({ token, onListo }: FormularioNuevaPasswordProp
 
         <fieldset disabled={cargando} className="flex flex-col gap-space-md">
           <div className="flex flex-col gap-space-sm">
-            <CampoTexto
+            <CampoClave
               name="password"
               etiqueta="Nueva contraseña"
               requerido
-              type="password"
               autoComplete="new-password"
               ayuda="Al menos 8 caracteres, con letras y números."
             />
             <IndicadorFortaleza password={password} />
           </div>
-          <CampoTexto
+          <CampoClave
             name="confirmacion"
             etiqueta="Confirmar contraseña"
             requerido
-            type="password"
             autoComplete="new-password"
           />
         </fieldset>

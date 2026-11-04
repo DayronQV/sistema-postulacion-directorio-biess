@@ -184,6 +184,9 @@ describe('Registro en dos pasos', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/), 'ana@correo.com')
     await user.type(screen.getByLabelText(/^Contraseña/), 'corta1')
     expect(screen.getByText(/Seguridad: Débil/)).toBeInTheDocument()
+    // Las dos contraseñas se pueden mostrar con su ojo.
+    expect(screen.getByRole('button', { name: 'Mostrar contraseña' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mostrar confirmar contraseña' })).toBeInTheDocument()
     await user.type(screen.getByLabelText(/Confirmar contraseña/), 'otra')
     await user.click(boton(/Crear cuenta/))
 
