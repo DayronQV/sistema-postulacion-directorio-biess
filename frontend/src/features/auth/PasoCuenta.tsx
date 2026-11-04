@@ -9,6 +9,7 @@ import { registrarCuenta, type DatosCuenta } from '@/services/auth'
 import { ApiError } from '@/services/errores'
 import { aplicarErroresDeCampo } from './errores'
 import { esquemaCuenta, type FormCuenta } from './esquemas'
+import CampoClave from './CampoClave'
 import IndicadorFortaleza from './IndicadorFortaleza'
 
 interface PasoCuentaProps {
@@ -75,21 +76,19 @@ export default function PasoCuenta({
             placeholder="nombre@correo.com"
           />
           <div className="flex flex-col gap-space-sm">
-            <CampoTexto
+            <CampoClave
               name="password"
               etiqueta="Contraseña"
               requerido
-              type="password"
               autoComplete="new-password"
               ayuda="Al menos 8 caracteres, con letras y números."
             />
             <IndicadorFortaleza password={password} />
           </div>
-          <CampoTexto
+          <CampoClave
             name="confirmacion"
             etiqueta="Confirmar contraseña"
             requerido
-            type="password"
             autoComplete="new-password"
           />
         </fieldset>

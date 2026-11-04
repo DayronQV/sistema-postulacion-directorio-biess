@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import DateInput from '@/components/ui/DateInput'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import PanelEditor from '@/components/ui/PanelEditor'
 import TablaFilas from '@/components/ui/TablaFilas'
 import Textarea from '@/components/ui/Textarea'
 import { fechaLocalISO } from '@/features/auth/esquemas'
@@ -232,7 +233,10 @@ export default function Experiencia({ valor, onGuardar }: ExperienciaProps) {
       </p>
 
       {indice !== undefined && (
-        <div className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low p-4 md:grid-cols-2">
+        <PanelEditor
+          clave={indice}
+          className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low p-4 md:grid-cols-2"
+        >
           <Campo id="experiencia-tipo" etiqueta="Tipo" requerido error={errores.tipo}>
             <Select
               id="experiencia-tipo"
@@ -356,7 +360,7 @@ export default function Experiencia({ valor, onGuardar }: ExperienciaProps) {
               Guardar
             </Button>
           </div>
-        </div>
+        </PanelEditor>
       )}
 
       {errorGuardar && (
