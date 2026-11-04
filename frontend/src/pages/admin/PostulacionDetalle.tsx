@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Icon from '@/components/ui/Icon'
 import Loader from '@/components/ui/Loader'
+import AccionMerito from '@/features/admin/AccionMerito'
 import DocumentoPostulacion from '@/features/postulacion/imprimible/DocumentoPostulacion'
 import { useUbicacion } from '@/features/postulacion/imprimible/useUbicacion'
 import { descargarDocumentoAdmin, obtenerPostulacionAdmin } from '@/services/adminPostulaciones'
@@ -128,6 +129,19 @@ export default function PostulacionDetalle() {
       {cargando && <Loader texto="Cargando expediente..." />}
       {postulacion && !cargando && (
         <>
+          <div className="mx-auto mb-space-md max-w-[210mm] print:hidden">
+            <Card
+              titulo="Fase de Méritos"
+              descripcion="Después de revisar la postulación, marque si el postulante superó la Fase de Méritos: así queda habilitado para la evaluación."
+            >
+              <AccionMerito
+                postulacionId={postulacion.id}
+                codigo={postulacion.codigo}
+                superoMerito={Boolean(postulacion.supero_merito)}
+                enviada={postulacion.estado === 'enviada'}
+              />
+            </Card>
+          </div>
           <div className="mx-auto mb-space-md max-w-[210mm] print:hidden">
             <Card titulo="Certificados" descripcion="Documentos PDF adjuntos a la postulación">
               {certificados.length === 0 ? (

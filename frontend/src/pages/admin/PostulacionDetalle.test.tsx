@@ -1,21 +1,32 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { vi, type Mock } from 'vitest'
-import { descargarDocumentoAdmin, obtenerPostulacionAdmin } from '@/services/adminPostulaciones'
+import {
+  descargarDocumentoAdmin,
+  marcarMerito,
+  obtenerPostulacionAdmin,
+} from '@/services/adminPostulaciones'
+import { cerrarSesion, iniciarSesion } from '@/store/sesion'
 import PostulacionDetalle from './PostulacionDetalle'
 
 vi.mock('@/services/adminPostulaciones', () => ({
   obtenerPostulacionAdmin: vi.fn(),
   descargarDocumentoAdmin: vi.fn(),
+  marcarMerito: vi.fn(),
 }))
 vi.mock('@/features/postulacion/imprimible/useUbicacion', () => ({
   useUbicacion: () => ({ pais: 'Ecuador', provincia: 'Guayas', ciudad: 'Guayaquil' }),
 }))
 const mockObtener = obtenerPostulacionAdmin as Mock
+const mockMarcar = marcarMerito as Mock
+const jwt = (rol: string) => `x.${btoa(JSON.stringify({ rol }))}.y`
 
 beforeEach(() => {
   mockObtener.mockReset()
+  mockMarcar.mockReset()
 })
+afterEach(() => cerrarSesion())
 
 const postulacion = {
   id: 'p1',
@@ -136,4 +147,42 @@ it('descarga el certificado con su nombre y libera la URL después de iniciar la
   } finally {
     vi.useRealTimers()
   }
+})
+
+function montarDetalle() {
+  render(
+    <MemoryRouter initialEntries={['/admin/postulaciones/p1']}>
+      <Routes>
+        <Route path="/admin/postulaciones/:id" element={<PostulacionDetalle />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+it('el administrador marca desde el detalle que superó la Fase de Méritos', async () => {
+  iniciarSesion(jwt('administrador'), 3600)
+  mockObtener.mockResolvedValue({ ...postulacion, supero_merito: false })
+  mockMarcar.mockResolvedValue({
+    id: 'p1',
+    supero_merito: true,
+    estado_visible: 'Evaluación Técnica',
+  })
+  montarDetalle()
+  const user = userEvent.setup()
+
+  expect(await screen.findByText('Fase de Méritos pendiente')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /Marcar que superó/ }))
+  await user.click(screen.getByRole('button', { name: 'Marcar' }))
+
+  expect(mockMarcar).toHaveBeenCalledWith(expect.any(AbortSignal), 'p1', true)
+  expect(await screen.findByText('Superó la Fase de Méritos')).toBeInTheDocument()
+})
+
+it('el analista ve el estado de méritos pero no puede cambiarlo', async () => {
+  iniciarSesion(jwt('analista'), 3600)
+  mockObtener.mockResolvedValue({ ...postulacion, supero_merito: true })
+  montarDetalle()
+
+  expect(await screen.findByText('Superó la Fase de Méritos')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Quitar la marca|Marcar que superó/ })).toBeNull()
 })
