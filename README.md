@@ -1,16 +1,39 @@
 # Sistema de Registro y Postulación al Directorio del BIESS
 
-Módulo de registro y postulación del Concurso Público de Méritos y Oposición del Directorio del BIESS. Examen práctico de Frameworks de Programación Web (trabajo en grupo).
+Módulo web del Concurso Público de Méritos y Oposición para la selección de los Miembros Principales y Alternos del Directorio del BIESS, en representación de los Afiliados, Jubilados y Empleadores. Examen práctico de Frameworks de Programación Web (trabajo en grupo).
 
-## Qué incluye
-Frontend en React, TypeScript, Vite y Tailwind CSS; backend en Go con Gin; PostgreSQL 16 y Redis 7.
+**Sistema en línea:** https://codework-studio.com
 
-- **Registro y acceso del postulante (EF-11):** validación de identidad con el Registro Civil simulado (fecha de expedición o código dactilar), bloqueo de 10 minutos tras 3 intentos fallidos con Redis y recuperación de contraseña.
-- **Formulario de postulación (EF-12):** información personal, domicilio con la cascada país, provincia y cantón, familiares, cargo (con la validación de Historial Laboral simulada), formación, experiencia con su cálculo de tiempo, publicaciones, capacitación, referencias, inhabilidades, consentimiento y envío. Solo se admite nacionalidad ecuatoriana. Guardar la postulación es una transacción.
-- **Panel de administración (EF-13):** fases del concurso, dashboard, nómina con el detalle de cada postulación y sus certificados, y la matriz comparativa en Excel y PDF.
-- **Evaluación teórica (EF-14):** banco de preguntas, examen con sorteo y reloj, calificación automática y reporte en PDF por correo.
+## Integrantes
+| Integrante |
+| --- |
+| Dayron Adrian Quiñonez Valencia |
+| Jose Eduardo Ponce Carlos |
+| Luis Alfredo Anchundia Cruz |
+| Estalin Gabriel Jaen Garcia |
+| Oscar Jordan Gonzabay Muñoz |
 
-Las integraciones externas (Registro Civil, Historial Laboral y correo) están simuladas detrás de una interfaz con un adaptador `mock`.
+## El problema
+El **BIESS** (Banco del Instituto Ecuatoriano de Seguridad Social) es dirigido por un Directorio en el que participan representantes de los **afiliados**, los **jubilados** y los **empleadores**. La **Resolución No. C.D. 701** del Consejo Directivo del IESS ordena que esos representantes se elijan mediante un **concurso público de méritos y oposición**, abierto a todo el país.
+
+Ejecutar ese concurso a mano es inviable: recibir y verificar a cientos de postulantes, comprobar su identidad y su calidad ante el IESS, revisar requisitos e inhabilidades, calificar méritos y una evaluación teórica, y notificar cada etapa con hojas de cálculo y correos sueltos genera errores, demoras y poca trazabilidad. El requerimiento del BIESS pide un **módulo web** que lo haga de forma ordenada y auditable.
+
+## Cómo lo solucionamos
+Construimos una aplicación web que cubre el recorrido completo del concurso:
+
+1. **Registro con identidad verificada (EF-11).** El postulante se registra con su cédula y la fecha de expedición o el código dactilar, que se comprueban contra el Registro Civil. Solo se aceptan ecuatorianos. Tras **3 intentos fallidos la cuenta se bloquea 10 minutos** (Redis), y la contraseña se recupera por correo.
+2. **Formulario de postulación (EF-12).** El postulante llena sus datos en 11 secciones: domicilio con la cascada país, provincia y cantón; familiares; cargo, validado contra el Historial Laboral del IESS (si no cumple la calidad del sector, la postulación se cierra); formación; experiencia con el cálculo de su tiempo; publicaciones; capacitación; referencias; inhabilidades y consentimiento. **Guardar la postulación es una transacción** en PostgreSQL: todo o nada. Al enviarla recibe un correo de confirmación e imprime su formulario para firmarlo y entregarlo.
+3. **Panel de administración (EF-13).** El personal del BIESS abre las **fases** del concurso con sus fechas, ve un **dashboard**, revisa la **nómina** con el detalle y los certificados de cada postulación, marca quién **superó la Fase de Méritos** y descarga la **matriz comparativa** en Excel y PDF. El analista solo consulta; el administrador decide.
+4. **Evaluación teórica (EF-14).** El administrador carga el banco de preguntas y configura el examen. Cada postulante habilitado recibe preguntas sorteadas con un reloj; el sistema **califica solo**, guarda la nota y le envía el **reporte en PDF** por correo.
+
+El Registro Civil y el Historial Laboral del IESS no tienen acceso público, así que se **simulan** detrás de una interfaz con un adaptador `mock`; cambiar a los servicios reales solo cambiaría el adaptador. El correo es real (Mailjet).
+
+## Tecnologías
+- **Frontend:** React, TypeScript, Vite y Tailwind CSS (SPA), con Vitest para las pruebas.
+- **Backend:** Go con Gin, en capas (handler → service → repository) con inyección de dependencias.
+- **Datos:** PostgreSQL 16 (transacciones) y Redis 7.
+- **Correo:** Mailjet en producción; en local los correos se escriben en el log.
+- **Producción:** Docker Compose con Caddy (HTTPS automático) en un servidor de DigitalOcean.
 
 ## Arquitectura
 ```mermaid
@@ -41,31 +64,53 @@ Más detalle en [docs/arquitectura.md](docs/arquitectura.md).
 - [Registro de uso de IA](docs/ia/README.md)
 
 ## Prerrequisitos
-- Go 1.26.1 o superior
-- Node.js 24 (la versión que usan el CI y el Dockerfile del frontend) y npm
-- Docker y Docker Compose (para PostgreSQL 16 y Redis 7)
+| Herramienta | Versión | Para qué |
+| --- | --- | --- |
+| Git | cualquiera reciente | Clonar el repositorio |
+| Go | **1.26.1** o superior (`backend/go.mod`) | Backend |
+| Node.js y npm | **Node 24** (la que usan el CI y el Dockerfile del frontend), con su npm | Frontend |
+| PostgreSQL | **16** | Base de datos |
+| Redis | **7** | Bloqueo por intentos fallidos y caché de catálogos |
+| Docker y Docker Compose | Docker Desktop o Docker Engine con Compose v2 | Levantar PostgreSQL 16 y Redis 7 sin instalarlos |
 
-Si no usas Docker, necesitas PostgreSQL 16 y Redis 7 instalados; ver "Script SQL" más abajo.
+Con Docker no hace falta instalar PostgreSQL ni Redis: `docker-compose.yml` los levanta. Sin Docker, instálalos en esas versiones y carga el script con `psql` (ver "Script SQL").
 
 ## Ejecución local
-1. Copiar las variables de entorno y ajustarlas:
+1. Clonar el repositorio y entrar a su carpeta (es privado: pide acceso a Dayron Quiñonez, `DayronQV` en GitHub):
+   ```bash
+   git clone https://github.com/DayronQV/sistema-postulacion-directorio-biess.git
+   ```
+   ```bash
+   cd sistema-postulacion-directorio-biess
+   ```
+2. Crear el `.env` a partir del ejemplo:
    ```bash
    cp .env.example .env
    ```
-2. Levantar la base de datos y Redis. La primera vez, con el volumen vacío, PostgreSQL ejecuta solo el script `db/schema.sql` (tablas y división política) y `db/seed_admin.sql` (usuarios de prueba del panel):
+   En PowerShell: `Copy-Item .env.example .env`.
+3. **Reemplazar `JWT_SECRET` en el `.env`** por una clave de 32 caracteres o más (el valor de ejemplo es corto a propósito y **el backend no arranca hasta cambiarlo**). Para generarla:
+   ```bash
+   openssl rand -hex 32
+   ```
+   En PowerShell, sin openssl: `-join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })`.
+   El resto de valores del ejemplo sirven tal cual para desarrollo (`MAILER=log` escribe los correos en el log del backend en vez de enviarlos).
+4. Levantar PostgreSQL y Redis. La primera vez, con el volumen vacío, PostgreSQL ejecuta solo `db/schema.sql` (tablas y división política) y `db/seed_admin.sql` (usuarios de prueba del panel):
    ```bash
    docker compose up -d
    ```
-3. Backend (lee el `.env` de la raíz; si ya definiste una variable en tu entorno, esa tiene prioridad):
+5. Backend (lee el `.env` de la raíz; una variable ya definida en tu entorno tiene prioridad):
    ```bash
    cd backend && go run ./cmd/api
    ```
    Comprobar que responde: `curl http://localhost:8080/health` devuelve `{"status":"ok"}`.
-4. Frontend:
+6. Frontend, en otra terminal:
    ```bash
    cd frontend && npm install && npm run dev
    ```
-5. Abrir la aplicación: el frontend en http://localhost:5173 y la API en http://localhost:8080. Desde la pantalla de inicio, "Registrarse" crea una cuenta de postulante (usa las cédulas de prueba de más abajo) y "Acceso del personal del BIESS" lleva al panel de administración.
+7. Abrir http://localhost:5173. "Registrarse" crea una cuenta de postulante (con las cédulas de prueba de más abajo) y "Acceso del personal del BIESS" lleva al panel de administración. La API queda en http://localhost:8080.
+8. Abrir el periodo de postulación: la base arranca con todas las fases cerradas. Entra al panel como `administrador`, ve a **Fases** y, en "1. Postulación", marca "Fase publicada" y "Habilitar el formulario de postulación" (con fechas completas, día y hora, o sin ellas para dejarla abierta sin límite) y guarda. Sin esto, el formulario responde "El periodo de postulación no está habilitado".
+
+Para compilar en lugar de ejecutar en modo desarrollo: `go build -o bin/api ./cmd/api` dentro de `backend/` y `npm run build` dentro de `frontend/` (genera `frontend/dist/`).
 
 Si el puerto 5432 de tu máquina ya está ocupado por otro PostgreSQL, cambia `POSTGRES_PORT` y el puerto de `DATABASE_URL` en tu `.env` (por ejemplo a 5433).
 
@@ -130,6 +175,15 @@ El panel no tiene registro público y tiene su propio acceso, con usuario y cont
 - Backend: `go test ./...` dentro de `backend/`.
 - Frontend: `npm test` dentro de `frontend/`.
 
+## Entregables del examen
+| Entregable | Dónde está |
+| --- | --- |
+| Repositorio Git con historial y ramas | https://github.com/DayronQV/sistema-postulacion-directorio-biess (`main` estable, `develop` de integración, una rama por cambio y PR) |
+| Prerrequisitos, compilación y ejecución local | Este README: "Prerrequisitos" y "Ejecución local" |
+| `docker-compose.yml` | Raíz del repositorio: PostgreSQL 16 y Redis 7 |
+| Variables de entorno de ejemplo | [`.env.example`](.env.example), explicado en "Variables de entorno" |
+| Script `.sql` con DDL y datos semilla de la división política | [`db/schema.sql`](db/schema.sql) |
+
 ## Integración continua
 El workflow `.github/workflows/ci.yml` corre en cada Pull Request y en cada push a `develop` y `main`, con dos trabajos independientes:
 - **Backend** (con PostgreSQL 16 y Redis 7 reales, esquema y semilla cargados, para que las pruebas de integración no se salten): `go vet ./...`, `go build ./...`, `go test -count=1 ./...` y `go test -race -count=1 ./...`.
@@ -142,6 +196,3 @@ cd backend && go vet ./... && go build ./... && go test -count=1 ./... && go tes
 ```bash
 cd frontend && npm ci && npm run lint && npm test && npm run build
 ```
-
-## Integrantes
-Dayron Quiñonez, Jose Ponce, Luis Anchundia, Estalin Jaen, Oscar Gonzabay.
