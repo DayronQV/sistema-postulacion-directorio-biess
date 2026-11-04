@@ -10,10 +10,13 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <!-- display=block y no swap: cada icono es una palabra ("badge", "lock"), y con swap se vería
-         escrita hasta que cargue la fuente. -->
+    <!-- Iconos: cada uno es una palabra ("badge", "lock") que la fuente dibuja. Con display=block
+         no se ve escrita mientras carga, pero el navegador espera solo unos 3 s; por eso se piden
+         solo los iconos que usa el sistema (icon_names, en orden alfabético): la fuente baja de
+         ~4 MB a ~65 KB. Al usar un icono nuevo, agrégalo aquí; src/components/ui/iconos.test.ts
+         avisa si falta. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add,admin_panel_settings,apartment,arrow_back,badge,call,check,check_circle,chevron_left,chevron_right,circle,close,contacts,dashboard,delete,description,download,draw,edit,error,event,expand_more,family_restroom,folder_open,gavel,grading,help,home,how_to_reg,how_to_vote,info,location_on,lock,lock_reset,login,logout,mail,menu,menu_book,monitoring,password,person,person_add,picture_as_pdf,play_arrow,print,quiz,refresh,save,school,search,send,tag,task_alt,timer,tune,undo,upload,upload_file,verified,verified_user,visibility,visibility_off,warning,work,workspace_premium&display=block"
       rel="stylesheet"
     />
     <title>Postulación al Directorio del BIESS</title>
