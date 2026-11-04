@@ -4,6 +4,7 @@ import Alert from '@/components/ui/Alert'
 import { useAvisoDeGuardado } from '@/hooks/useAvisoDeGuardado'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import PanelEditor from '@/components/ui/PanelEditor'
 import TablaFilas from '@/components/ui/TablaFilas'
 import { ApiError } from '@/services/errores'
 import type { ReferenciaPersonal } from '@/services/postulacion'
@@ -160,7 +161,10 @@ export default function Referencias({ valor, onGuardar }: ReferenciasProps) {
       )}
 
       {indice !== undefined && (
-        <div className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low p-4 md:grid-cols-2">
+        <PanelEditor
+          clave={indice}
+          className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low p-4 md:grid-cols-2"
+        >
           {(
             [
               ['nombres_apellidos', 'Nombres y apellidos'],
@@ -194,7 +198,7 @@ export default function Referencias({ valor, onGuardar }: ReferenciasProps) {
               Guardar
             </Button>
           </div>
-        </div>
+        </PanelEditor>
       )}
 
       {errorGuardar && (

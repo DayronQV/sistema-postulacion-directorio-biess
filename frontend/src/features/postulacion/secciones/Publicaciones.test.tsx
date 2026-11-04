@@ -52,6 +52,16 @@ beforeEach(() => {
 })
 
 describe('Publicaciones', () => {
+  it('Agregar lleva la pantalla al formulario y pone el cursor en su primer campo', async () => {
+    const desplazar = vi.fn()
+    Element.prototype.scrollIntoView = desplazar
+    render(<Publicaciones tienePublicaciones={false} valor={[]} onGuardar={vi.fn()} />)
+    await userEvent.click(within(preguntaPrincipal()).getByRole('radio', { name: 'Sí' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar publicación' }))
+    expect(desplazar).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText(/^Título/)).toHaveFocus()
+  })
+
   it('con Sí y sin filas no ofrece Guardar información: hay que agregar una', async () => {
     const onGuardar = vi.fn()
     render(<Publicaciones tienePublicaciones={false} valor={[]} onGuardar={onGuardar} />)
