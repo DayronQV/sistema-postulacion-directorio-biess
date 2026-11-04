@@ -66,6 +66,7 @@ Si no usas Docker, necesitas PostgreSQL 16 y Redis 7 instalados; ver "Script SQL
    cd frontend && npm install && npm run dev
    ```
 5. Abrir la aplicación: el frontend en http://localhost:5173 y la API en http://localhost:8080. Desde la pantalla de inicio, "Registrarse" crea una cuenta de postulante (usa las cédulas de prueba de más abajo) y "Acceso del personal del BIESS" lleva al panel de administración.
+6. Abrir el periodo de postulación: la base arranca con todas las fases cerradas. Entra al panel como `administrador`, ve a **Fases** y, en "1. Postulación", marca "Fase publicada" y "Habilitar el formulario de postulación" (con fechas, o sin ellas para dejarla abierta sin límite) y guarda. Sin esto, el formulario responde "El periodo de postulación no está habilitado".
 
 Si el puerto 5432 de tu máquina ya está ocupado por otro PostgreSQL, cambia `POSTGRES_PORT` y el puerto de `DATABASE_URL` en tu `.env` (por ejemplo a 5433).
 
