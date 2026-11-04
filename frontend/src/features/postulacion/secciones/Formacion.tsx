@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import DateInput from '@/components/ui/DateInput'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import PanelEditor from '@/components/ui/PanelEditor'
 import TablaFilas from '@/components/ui/TablaFilas'
 import { fechaLocalISO } from '@/features/auth/esquemas'
 import { eliminarDocumento, type DocumentoSubido } from '@/services/documentos'
@@ -229,7 +230,10 @@ export default function Formacion({ valor, onGuardar }: FormacionProps) {
       />
 
       {indice !== undefined && (
-        <div className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low p-4 md:grid-cols-2">
+        <PanelEditor
+          clave={indice}
+          className="grid grid-cols-1 gap-4 rounded-xl bg-surface-container-low p-4 md:grid-cols-2"
+        >
           <Campo
             id="formacion-nivel"
             etiqueta="Nivel de instrucción"
@@ -351,7 +355,7 @@ export default function Formacion({ valor, onGuardar }: FormacionProps) {
               Guardar
             </Button>
           </div>
-        </div>
+        </PanelEditor>
       )}
 
       {errorGuardar && (

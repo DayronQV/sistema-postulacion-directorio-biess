@@ -28,6 +28,29 @@ const ana = {
 }
 
 describe('Referencias', () => {
+  it('al pasar de editar una fila a editar otra, vuelve a bajar al formulario', async () => {
+    const desplazar = vi.fn()
+    Element.prototype.scrollIntoView = desplazar
+    const luis = { ...ana, nombres_apellidos: 'Luis Mera' }
+    render(<Referencias valor={[ana, luis]} onGuardar={vi.fn()} />)
+
+    const [editarAna, editarLuis] = screen.getAllByRole('button', { name: 'Editar' })
+    await userEvent.click(editarAna)
+    await userEvent.click(editarLuis)
+
+    expect(desplazar).toHaveBeenCalledTimes(2)
+    expect(screen.getByLabelText(/^Nombres y apellidos/)).toHaveValue('Luis Mera')
+  })
+
+  it('Agregar lleva la pantalla al formulario y pone el cursor en su primer campo', async () => {
+    const desplazar = vi.fn()
+    Element.prototype.scrollIntoView = desplazar
+    render(<Referencias valor={[]} onGuardar={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar referencia' }))
+    expect(desplazar).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText(/^Nombres y apellidos/)).toHaveFocus()
+  })
+
   it('agrega una referencia y la guarda al momento', async () => {
     const guardar = vi.fn()
     render(<Referencias valor={[]} onGuardar={guardar} />)

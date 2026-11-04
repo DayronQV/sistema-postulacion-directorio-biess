@@ -62,6 +62,15 @@ beforeEach(() => {
 })
 
 describe('Capacitacion', () => {
+  it('Agregar lleva la pantalla al formulario y pone el cursor en su primer campo', async () => {
+    const desplazar = vi.fn()
+    Element.prototype.scrollIntoView = desplazar
+    render(<Capacitacion valor={[]} onGuardar={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar capacitación' }))
+    expect(desplazar).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText(/^Tipo de evento/)).toHaveFocus()
+  })
+
   it('agrega y guarda un evento sin exigir PDF', async () => {
     const onGuardar = vi.fn()
     render(<Capacitacion valor={[]} onGuardar={onGuardar} />)
