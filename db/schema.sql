@@ -189,11 +189,11 @@ CREATE TABLE fases (
     CHECK (fecha_inicio IS NULL OR fecha_fin IS NULL OR fecha_fin >= fecha_inicio)
 );
 
--- Fases del concurso. Postulación arranca publicada y con el formulario habilitado, sin
--- fechas, para que el sistema funcione al levantarlo; el administrador fija el periodo real
--- desde el panel (/admin/fases).
+-- Fases del concurso. Las tres arrancan sin publicar y sin fechas: nadie puede postular hasta
+-- que el administrador publique la fase Postulación, habilite el formulario y fije su
+-- periodo desde el panel (/admin/fases).
 INSERT INTO fases (nombre, orden, publicada, habilita_formulario) VALUES
-    ('Postulación', 1, TRUE, TRUE),
+    ('Postulación', 1, FALSE, FALSE),
     ('Méritos', 2, FALSE, FALSE),
     ('Evaluación', 3, FALSE, FALSE);
 

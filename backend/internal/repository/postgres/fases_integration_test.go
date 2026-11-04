@@ -15,7 +15,8 @@ func TestFases_SemillaYActualizacion(t *testing.T) {
 	repo := postgres.NewFasesRepo(pool)
 	ctx := context.Background()
 
-	// db/schema.sql siembra las tres fases; Postulación arranca abierta y sin fechas.
+	// db/schema.sql siembra las tres fases en orden (su estado inicial lo prueba schema_test.go,
+	// sin base de datos: aquí la base puede venir de una versión anterior del script).
 	fases, err := repo.Listar(ctx)
 	if err != nil {
 		t.Fatalf("listando: %v", err)
@@ -33,16 +34,13 @@ func TestFases_SemillaYActualizacion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PorNombre: %v", err)
 	}
-	if !original.FormularioAbierto(time.Now()) {
-		t.Fatalf("la fase Postulación debe arrancar abierta: %+v", original)
-	}
 	t.Cleanup(func() { _ = repo.Actualizar(ctx, original) })
 
 	// Las fechas y las banderas se guardan y se leen igual.
 	inicio := time.Date(2026, 11, 1, 5, 0, 0, 0, time.UTC)
 	fin := inicio.AddDate(0, 0, 15)
 	cambio := original
-	cambio.HabilitaFormulario, cambio.FechaInicio, cambio.FechaFin = false, &inicio, &fin
+	cambio.Publicada, cambio.HabilitaFormulario, cambio.FechaInicio, cambio.FechaFin = true, true, &inicio, &fin
 	if err := repo.Actualizar(ctx, cambio); err != nil {
 		t.Fatalf("actualizando: %v", err)
 	}
@@ -50,7 +48,7 @@ func TestFases_SemillaYActualizacion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Obtener: %v", err)
 	}
-	if leida.HabilitaFormulario || leida.FechaInicio == nil || !leida.FechaInicio.Equal(inicio) ||
+	if !leida.Publicada || !leida.HabilitaFormulario || leida.FechaInicio == nil || !leida.FechaInicio.Equal(inicio) ||
 		leida.FechaFin == nil || !leida.FechaFin.Equal(fin) {
 		t.Fatalf("fase leída = %+v", leida)
 	}
